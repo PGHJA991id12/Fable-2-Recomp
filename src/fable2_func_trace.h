@@ -1,0 +1,397 @@
+// fable2_func_trace.h - guest function-call tracing.
+//
+// How it hooks in: CMakeLists.txt appends this header to the fable_2_recomp
+// target's precompile-header list AFTER the generated pch, so when this
+// header is processed, the generated fable_2_pch.h (which defines
+// REX_FUNC_PROLOGUE()) is already loaded, and the section at the bottom of
+// this file redefines that macro. Rexglue codegen emits REX_FUNC_PROLOGUE()
+// at the top of every recompiled guest function, so every guest function
+// entry then calls Fable2FuncTraceCall(__func__) and its name is logged to
+// fable2_func_trace.log (CWD = exe dir, next to logs/).
+//
+// Consecutive calls of the same function are run-length encoded per thread,
+// so a tight loop reads as one line with a count:
+//
+//   GetNewGameLoadingGlobal
+//   sub_82189708 x 4821
+//   LoadingScreen_Virtual43
+//   sub_82CC1BC0 x 3
+//   ...
+//
+// No generated files are modified, so `rexglue codegen` re-runs never lose
+// the hook.
+//
+// Off by default. Enable with:
+//   FABLE2_FUNC_TRACE=1             before launch (env var)
+//   Fable2FuncTraceSetEnabled(true) at runtime (e.g. from a named-function
+//                                   override in src/, to trace a window)
+// Optional substring filter (only log names containing it):
+//   FABLE2_FUNC_TRACE_FILTER=LoadingScreen    (env var)
+//   Fable2FuncTraceSetFilter("LoadingScreen") (runtime, "" = everything)
+//
+// Deliberately a lightweight dedicated log (same pattern as fps_probe.log),
+// not the SDK spdlog logger: at Fable 2's call rate, per-call spdlog
+// formatting is far too slow and would flood logs/.
+
+#pragma once
+
+#include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <mutex>
+#include <string>
+#include <thread>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+namespace fable2::functrace {
+
+inline std::atomic<bool>& enabled() {
+  static std::atomic<bool> e{[] {
+#ifdef _WIN32
+    char v[8] = {};
+    size_t n = 0;
+    return ::getenv_s(&n, v, sizeof(v), "FABLE2_FUNC_TRACE") == 0 &&
+           v[0] == '1';
+#else
+    const char* v = std::getenv("FABLE2_FUNC_TRACE");
+    return v != nullptr && v[0] == '1';
+#endif
+  }()};
+  return e;
+}
+
+inline std::string& filter() {
+  static std::string f = [] {
+#ifdef _WIN32
+    char v[256] = {};
+    size_t n = 0;
+    if (::getenv_s(&n, v, sizeof(v), "FABLE2_FUNC_TRACE_FILTER") != 0)
+      return std::string();
+    return std::string(v);
+#else
+    const char* v = std::getenv("FABLE2_FUNC_TRACE_FILTER");
+    return std::string(v ? v : "");
+#endif
+  }();
+  return f;
+}
+
+inline void set_enabled(bool on) {
+  enabled().store(on, std::memory_order_relaxed);
+}
+
+// "Subs only" mode (FABLE2_FUNC_TRACE_SUBS_ONLY=1): log just the unnamed
+// guest functions (sub_<hex address>) and drop everything else - named
+// functions, __savegprlr_*/__restgprlr_*/__savevmx_* register helpers,
+// xstart, ... For the naming workflow: it leaves only the functions that
+// still need names. Composes with the substring filter (e.g. FILTER=82B9
+// narrows to one address range).
+inline std::atomic<bool>& subs_only() {
+  static std::atomic<bool> s{[] {
+#ifdef _WIN32
+    char v[8] = {};
+    size_t n = 0;
+    return ::getenv_s(&n, v, sizeof(v), "FABLE2_FUNC_TRACE_SUBS_ONLY") == 0 &&
+           v[0] == '1';
+#else
+    const char* v = std::getenv("FABLE2_FUNC_TRACE_SUBS_ONLY");
+    return v != nullptr && v[0] == '1';
+#endif
+  }()};
+  return s;
+}
+
+inline void set_subs_only(bool on) {
+  subs_only().store(on, std::memory_order_relaxed);
+}
+
+// Matches the codegen naming convention for unnamed guest functions:
+// sub_ followed by one or more hex digits (e.g. sub_82CC1BC0).
+inline bool is_sub_name(const char* name) {
+  if (std::strncmp(name, "sub_", 4) != 0) return false;
+  const char* p = name + 4;
+  if (*p == '\0') return false;
+  for (; *p; ++p) {
+    char c = *p;
+    if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') ||
+          (c >= 'A' && c <= 'F')))
+      return false;
+  }
+  return true;
+}
+
+inline std::mutex& file_lock() {
+  static std::mutex m;
+  return m;
+}
+
+inline std::FILE* file() {
+  static std::FILE* f = [] {
+#ifdef _WIN32
+    std::FILE* out = nullptr;
+    if (::fopen_s(&out, "fable2_func_trace.log", "a") != 0) out = nullptr;
+    return out;
+#else
+    return std::fopen("fable2_func_trace.log", "a");
+#endif
+  }();
+  return f;
+}
+
+// Per-thread tracing state: the in-flight run (same name repeating
+// back-to-back), the pending log lines buffered for disk, and the session
+// call counters (name -> times called) for the summary file.
+struct ThreadState {
+  std::string last;    // name of the in-flight run
+  uint64_t run = 0;    // how many times in a row (0 = no run in flight)
+  std::string buf;     // finished runs, waiting to be written
+  std::mutex m;        // guards counts (the summary sweeper snapshots it)
+  std::unordered_map<std::string, uint64_t> counts;
+  std::atomic<bool> dead{false};
+};
+
+// Global counters for threads that have already exited (their per-thread
+// map is folded in here) + the registry of all ThreadState pointers.
+// ThreadState objects are heap-allocated and deliberately never freed, so
+// registry pointers stay valid for the sweeper even after a thread exits.
+inline std::mutex& registry_lock() {
+  static std::mutex m;
+  return m;
+}
+
+inline std::vector<ThreadState*>& registry() {
+  static std::vector<ThreadState*> v;
+  return v;
+}
+
+inline std::unordered_map<std::string, uint64_t>& global_counts() {
+  static std::unordered_map<std::string, uint64_t> m;
+  return m;
+}
+
+namespace detail {
+struct Unreg {
+  ThreadState* ts;
+  ~Unreg() {
+    // Thread is exiting: fold its counters into the global map so the
+    // summary keeps them, then mark the state dead (it stays registered,
+    // but write_summary() skips dead entries).
+    {
+      std::lock_guard<std::mutex> l(ts->m);
+      auto& g = global_counts();
+      for (auto& kv : ts->counts) g[kv.first] += kv.second;
+      ts->counts.clear();
+    }
+    ts->dead.store(true, std::memory_order_release);
+  }
+};
+}  // namespace detail
+
+inline ThreadState& state() {
+  static thread_local ThreadState* ts = new ThreadState;  // leaked on purpose
+  static thread_local detail::Unreg unreg{ts};
+  return *ts;
+}
+
+// Writes the finished runs buffer to disk.
+inline void flush_buffer(std::string& buf) {
+  if (buf.empty()) return;
+  std::lock_guard<std::mutex> l(file_lock());
+  if (std::FILE* out = file()) std::fwrite(buf.data(), 1, buf.size(), out);
+  buf.clear();
+}
+
+// Finalizes the in-flight run into the buffer: "name\n" for a single call,
+// "name x N\n" for N consecutive calls of the same function.
+inline void append_run(ThreadState& ts) {
+  if (ts.run == 0) return;
+  ts.buf.append(ts.last);
+  if (ts.run > 1) {
+    ts.buf.append(" x ");
+    ts.buf.append(std::to_string(ts.run));
+  }
+  ts.buf.push_back('\n');
+  ts.run = 0;
+}
+
+// ---------------------------------------------------------------------------
+// Session summary (fable2_func_summary.log)
+//
+// Every traced call is also counted per function. A background sweeper
+// thread (started on the first traced call) rewrites the summary every 5 s:
+// one "N x name" line per function, sorted by count (highest first), so the
+// file is a near-live overview of what's being called. The periodic rewrite
+// means the file is at most ~5 s stale even when the game exits through
+// ExitProcess (which skips atexit handlers); an atexit handler writes one
+// final snapshot when the process exits normally.
+// ---------------------------------------------------------------------------
+
+// Merges the global counters + every live thread's counters and writes the
+// summary file. Safe to call from any thread.
+inline void write_summary() {
+  std::unordered_map<std::string, uint64_t> merged;
+  std::vector<ThreadState*> snapshot;
+  {
+    std::lock_guard<std::mutex> rl(registry_lock());
+    snapshot = registry();
+    merged = global_counts();
+  }
+  for (ThreadState* t : snapshot) {
+    if (t->dead.load(std::memory_order_acquire)) continue;  // already folded
+    std::lock_guard<std::mutex> tl(t->m);
+    for (auto& kv : t->counts) merged[kv.first] += kv.second;
+  }
+  if (merged.empty()) return;
+
+  std::vector<std::pair<uint64_t, std::string>> rows;
+  rows.reserve(merged.size());
+  for (auto& kv : merged) rows.emplace_back(kv.second, std::move(kv.first));
+  std::sort(rows.begin(), rows.end(), [](auto& a, auto& b) {
+    if (a.first != b.first) return a.first > b.first;
+    return a.second < b.second;
+  });
+
+  std::string text;
+  for (auto& r : rows) {
+    text.append(std::to_string(r.first));
+    text.append(" x ");
+    text.append(r.second);
+    text.push_back('\n');
+  }
+  std::lock_guard<std::mutex> fl(file_lock());
+#ifdef _WIN32
+  std::FILE* out = nullptr;
+  if (::fopen_s(&out, "fable2_func_summary.log", "w") != 0) return;
+  std::fwrite(text.data(), 1, text.size(), out);
+  std::fclose(out);
+#else
+  if (std::FILE* out = std::fopen("fable2_func_summary.log", "w")) {
+    std::fwrite(text.data(), 1, text.size(), out);
+    std::fclose(out);
+  }
+#endif
+}
+
+inline void sweeper_loop() {
+  for (;;) {
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+    write_summary();
+  }
+}
+
+// Starts the sweeper exactly once (on the first traced call).
+inline void ensure_sweeper() {
+  static std::atomic<bool> started{false};
+  bool expected = false;
+  if (!started.compare_exchange_strong(expected, true)) return;
+  std::thread(sweeper_loop).detach();
+  std::atexit([] { write_summary(); });
+}
+
+// Hot path: one atomic load when disabled. When enabled, the call is counted
+// for the summary, consecutive calls of the same function collapse into one
+// "name x N" line (run-length encoded per thread), and finished runs flush
+// to disk every 8 KB.
+inline void trace(const char* name) {
+  if (!enabled().load(std::memory_order_relaxed)) return;
+  ensure_sweeper();
+  // The function body lives in __imp__<name> (name is a weak alias), so
+  // __func__ carries the __imp__ prefix - strip it for readable logs.
+  if (std::strncmp(name, "__imp__", 7) == 0) name += 7;
+  const std::string& f = filter();
+  if (!f.empty() && std::strstr(name, f.c_str()) == nullptr) return;
+  if (subs_only().load(std::memory_order_relaxed) && !is_sub_name(name))
+    return;
+
+  ThreadState& ts = state();
+  // Session-summary count (per-thread map; the sweeper snapshots it).
+  {
+    std::lock_guard<std::mutex> l(ts.m);
+    auto it = ts.counts.find(name);
+    if (it == ts.counts.end())
+      ts.counts.emplace(name, 1);
+    else
+      ++it->second;
+  }
+  if (ts.run > 0 && ts.last == name) {
+    ts.run++;  // extend the in-flight run; nothing hits the buffer yet
+    return;
+  }
+  append_run(ts);
+  ts.last = name;
+  ts.run = 1;
+  if (ts.buf.size() >= 8192) flush_buffer(ts.buf);
+}
+
+// Finalizes the calling thread's in-flight run and writes everything to disk.
+inline void flush() {
+  ThreadState& ts = state();
+  append_run(ts);
+  flush_buffer(ts.buf);
+}
+
+}  // namespace fable2::functrace
+
+extern "C" {
+
+// Called by the (redefined) REX_FUNC_PROLOGUE() in every recompiled function.
+inline void Fable2FuncTraceCall(const char* name) {
+  fable2::functrace::trace(name);
+}
+
+// Runtime toggle (e.g. enable right before the event you want to trace).
+inline void Fable2FuncTraceSetEnabled(bool on) {
+  fable2::functrace::set_enabled(on);
+}
+
+// Substring filter: only names containing `substr` are logged ("" = all).
+// Not atomic; set it while the game is paused or before enabling tracing.
+inline void Fable2FuncTraceSetFilter(const char* substr) {
+  fable2::functrace::filter() = substr ? substr : "";
+}
+
+// "Subs only" mode: log only sub_<hex> (unnamed guest) functions.
+inline void Fable2FuncTraceSetSubsOnly(bool on) {
+  fable2::functrace::set_subs_only(on);
+}
+
+// Finalize the CALLING thread's in-flight run and write it to disk
+// (the 8 KB auto-flush normally keeps the file fresh; call this right
+// before turning tracing off so the last run isn't lost).
+inline void Fable2FuncTraceFlush() {
+  fable2::functrace::flush();
+}
+
+}  // extern "C"
+
+// ---------------------------------------------------------------------------
+// The hook. REX_CONFIG_H_INCLUDED is defined by the generated fable_2_pch.h;
+// it being set means the pch was loaded BEFORE this header (this header is
+// appended to the target's precompile-header list after the pch), so we can
+// re-define the prologue macro codegen emits at the top of every recompiled
+// function. Mirrors the pch's own variant structure (clang is this project's
+// toolchain).
+// ---------------------------------------------------------------------------
+#if defined(REX_CONFIG_H_INCLUDED) && !defined(FABLE2_FUNC_TRACE_HOOKED)
+#define FABLE2_FUNC_TRACE_HOOKED
+#undef REX_FUNC_PROLOGUE
+#if defined(__clang__)
+#define REX_FUNC_PROLOGUE()                                            \
+  __builtin_assume(((size_t)base & 0x1F) == 0),                        \
+      Fable2FuncTraceCall(__func__)
+#elif defined(__GNUC__)
+#define REX_FUNC_PROLOGUE()                                            \
+  do {                                                                 \
+    if (((size_t)base & 0x1F) != 0) __builtin_unreachable();           \
+    Fable2FuncTraceCall(__func__);                                     \
+  } while (0)
+#else
+#define REX_FUNC_PROLOGUE() Fable2FuncTraceCall(__func__)
+#endif
+#endif
