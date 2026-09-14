@@ -143,6 +143,231 @@ name = "Skill_AimRangeWeapon"
 [entrypoint.functions."0x8274B768"]
 name = "Story_TatterSpireGetMoving"
 
+# Kernel wait wrappers (KeWait* re-implemented over the Nt* syscalls)
+#
+# WARNING on the _Guest suffix: do NOT name these bare "KeWaitForSingleObject"
+# / "KeWaitForMultipleObjects". Codegen emits the body as
+# __imp__<name>, and rexruntimed.dll also exports __imp__KeWaitForSingleObject
+# / __imp__KeWaitForMultipleObjects (the real xboxkrnl XAPI hooks). A local
+# definition silently shadows the DLL import, so the XAPI import thunks
+# (0x832B28AC / 0x832B2CDC, registered in fable_2_register.cpp) would resolve
+# to the guest wrapper instead of the SDK kernel hook. The wrapper expects
+# millisecond timeouts in the LpWakeTime field while XAPI callers pass kernel
+# 100ns LARGE_INTEGERs (0 = infinite there!), which broke all audio/video
+# worker-thread waits. Any future name must not collide with a rexruntimed.dll
+# export (strip the __imp__ prefix and compare; see tools/check_manifest_collisions.py).
+# Fills the NTAPI_WAIT_ENTRY LpWakeTime from a millisecond timeout:
+# -1 (INFINITE) -> 0, otherwise timeoutMs * -10000 (relative, 100ns units).
+# Called constantly (every alertable event/mutex wait funnels through it).
+[entrypoint.functions."0x822D7508"]
+name = "WaitEntrySetLpWakeTime"
+
+# Alertable KeWaitForSingleObject (guest-image-internal): NtWaitForSingleObjectEx(Alertable=1),
+# loops on STATUS_USER_APC (257) while a timeout was given.
+[entrypoint.functions."0x822D74A0"]
+name = "KeWaitForSingleObject_Guest"
+
+# Alertable KeWaitForMultipleObjects (guest-image-internal): count <= 64 (KE_WAIT_VARIABLE limit),
+# NtWaitForMultipleObjectsEx, loops on STATUS_USER_APC (257).
+[entrypoint.functions."0x822D7528"]
+name = "KeWaitForMultipleObjects_Guest"
+
+# SDK mutex family (Xbox 360 mutexes are mutants).
+#
+# Lock side: 2-instruction thunk, r5 = 0 then tail-calls KeWaitForSingleObject_Guest.
+# Timeout 0 -> WaitEntrySetLpWakeTime writes LpWakeTime = 0 (no timer) so the
+# wait is INFINITE, not a zero-wait poll (and -1 also maps to 0, so 0 cannot
+# mean "don't block" or INFINITE would be unexpressible). Blocks until the
+# object is signaled; APCs are not retried (timeout==0), so STATUS_USER_APC
+# (257) can be returned. r4 (wait reason) is ignored by the wrapper; callers
+# still pass -1/0/flags in it. 42 call sites: audio/video/rendering worker
+# threads blocking on per-object handles, SDK alert/exit loops. Paired with
+# MutexUnlock_ReleaseMutant (0x83004F30) at sites such as sub_832B8DA8.
+[entrypoint.functions."0x82196C58"]
+name = "MutexLock_WaitInfinite"
+
+# Unlock side: NtReleaseMutant(handle, NULL). Returns 1 on success; on
+# failure logs the NTSTATUS through sub_82CC1C38 (same error logger as
+# KeWaitForSingleObject_Guest) and returns 0. 22 call sites, the release half of
+# the lock pairs that acquire via MutexLock_WaitInfinite.
+[entrypoint.functions."0x83004F30"]
+name = "MutexUnlock_ReleaseMutant"
+
+# Create side: NtCreateMutant(outHandle, attrs, initialCount). r3 = out
+# handle pointer, r4 = initial owned count, r5 = optional object-attributes
+# pointer (built via sub_82CC1DF0 when non-null). Sanity-checks the returned
+# handle (0x10000 check, error code 183 via sub_82CC0750) and returns it;
+# logs and returns 0 on NtCreateMutant failure.
+[entrypoint.functions."0x83004EA8"]
+name = "MutexCreate_OutHandle"
+
+# Time/clock family.
+#
+# The game's master millisecond clock, cached in a global singleton:
+# returns *( *(0x82000908) + 16 ) — no arguments. 147 call sites in 89 files,
+# almost all of the form "stw r3, N(obj)" storing it into per-object timestamp fields
+# (lastUpdate/startTime/nextFire); a few compare against an adjacent
+# previous-time field (32-bit wrap handling) or double-sample it (before/
+# after bracketing, e.g. sub_8237E3E0 stores two reads 4 bytes apart).
+# Millisecond scale proven by callers: rate limiters compute
+# consumption = rate * (now - last) / 1000 (sub_82FFA508), poll loops use
+# deadline = saved + 100 (sub_82388658), and the 2^30 jump guard in
+# GetElapsedMsSinceStart below only makes sense in ms (~12.4 days).
+[entrypoint.functions."0x82266070"]
+name = "GetCurrentTimeMs"
+
+# Elapsed milliseconds since first call, reset/wrap-guarded.
+# X = GetCurrentTimeMs(); base A = global 0x81FFBDFC (captured from X on the
+# first call, when A == 0); delta = X - A. Cached last delta B = global
+# 0x81FFBE00: if (delta - B) > 0xC0000000 unsigned the update is skipped and
+# B is returned instead (X wrapped or reset). 24 call sites, all in the
+# 0x832B end-of-.text region, all passing the result into tick/update
+# methods (e.g. sub_832B5530 -> sub_832B50C0(obj, now)).
+[entrypoint.functions."0x832B9398"]
+name = "GetElapsedMsSinceStart"
+
+# Gap-region leaf with NO callers in the current code (registered by the
+# gap walk over 0x832B3D6C-0x832B3DE0; the original branch source was
+# re-segmented away, so it is unreachable/dead in this build). Mechanism:
+# v = *(r3 - 4); if (v == r4) return 0; else return ~v
+# (0xFFFFFFFF - v). Looks like a tag/checksum verifier over a 32-bit word
+# stored immediately before a buffer, returning 0 on match and a
+# non-zero token encoding the actual value on mismatch. Purpose not
+# recoverable without the lost caller; name describes the mechanism only.
+[entrypoint.functions."0x832B3D78"]
+name = "CheckPrefixedWord_ReturnZeroOrComplement_832B3D78"
+
+# SDK runtime memcpy: memcpy(dest=r3, src=r4, len=r5), returns dest
+# (saved at -8(r1) on entry). ~290 insns: byte-wise dest alignment, 4/8-byte
+# misaligned paths, 64-byte unrolled main loop, 128-byte dcbt prefetch for
+# len >= 128, dcbtst writeback hints on the tail. 1310 call sites — the
+# image's dominant copy primitive (game + SDK code). Named MemCpy_SdkRuntime
+# (not bare "memcpy") to keep the guest symbol distinct from host libc in
+# traces and to avoid any global-namespace ambiguity.
+[entrypoint.functions."0x82CA2C60"]
+name = "MemCpy_SdkRuntime_82CA2C60"
+
+# KeWaitForMultipleObjects_Guest variant with the APC-retry flag (r7) forced to 0:
+# 2-insn thunk "li r7,0; b KeWaitForMultipleObjects_Guest". With r7==0 the wrapper
+# does NOT retry on STATUS_USER_APC (257 is returned to the caller) and
+# passes Restart=0 to NtWaitForMultipleObjectsEx. 4 call sites: batch
+# WaitAll locking of N mutex handles (sub_832B8C28 with a 1ms timeout,
+# sub_832B8B80 with 2 handles + variable timeout) and single-object waits
+# (sub_822BA4F0 infinite, sub_8262DDD0 variable). Note: the wrapper's
+# timeout is r6 (fed to WaitEntrySetLpWakeTime), r5 is the mode
+# (0=WaitAll, nonzero=WaitAny).
+[entrypoint.functions."0x82179FB0"]
+name = "KeWaitForMultipleObjects_NoApcRetry"
+
+# Locked per-entry processing loop over a 388-byte-entry array. Args: obj
+# (r3). Guards: tail word *(obj->280 + obj->276*388 - 40) != 0 and
+# obj->692 != 0. Locks the mutex at (obj+852)->+4 via
+# MutexLock_WaitInfinite (bails without processing if the lock cannot be
+# taken). Loops i over obj->276 entries (array at obj->280, stride 388):
+# vcall entry->348 (skip entry if it returns 0), range checks over entry
+# fields 0/8/12/16/24/48/52/68, vcall entry->352 (fetch buffer info into
+# stack slots r1+80/84), then a byte transform that toggles each byte's
+# high bit (b+128 == b XOR 0x80, i.e. 8-bit signed<->unsigned conversion)
+# between the entry buffer and the obj->12 buffer with MemCpy_SdkRuntime
+# moves and entry->24 offset bookkeeping, then vcall entry->356 and
+# entry->348 again. Unlocks via MutexUnlock_ReleaseMutant. 7 call sites,
+# all sibling methods in the same 0x832B end-of-.text family, each gating
+# the call on a different non-zero object field. The XOR-0x80 byte churn is
+# the signature of 8-bit sample conversion — plausibly an audio voice/sound
+# pipeline, but the vtable contents are unresolved so the name stays
+# mechanism-based.
+[entrypoint.functions."0x832B3700"]
+name = "CriticalSection_ProcessEntryArray_832B3700"
+
+# Vtable method of the 0x832B family (NO static call sites — reached only
+# through virtual dispatch). Args: r3 = the sub-object at base+852, r4 = a
+# 32-bit value. base = r3 - 852. If base->276 (the entry count) is non-zero
+# it runs CriticalSection_ProcessEntryArray_832B3700(base), then unconditionally
+# stores r4 into base->848 (a result/status word — no in-family reader found,
+# so it is likely consumed by the same family's other vtable methods or
+# exported state). ~15 insns.
+[entrypoint.functions."0x832B3D90"]
+name = "EntryArray_ProcessAndStoreResult_832B3D90"
+
+# Time-gated tick of a ring-buffer object (vtable method, NO static call
+# sites — invoked through virtual dispatch). Args: obj (r3). Guards:
+# obj->212 == 0, obj->56 != 0, obj->208 != 0. Layout: obj->188 = capacity,
+# obj->216 = write cursor, obj->228 = read cursor, obj->192 = watermark W,
+# obj->184 = buffer pointer P, obj->244 = fill byte, obj->236 = last tick
+# time, obj->240 = tick rate limit (ms), obj->92 = consumer sub-object S.
+# Flow: now = GetElapsedMsSinceStart(); if (now - obj->236 > 12) skip the
+# space check (starvation override). free = (write - read) mod capacity
+# (standard formula, both branches verified). If free >= 1024 the candidate
+# length is (free - 1024) & ~3 (keeps a 1024-byte reserve, 4-aligned), else
+# 0. Watermark gates vs obj->192/obj->232 (flag obj->220 bypasses). When it
+# passes: obj->84 = 1, then MemSet (sub_82CA3190) fills 2*W bytes at
+# P + write with byte obj->244 (two chunks if it wraps capacity), and the
+# write cursor advances 2*W mod capacity. Then a probe loop calls
+# sub_82CD2DF8(S, &out) (three probes, looping while the out-difference is
+# >= 1024) and stores the final probe result into the READ cursor (obj->228)
+# plus now into obj->236; if (now - old236 >= obj->240) it re-enters the
+# fill step, else re-checks free space. Returns 1 (acted) or 0 (skipped).
+# Hypothesis: 8-bit audio silence padding (fill byte would be 0x80 = signed
+# silence; the sibling family does XOR-0x80 sample conversion and the 12 ms
+# / 1024-byte constants fit sample streaming) — but the fill byte and the
+# consumer probe are runtime values, so the name stays mechanism-based.
+[entrypoint.functions."0x832B68A0"]
+name = "RingBuffer_TickPadWithFillByte_832B68A0"
+
+# Priority-ordered multi-mutex arbitration loop. Args: manager M (r3).
+# Layout: M->0 = state (must be 1 to accept requests), M->24 = pending-list
+# head, M->28 = monotonically increasing generation counter (incremented
+# once per entry). Node layout (16-byte stride vtable at node->0..20, next
+# at node->8): node->4 = mutex handle, node->12 = priority, node->16 =
+# "prepare" vtable slot, node->20 = "granted" vtable slot. Loop: while
+# M->0 == 1 and the pending list is non-empty, drain every pending node
+# (linked through node->0): priority = vcall node->16(node, M->28);
+# node->12 = priority; priority 0 = skip; otherwise insert the node into an
+# acquired list sorted by DESCENDING priority (higher priority toward the
+# head, linked through node->8). After each drain pass, build stack arrays
+# (cap 64): handles[i] = node->4, objs[i] = node, then
+# ret = KeWaitForMultipleObjects_NoApcRetry(count, handles, mode=0
+# (WaitAll), timeout=1ms). If ret >= count (timeout/APC) the loop drains
+# again; on success (ret = 0) it runs the "granted" callback vcall
+# objs[ret]->20(objs[ret]) and immediately MutexUnlock_ReleaseMutant
+# (handles[ret]) — the highest-priority requester is notified and its gate
+# released, while the remaining acquired mutexes stay held (released by
+# sibling family methods). Sole caller: sub_832B8DA8, a sibling method that
+# first locks M->8 and M->20 (MutexLock_WaitInfinite) and gates the call on
+# M->24 != 0, i.e. the pending head — confirming the layout.
+[entrypoint.functions."0x832B8C28"]
+name = "PriorityArbitrate_PendingMutexRequests_832B8C28"
+
+# CS-guarded virtual-call wrapper, one of ~11 uniform siblings in the
+# 0x82CD2Cxx-0x82CD2Fxx block. Pattern (verified across the cluster):
+# RtlEnterCriticalSection(global CS at 0x82CD0324); target = arg1->76
+# (a C++ object, vptr at +0); call vtable[+60/4 = slot 15] with
+# (this=target, out=arg2); RtlLeaveCriticalSection; return the result.
+# The sibling slots are 28/56/60/64/72/80/92/96 (plus two that forward to
+# helpers sub_82CDC180/sub_82CDCFE8) — i.e. a synchronized proxy class in
+# the SDK runtime around one core object, all methods sharing the single
+# global CS. 2 call sites: RingBuffer_TickPadWithFillByte_832B68A0 (polled
+# 3x, looping while successive out-values differ by >= 1024 — a consumer
+# progress query) and sub_832B6A98 (called after sibling slots 72/64 and a
+# helper, in a fetch-and-advance sequence). The vtable contents are
+# unresolved, so the name stays mechanism-based (slot offset in bytes).
+[entrypoint.functions."0x82CD2DF8"]
+name = "CsGuardedVcall_Slot60_82CD2DF8"
+
+# 5-insn leaf: *r4 = (uint16_t)obj->108 * obj->120; returns 0.
+# Field roles pinned down by the inverse operation sub_82CE37C0, which
+# (spin-lock protected: KeRaiseIrqlToDpcLevel + KeAcquireSpinLockAtRaisedIrql
+# on global 0x82CA7060, with a twllei div-by-zero trap guard) computes
+# obj->120 = (*total) / obj->108 and sets obj->272 = 1 — so obj->108 is a
+# unit/divisor and obj->120 the total/unit count; this function is the
+# count -> total direction (unit * count, classic frameSize*frameCount /
+# sampleSize*sampleCount byte-length math). Several siblings in the 0x82CE
+# region write these fields (sub_82CE3BE0/sub_82CE3400/sub_82CE24B0/
+# sub_82CE0C20 store the u16; sub_82CE3CF0/sub_82CE1588 update the u32).
+# ZERO static call sites — vtable method of that object family.
+[entrypoint.functions."0x82CE32B0"]
+name = "StoreUnitTimesCount_82CE32B0"
+
 # Existing Functions
 [entrypoint.functions."0x8222B3C8"]
 name = "SwitchDispatch_8222B3C8"

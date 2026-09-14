@@ -153,6 +153,84 @@ without the env var.
 Full investigation record (what was ruled out, the counter chain, the decisive
 experiments): `docs/FPS_CAP_INVESTIGATION.md`.
 
+## Guest function-call tracing (fable2_func_trace.log)
+
+To figure out what each recompiled function does, every guest function entry
+can be logged by name. Codegen emits `REX_FUNC_PROLOGUE()` at the top of
+every function in `generated/default/fable_2_recomp.*.cpp`; the build hooks
+that one macro (via `src/fable2_func_trace.h`, appended to the recompiled
+PCH after the generated pch — no generated files are modified) so each entry
+logs its name to `fable2_func_trace.log` next to the exe. Consecutive calls
+of the same function are run-length encoded (per thread) to keep the file
+small:
+
+```
+GetNewGameLoadingGlobal
+sub_82189708 x 4821
+LoadingScreen_Virtual43
+sub_82CC1BC0 x 3
+...
+```
+
+(`x N` means that function was called N times in a row; a bare name is a run
+of one.)
+
+**Session summary:** call counts are accumulated separately and written to
+`fable2_func_summary.log` (same folder), one line per function, sorted by
+total count:
+
+```
+18422331 x sub_82B9CD68
+9711204 x __restgprlr_28
+54 x Story_FirstChildCombat
+```
+
+It's refreshed every 5 s while tracing (and once more on clean exit), so you
+can watch it in another window to see at a glance what's being called; the
+last write is at most ~5 s stale even if the game exits via ExitProcess.
+Counts respect the same on/off + filter as the text log.
+
+Off by default (one atomic load per call when off). Enable with:
+
+```
+set FABLE2_FUNC_TRACE=1            rem every guest function entry
+set FABLE2_FUNC_TRACE_FILTER=LoadingScreen   rem optional: only names containing this
+```
+
+or at runtime from a named-function override (see `src/fps_probe.h` for the
+override pattern): `Fable2FuncTraceSetEnabled(true)` /
+`Fable2FuncTraceSetFilter("LoadingScreen")` /
+`Fable2FuncTraceSetSubsOnly(true)` / `Fable2FuncTraceFlush()` (declared
+`extern "C"` in `src/fable2_func_trace.h`).
+
+**Naming mode** (`FABLE2_FUNC_TRACE_SUBS_ONLY=1`): log only the unnamed
+guest functions - names matching `sub_` + hex digits - dropping named
+functions, the `__savegprlr_*`/`__restgprlr_*`/`__savevmx_*` register
+helpers, and `xstart`. Both the text log and the summary honor it, so the
+summary becomes a ranked list of the unnamed hot functions to name next.
+Composes with the substring filter (`FABLE2_FUNC_TRACE_FILTER=82B9` narrows
+to an address range).
+
+**Launcher:** `fable2-functrace.cmd` (staged next to the exe) does the env
+var dance for you and renames the previous session's log to
+`fable2_func_trace_prev.log` first:
+
+Arguments are keywords in any order (`subs` enables naming mode, the
+backend word picks the GPU path, anything else is the substring filter):
+
+```
+fable2-functrace.cmd                  D3D12, trace every call
+fable2-functrace.cmd vulkan           Vulkan, trace every call
+fable2-functrace.cmd subs             naming mode: only sub_<hex> functions
+fable2-functrace.cmd subs LoadingScreen   naming mode + substring filter
+fable2-functrace.cmd d3d12 82B9 subs  D3D12, address-range naming mode
+```
+
+It writes its own lightweight log (same pattern as `fps_probe.log`) rather
+than the SDK spdlog logger, which would be far too slow at Fable 2's call
+rate. To remove the feature: delete the `target_precompile_headers` block in
+CMakeLists.txt + `src/fable2_func_trace.h` and rebuild.
+
 ## Keyboard controls
 
 The game normally reads a gamepad via the Xbox 360 `XamInputGetState` API. A
@@ -343,3 +421,23 @@ Migrated from the XenonRecomp config (`XenonRecomp/fable2.toml`):
 - `setjmp_address = 0x83000200`, `longjmp_address = 0x82CA9260`, and two `[[invalid_instructions]]` data-table skips, carried over verbatim.
 - The XenonRecomp register save/restore helper addresses (`restgprlr_14` etc.) have no ReXGlue equivalent and are preserved only as comments.
 - Known runtime risk: codegen logs a handful of non-fatal "Unresolved conditional branch" warnings (e.g. `0x82C8D408`, `0x82C99E74`, `0x82C9A0BC`); those paths emit `REX_FATAL` if hit.
+
+## Function naming rule (important)
+
+A manifest `name` becomes a C symbol: codegen emits the function body as
+`__imp__<name>` (extern "C"). A name must therefore NOT equal an XAPI export
+of `rexruntimed.dll` (the DLL exports `__imp__<XAPI name>` for every
+xboxkrnl/xam hook). If it does, the local definition silently shadows the
+DLL import at link time (no linker error), and the generated import-thunk
+registration (`fable_2_register.cpp`) routes XAPI calls into the guest
+function body instead of the SDK kernel hook. That is what broke audio when
+the game-internal KeWait re-implementations were named
+`KeWaitForSingleObject` / `KeWaitForMultipleObjects`: the xboxkrnl import
+thunks (0x832B28AC / 0x832B2CDC) started landing in the guest wrappers,
+whose timeout field is milliseconds while kernel callers pass 100ns units
+(0 = infinite). They are named `..._Guest` for this reason — keep it that
+way. Check before committing name changes:
+
+```
+python tools/check_manifest_collisions.py
+```

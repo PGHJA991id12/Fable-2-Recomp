@@ -26,6 +26,25 @@ endif()
 # for Release). Without it the game runs with no GPU emulation.
 rexglue_setup_target(fable_2 GPU_PLUGINS xenos)
 
+# --- Guest function-call tracing (fable2_func_trace.log) -------------------
+# Rexglue codegen emits REX_FUNC_PROLOGUE() at the top of every recompiled
+# guest function. Force-include src/fable2_func_trace.h into fable_2_recomp:
+# CMake orders a target's -include after its PCH include, so the header sees
+# the generated pch already loaded and redefines REX_FUNC_PROLOGUE() to also
+# call Fable2FuncTraceCall(__func__) - every guest function entry then logs
+# its name (see the header). No generated files are modified, so codegen
+# re-runs never lose the hook. Off by default; enable with
+# FABLE2_FUNC_TRACE=1 (env) or Fable2FuncTraceSetEnabled(true) (runtime).
+# Appended AFTER fable_2_pch.h in the target's precompile-header list: CMake
+# writes the list into cmake_pch.hxx in order, so the hook section at the
+# bottom of fable2_func_trace.h (which redefines REX_FUNC_PROLOGUE) runs with
+# the generated pch already loaded, and the patched macro is baked into the
+# PCH used by every recompiled TU.
+if(TARGET fable_2_recomp)
+    target_precompile_headers(fable_2_recomp PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fable2_func_trace.h)
+endif()
+
 # NOTE: the build does NOT copy the game content (default.xex, data/, ...) into
 # the build directory. fable_2.exe looks for its content in its own directory
 # only; to run in place, stage it manually (one-time ~6.5 GB copy):
@@ -33,13 +52,17 @@ rexglue_setup_target(fable_2 GPU_PLUGINS xenos)
 # or point the exe at an existing content tree with --game_data_root=<path>.
 # saves/, cache/, logs/, and fable_2.toml are always written next to the exe.
 
-# Stage a copy of the README next to the exe so anyone who gets the build
-# folder (without the repo) knows how to run the game.
+# Stage a copy of the README + the function-tracing launcher next to the exe
+# so anyone who gets the build folder (without the repo) knows how to run
+# the game and how to capture guest function-call logs.
 add_custom_command(TARGET fable_2 POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_if_different
           ${CMAKE_CURRENT_SOURCE_DIR}/README.md
           $<TARGET_FILE_DIR:fable_2>/README.md
-  COMMENT "Staging README.md next to fable_2.exe"
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          ${CMAKE_CURRENT_SOURCE_DIR}/tools/fable2-functrace.cmd
+          $<TARGET_FILE_DIR:fable_2>/fable2-functrace.cmd
+  COMMENT "Staging README.md + fable2-functrace.cmd next to fable_2.exe"
 )
 
 # --- PDB for the Release build (crash debugging) --------------------------

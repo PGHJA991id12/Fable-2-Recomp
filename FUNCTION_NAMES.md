@@ -2,7 +2,7 @@
 
 Every `[entrypoint.functions]` entry in `fable_2_manifest.toml` now carries a `name` field. This document explains each one: what it does, its name, and how it is triggered.
 
-**Total functions named: 398** (no entrypoint was removed).
+**Total functions named: 415** (no entrypoint was removed).
 
 ## How these were determined
 
@@ -325,9 +325,9 @@ _The custom heap allocator / free / manager. Identified by NtAllocateVirtualMemo
 
 ## C. Synchronization, Threads & Kernel
 
-_Critical-section and thread primitives and kernel bug-check paths (RtlEnter/Leave/InitializeCriticalSection, ExTerminateThread, KeBugCheck)._
+_Critical-section and thread primitives and kernel bug-check paths (RtlEnter/Leave/InitializeCriticalSection, ExTerminateThread, KeBugCheck), plus the 0x832B end-of-.text object family._
 
-**14 functions.**
+**26 functions.**
 
 ### `BugCheck_82CA9660`
 
@@ -519,6 +519,166 @@ _Critical-section and thread primitives and kernel bug-check paths (RtlEnter/Lea
 
 - **Calls:** `sub_82CBBED0`
 
+### `WaitEntrySetLpWakeTime`
+
+- **Address:** `0x822D7508` · **Size:** 10 insns · **Category:** body · **Region:** game · **Confidence:** high
+
+- **Role:** fills the `NTAPI_WAIT_ENTRY.LpWakeTime` from a millisecond timeout
+
+- **Does:** `*r3 = (r4 == -1) ? 0 : (uint32)r4 * -10000`. Converts a millisecond timeout into 100ns units: -1 (INFINITE) maps to 0 (no wake time); any other value becomes a *negative* LpWakeTime meaning "wake this many 100ns units from now" (1 ms = 10,000 x 100ns). This is the exact LpWakeTime fill logic the Windows kernel uses for `NtWaitForSingleObjectEx`/`NtWaitForMultipleObjectsEx` wait entries. Called constantly: every alertable event/mutex/semaphore wait funnels through it, so it tops function-trace logs during load-in.
+
+- **Trigger:** Everywhere - internal wait infrastructure.
+
+- **Callers:** `KeWaitForSingleObject_Guest` (0x822D74A0), `KeWaitForMultipleObjects_Guest` (0x822D7528)
+
+### `KeWaitForSingleObject_Guest`
+
+- **Address:** `0x822D74A0` · **Size:** 33 insns · **Category:** body · **Region:** game · **Confidence:** high
+
+- **Role:** alertable KeWaitForSingleObject-style wrapper over `NtWaitForSingleObjectEx` (guest-image-internal; NOT the xboxkrnl XAPI import — see the collision warning in `fable_2_manifest.toml`)
+
+- **Does:** args: handle (r3), timeout ms (r5, -1 = INFINITE). Builds a stack wait entry at r1+80 via `WaitEntrySetLpWakeTime`, then calls `__imp__NtWaitForSingleObjectEx` (0x832B22AC) with Alertable=1 and the entry pointer; loops while the return is STATUS_USER_APC (257) and a timeout was given. On error calls sub_82CC1C38 and returns -1.
+
+- **Trigger:** Everywhere - internal wait infrastructure.
+
+- **Imports:** `__imp__NtWaitForSingleObjectEx`
+
+- **Calls:** `WaitEntrySetLpWakeTime`, `sub_82CC1C38`
+
+### `KeWaitForMultipleObjects_Guest`
+
+- **Address:** `0x822D7528` · **Size:** ~100 insns · **Category:** body · **Region:** game · **Confidence:** high
+
+- **Role:** alertable KeWaitForMultipleObjects-style wrapper over `NtWaitForMultipleObjectsEx` (guest-image-internal; NOT the xboxkrnl XAPI import — see the collision warning in `fable_2_manifest.toml`)
+
+- **Does:** args: object count (r3), object-handle array (r4), mode (r5: 0 = WaitAll, nonzero = WaitAny), timeout ms (r6, -1 = INFINITE), APC-retry/Restart flag (r7: 0 = no retry on STATUS_USER_APC and Restart=0, nonzero = retry on 257 and Restart = low byte). Rejects count > 64 (KE_WAIT_VARIABLE limit) via sub_82CC1C18, copies the handle array to the stack at r1+96 via `MemCpy_SdkRuntime_82CA2C60`, fills LpWakeTime via `WaitEntrySetLpWakeTime` (from r6), then calls `__imp__NtWaitForMultipleObjectsEx` (0x832B22BC) with Alertable=1; loops while the return is STATUS_USER_APC (257) and r7 != 0. On error calls sub_82CC1C18 and returns -1. (The original notes here mislabeled r5 as the timeout — re-verified against the register flow and the four live call sites of the thunk below.)
+
+- **Trigger:** Everywhere - internal wait infrastructure.
+
+- **Imports:** `__imp__NtWaitForMultipleObjectsEx`
+
+- **Calls:** `WaitEntrySetLpWakeTime`, `MemCpy_SdkRuntime_82CA2C60`, `sub_82CC1C18`
+
+### `KeWaitForMultipleObjects_NoApcRetry`
+
+- **Address:** `0x82179FB0` · **Size:** 2 insns · **Category:** thunk · **Region:** game · **Confidence:** **high**
+
+- **Role:** KeWaitForMultipleObjects_Guest with the APC-retry flag (r7) forced to 0 — an APC interrupts the wait instead of being absorbed
+
+- **Does:** 2-instruction thunk: `li r7,0` then tail-calls `KeWaitForMultipleObjects_Guest`. With r7==0 the wrapper returns STATUS_USER_APC (257) straight to the caller on an APC (no retry) and passes Restart=0 to the NT call. The only caller-facing difference from calling the wrapper directly.
+
+- **Trigger:** Internal — 4 call sites: batch WaitAll locking of N mutex handles (sub_832B8C28 with a 1 ms timeout; sub_832B8B80 with 2 handles and a variable timeout) and single-object waits (sub_822BA4F0 infinite, sub_8262DDD0 variable timeout).
+
+- **Calls:** `KeWaitForMultipleObjects_Guest`
+
+### `MutexLock_WaitInfinite`
+
+- **Address:** `0x82196C58` · **Size:** 2 insns · **Category:** thunk · **Region:** game · **Confidence:** high
+
+- **Role:** the game's mutex-lock primitive — infinite blocking wait on a single kernel object (a 360 mutex is a mutant)
+
+- **Does:** 2-instruction thunk: `li r5,0` (timeout 0) then tail-calls `KeWaitForSingleObject_Guest`. Timeout 0 → `WaitEntrySetLpWakeTime` writes LpWakeTime = 0 (no timer), so the wait is **infinite**, not a zero-wait poll (and -1 also maps to 0, so 0 cannot mean "don't block"). Blocks until the object is signaled; because timeout==0, APCs are not retried, so STATUS_USER_APC (257) can be returned to the caller. r4 (wait reason) is ignored by the wrapper; callers still pass -1/0/flags there. On success returns 0.
+
+- **Trigger:** Internal — 42 call sites: audio/video/rendering worker threads blocking on per-object handles (e.g. r30+364, r31+20), SDK alert/exit loops. The lock half of pairs released via `MutexUnlock_ReleaseMutant` (0x83004F30), e.g. sub_832B8DA8.
+
+- **Calls:** `KeWaitForSingleObject_Guest`
+
+### `MutexUnlock_ReleaseMutant`
+
+- **Address:** `0x83004F30` · **Size:** ~20 insns · **Category:** wrapper · **Region:** SDK · **Confidence:** high
+
+- **Role:** the game's mutex-unlock primitive — `NtReleaseMutant` with bool result
+
+- **Does:** args: mutant handle (r3). Calls `__imp__NtReleaseMutant` (0x832B31CC) with r4=0 (no previous-count out). If the NTSTATUS is >= 0 returns 1; otherwise logs the status via sub_82CC1C38 (the same error logger `KeWaitForSingleObject_Guest` uses) and returns 0.
+
+- **Trigger:** Internal — 22 call sites, the release half of lock pairs acquired via `MutexLock_WaitInfinite` (handles often loaded from object offset +20).
+
+- **Imports:** `__imp__NtReleaseMutant`
+
+- **Calls:** `sub_82CC1C38`
+
+### `MutexCreate_OutHandle`
+
+- **Address:** `0x83004EA8` · **Size:** ~45 insns · **Category:** wrapper · **Region:** SDK · **Confidence:** high
+
+- **Role:** the game's mutex-create primitive — `NtCreateMutant` writing the handle to an out pointer
+
+- **Does:** args: r3 = out handle pointer, r4 = initial owned count, r5 = optional object-attributes pointer. When r5 != 0 it builds attributes via sub_82CC1DF0 (stack at r1+88/96), else passes NULL attrs. Calls `__imp__NtCreateMutant` (0x832B31BC) with the low byte of the initial count. On success sanity-checks the returned handle (a 0x10000 comparison feeds error code 183 through sub_82CC0750) and returns the handle; on failure logs via sub_82CC1C38 and returns 0.
+
+- **Trigger:** Internal — SDK runtime mutex construction.
+
+- **Imports:** `__imp__NtCreateMutant`
+
+- **Calls:** `sub_82CC1DF0`, `sub_82CC0750`, `sub_82CC1C38`
+
+### `CriticalSection_ProcessEntryArray_832B3700`
+
+- **Address:** `0x832B3700` · **Size:** ~190 insns · **Category:** body · **Region:** game (end-of-.text) · **Confidence:** medium (mechanism certain, object identity unconfirmed)
+
+- **Role:** locked per-entry processing loop over a 388-byte-entry array — the core routine of one object family
+
+- **Does:** args: obj (r3). Guards: tail word `*(obj->280 + obj->276*388 - 40) != 0` and `obj->692 != 0` (else no-op). Locks the mutex at `(obj+852)->+4` via `MutexLock_WaitInfinite`; if the lock fails it returns without processing. Loops i over `obj->276` entries (array at obj->280, stride 388): vcall `entry->348` (entry skipped if it returns 0), range checks over entry fields 0/8/12/16/24/48/52/68, vcall `entry->352` (fetches buffer info into stack slots r1+80/84), then a byte transform that toggles each byte's high bit (`b+128` == `b XOR 0x80` — 8-bit signed<->unsigned conversion) between the entry buffer and the obj->12 buffer, with `MemCpy_SdkRuntime_82CA2C60` moves and entry->24 offset bookkeeping, then vcall `entry->356` and `entry->348` again. Unlocks via `MutexUnlock_ReleaseMutant`.
+
+- **Trigger:** Internal — 7 call sites, all sibling methods in the same 0x832B end-of-.text family; each gates the call on a different non-zero object field (e.g. `EntryArray_ProcessAndStoreResult_832B3D90` on the entry count at `base->276`).
+
+- **Calls:** `MutexLock_WaitInfinite`, `MutexUnlock_ReleaseMutant`, `MemCpy_SdkRuntime_82CA2C60`, plus virtual calls at entry offsets 348/352/356.
+
+- **Note:** the XOR-0x80 byte churn is the signature of 8-bit sample conversion — plausibly an audio voice/sound pipeline — but the vtable contents are unresolved, so the name stays mechanism-based.
+
+### `EntryArray_ProcessAndStoreResult_832B3D90`
+
+- **Address:** `0x832B3D90` · **Size:** ~15 insns · **Category:** body (vtable method) · **Region:** game (end-of-.text) · **Confidence:** high (mechanism), low (purpose)
+
+- **Role:** the entry-array method of the 0x832B family — runs the processing loop, then records a result word
+
+- **Does:** args: r3 = the sub-object at `base+852`, r4 = a 32-bit value. `base = r3 - 852`. If `base->276` (the entry count) is non-zero it calls `CriticalSection_ProcessEntryArray_832B3700(base)`, then unconditionally stores r4 into `base->848`. No in-family reader of +848 was found, so it is likely status/result state consumed elsewhere in the family.
+
+- **Trigger:** Virtual dispatch only — **zero static call sites** (registered, but reached through the family vtable).
+
+- **Calls:** `CriticalSection_ProcessEntryArray_832B3700`
+
+### `RingBuffer_TickPadWithFillByte_832B68A0`
+
+- **Address:** `0x832B68A0` · **Size:** ~450 insns · **Category:** body (vtable method) · **Region:** game (end-of-.text) · **Confidence:** high (mechanism), low (object identity)
+
+- **Role:** time-gated tick of a ring-buffer object — pads free space with a constant fill byte and re-syncs the read cursor from a consumer probe
+
+- **Does:** args: obj (r3). Guards: `obj->212 == 0`, `obj->56 != 0`, `obj->208 != 0`. Layout: `obj->188` = capacity, `obj->216` = write cursor, `obj->228` = read cursor, `obj->192` = watermark W, `obj->184` = buffer pointer P, `obj->244` = fill byte, `obj->236` = last tick time, `obj->240` = tick rate limit (ms), `obj->92` = consumer sub-object S. `now = GetElapsedMsSinceStart()`; if `now - obj->236 > 12` the space check is skipped (starvation override). `free = (write - read) mod capacity` — the standard formula, verified in both branches. If `free >= 1024` the candidate length is `(free - 1024) & ~3` (a 1024-byte reserve is kept, 4-aligned), else 0. Watermark gates vs `obj->192`/`obj->232` (flag `obj->220` bypasses). When it passes: `obj->84 = 1`, then `MemSet` (sub_82CA3190) fills `2*W` bytes at `P + write` with byte `obj->244` (two chunks if it wraps), and the write cursor advances `2*W mod capacity`. Then a probe loop calls `sub_82CD2DF8(S, &out)` (three probes, looping while the out-difference is ≥ 1024) and stores the final result into the **read cursor** (`obj->228`) plus `now` into `obj->236`; if `now - old >= obj->240` it re-enters the fill step, else re-checks free space. Returns 1 (acted) or 0 (skipped).
+
+- **Trigger:** Virtual dispatch only — **zero static call sites**.
+
+- **Calls:** `GetElapsedMsSinceStart`, `MemSet` (sub_82CA3190 — the SDK memset, `memset(r3, r4, r5)`), `CsGuardedVcall_Slot60_82CD2DF8` (consumer probe)
+
+- **Note:** strong audio hypothesis — with 8-bit samples a fill byte of 0x80 is signed silence, the sibling `CriticalSection_ProcessEntryArray_832B3700` does XOR-0x80 sample conversion, and the 12 ms / 1024-byte / rate-limit-ms constants fit sample streaming. But the fill byte and probe are runtime values, so the name stays mechanism-based.
+
+### `PriorityArbitrate_PendingMutexRequests_832B8C28`
+
+- **Address:** `0x832B8C28` · **Size:** ~500 insns · **Category:** body · **Region:** game (end-of-.text) · **Confidence:** high (mechanism), medium (semantics)
+
+- **Role:** priority-ordered multi-mutex arbitration loop — the scheduler of the 0x832B request-node family
+
+- **Does:** args: manager M (r3). Layout: `M->0` = state (must be 1 to accept), `M->24` = pending-list head, `M->28` = generation counter (incremented once per entry). Node layout: `node->0` = next pending, `node->4` = mutex handle, `node->8` = next in acquired list, `node->12` = priority, `node->16` = "prepare" vtable slot, `node->20` = "granted" vtable slot. While `M->0 == 1` and the pending list is non-empty: drain every pending node — `priority = vcall node->16(node, M->28)`; `node->12 = priority`; 0 = skip; otherwise insert into an acquired list sorted by **descending** priority (head = highest). After each drain pass build stack arrays (cap 64): `handles[i] = node->4`, `objs[i] = node`, then `ret = KeWaitForMultipleObjects_NoApcRetry(count, handles, mode=0 (WaitAll), timeout=1 ms)`. If `ret >= count` (timeout/APC) drain again; on success run the "granted" callback `vcall objs[ret]->20(objs[ret])` and immediately `MutexUnlock_ReleaseMutant(handles[ret])` — the highest-priority requester is notified and its gate released, the other acquired mutexes stay held (released by sibling family methods).
+
+- **Trigger:** Internal — sole caller `sub_832B8DA8`, a sibling method that first locks `M->8` and `M->20` (`MutexLock_WaitInfinite`) and gates the call on `M->24 != 0` (the pending head — confirming the layout).
+
+- **Calls:** `KeWaitForMultipleObjects_NoApcRetry`, `MutexUnlock_ReleaseMutant`, plus the node vtable slots (prepare at +16, granted at +20).
+
+- **Note:** the "prepare" vcall is passed the generation counter, so node priorities can change per arbitration pass; the exact arbitration policy (why only `objs[0]` gets the callback on a WaitAll success, and where the other held mutexes are released) needs the vtable contents to confirm.
+
+### `CsGuardedVcall_Slot60_82CD2DF8`
+
+- **Address:** `0x82CD2DF8` · **Size:** ~20 insns · **Category:** body (proxy wrapper) · **Region:** SDK · **Confidence:** high (mechanism), low (interface identity)
+
+- **Role:** critical-section-guarded forward of one method of the SDK's synchronized proxy class (the 0x82CD2Cxx–2Fxx cluster)
+
+- **Does:** args: (owner=r3, out=r4). `RtlEnterCriticalSection(0x82CD0324)` (a single global CS shared by the whole cluster); `target = owner->76` (a C++ object, vptr at +0); calls `vtable[+60/4 = slot 15]` with `(this=target, out)`; `RtlLeaveCriticalSection`; returns the method's result. One of ~11 uniform siblings — slot offsets 28/56/60/64/72/80/92/96 plus two that forward to helpers (sub_82CDC180/sub_82CDCFE8) — i.e. a synchronized proxy class around one core object, every method serialized by the same CS.
+
+- **Trigger:** Internal — 2 callers, 6 call sites: `RingBuffer_TickPadWithFillByte_832B68A0` (polled 3×, looping while successive out-values differ by ≥ 1024 — a consumer progress query) and `sub_832B6A98` (called after sibling slots 72/64 in a fetch-and-advance sequence).
+
+- **Calls:** `__imp__RtlEnterCriticalSection`, `__imp__RtlLeaveCriticalSection`, plus the target's vtable slot 15.
+
+- **Note:** the vtable contents are unresolved, so the name stays mechanism-based (byte offset of the slot). Naming the whole cluster coherently will come with the vtable.
+
 
 ## D. Exceptions & Fatal Errors
 
@@ -634,9 +794,9 @@ _Volume / filesystem queries (NtQueryVolumeInformationFile)._
 
 ## F. String & Math Helpers
 
-_SDK string copy and float->integer conversion helpers._
+_SDK memory/string copy and float->integer conversion helpers._
 
-**2 functions.**
+**4 functions.**
 
 ### `Math_FloatIndexStore_824D56C8`
 
@@ -657,6 +817,26 @@ _SDK string copy and float->integer conversion helpers._
 - **Does:** Copies bytes from src to dst up to a maximum length, stopping at a 0x80-high-byte terminator (the SDK's wide/extended string sentinel). On normal copy it stores the resulting length; on the short-init path it writes a 2-byte length header (sth) and a sentinel byte. Classic Xbox 360 SDK string copy with a size field.
 
 - **Trigger:** Internal SDK string handling (no direct player trigger).
+
+### `MemCpy_SdkRuntime_82CA2C60`
+
+- **Address:** `0x82CA2C60` · **Size:** ~290 insns · **Category:** runtime · **Region:** SDK · **Confidence:** **high**
+
+- **Role:** the SDK C-runtime memcpy — the image's dominant memory-copy primitive
+
+- **Does:** `memcpy(dest=r3, src=r4, len=r5)`, returns dest (saved at -8(r1) on entry, restored on every exit). ~1.2 KB of hand-unrolled PPC: `dcbt` prefetch on entry, byte-wise dest alignment (with a fast 4-byte pre-loop), 4/8-byte misaligned-source paths, an 8x8-byte (64-byte) unrolled main loop, 128-byte `dcbt` block prefetch for len >= 128, and `dcbtst` writeback hints on the tail. 1310 call sites across game and SDK code (fixed-length copies like `li r5,12`, computed sizes, the handle-array copy inside `KeWaitForMultipleObjects_Guest`, the buffer moves inside `CriticalSection_ProcessEntryArray_832B3700`). Named `MemCpy_SdkRuntime` rather than bare `memcpy` to keep the guest symbol distinct from host libc in traces and to avoid global-namespace ambiguity.
+
+- **Trigger:** Everywhere — any byte copy in the engine.
+
+### `StoreUnitTimesCount_82CE32B0`
+
+- **Address:** `0x82CE32B0` · **Size:** 5 insns · **Category:** body (vtable method) · **Region:** SDK · **Confidence:** medium (field roles pinned by the inverse operation)
+
+- **Role:** the count → total direction of a unit/count field pair — `*out = unit × count`
+
+- **Does:** `*(uint32_t*)r4 = (uint16_t)obj->108 * obj->120;` returns 0. Field roles are pinned down by the inverse operation `sub_82CE37C0`, which (spin-lock protected — `KeRaiseIrqlToDpcLevel` + `KeAcquireSpinLockAtRaisedIrql` on global 0x82CA7060, with a `twllei` div-by-zero trap guard) computes `obj->120 = (*total) / obj->108` and sets `obj->272 = 1`. So +108 is the unit/divisor and +120 the total/unit count; this function is the classic `frameSize × frameCount` / `sampleSize × sampleCount` byte-length math. Siblings in the 0x82CE region write the same fields (sub_82CE3BE0/sub_82CE3400/sub_82CE24B0/sub_82CE0C20 store the u16; sub_82CE3CF0/sub_82CE1588 update the u32).
+
+- **Trigger:** Virtual dispatch only — **zero static call sites**.
 
 
 ## G. Virtual-Dispatch Thunks (vtable)
@@ -1667,7 +1847,7 @@ _Index a jump table by an integer argument (rlwinm/lwzx/mtctr/bctr) and tail-cal
 
 _Small helpers that return a constant / global / adjusted pointer or tail-call another function._
 
-**91 functions.**
+**94 functions.**
 
 ### `TailCall_82238FCC`
 
@@ -1688,6 +1868,16 @@ _Small helpers that return a constant / global / adjusted pointer or tail-call a
 - **Trigger:** Internal call — reached as part of normal engine/SDK operation, no direct player action.
 
 - **Calls:** `sub_82239708`
+
+### `GetCurrentTimeMs`
+
+- **Address:** `0x82266070` · **Size:** 4 insns · **Category:** getter · **Region:** game · **Confidence:** **high**
+
+- **Role:** the game's master millisecond clock — cached in a global singleton
+
+- **Does:** no arguments; returns `*( *(0x82000908) + 16 )` (double indirection: global pointer to a singleton, field at offset 16). 147 call sites in 89 files, almost all `stw r3, N(obj)` — storing the value into per-object timestamp fields (lastUpdate/startTime/nextFire). A few compare it against an adjacent previous-time field (32-bit wrap handling, e.g. sub_822EEC08) or double-sample it, storing two reads 4 bytes apart (before/after bracketing, e.g. sub_8237E3E0). Millisecond scale proven by callers: rate limiters compute `consumption = rate * (now - last) / 1000` (sub_82FFA508), poll loops use `deadline = saved + 100` (sub_82388658), and the 2^30 jump guard in `GetElapsedMsSinceStart` only makes sense in ms (~12.4 days). No other code in the recompiled image touches 0x82000908 directly — the singleton pointer is copied elsewhere at init and the field updated through the copy.
+
+- **Trigger:** Everywhere — it is the time source for the whole engine (timers, rate limiters, deadlines, timestamp fields).
 
 ### `RetAddr_82267568`
 
@@ -2526,6 +2716,28 @@ _Small helpers that return a constant / global / adjusted pointer or tail-call a
 - **Does:** [SDK runtime] Indirect-call thunk: computes a target and jumps via mtctr/bctr.
 
 - **Trigger:** Internal call — reached as part of normal engine/SDK operation, no direct player action.
+
+### `CheckPrefixedWord_ReturnZeroOrComplement_832B3D78`
+
+- **Address:** `0x832B3D78` · **Size:** 6 insns · **Category:** leaf · **Region:** game (end-of-.text gap) · **Confidence:** low (unreachable)
+
+- **Role:** tag/checksum-style verifier over the 32-bit word stored immediately before a buffer — dead in the current build
+
+- **Does:** `v = *(r3 - 4)`; if `v == r4` returns 0, else returns `~v` (0xFFFFFFFF - v, a non-zero token encoding the actual value). 6-instruction leaf, no calls. **Zero call sites** in the generated code: it sits in the gap region 0x832B3D6C-0x832B3DE0 and was registered by the gap walk (its original branch source was re-segmented away in a later codegen run), so it is unreachable in this build. Neighbors in the region are object methods that lock a critical section via sub_832B3700 before touching fields of the object at `r3 - 852`, which is consistent with a small verify-helper for the same object family, but the purpose is not recoverable without the lost caller — the name describes the mechanism only.
+
+- **Trigger:** Unreachable (no references in the recompiled image).
+
+### `GetElapsedMsSinceStart`
+
+- **Address:** `0x832B9398` · **Size:** ~24 insns · **Category:** getter · **Region:** game (end-of-.text) · **Confidence:** **high**
+
+- **Role:** elapsed milliseconds since first call, with tick-wrap/reset protection
+
+- **Does:** `X = GetCurrentTimeMs()`; base `A` = global 0x81FFBDFC (captured from X on the first call, when A == 0); `delta = X - A`. A second global `B` = 0x81FFBE00 caches the last returned delta: if `(delta - B) > 0xC0000000` unsigned (~12.4 days of ms), the underlying tick counter has wrapped or reset, so the update is skipped and the old B is returned. Otherwise B = delta and delta is returned.
+
+- **Trigger:** Internal — 24 call sites, all in the 0x832B end-of-.text region, all passing the result into tick/update methods (e.g. sub_832B5530 → sub_832B50C0(obj, now)).
+
+- **Calls:** `GetCurrentTimeMs`
 
 
 ## J. Unnamed Body Functions

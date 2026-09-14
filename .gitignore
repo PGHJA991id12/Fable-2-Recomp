@@ -9,6 +9,14 @@ out
 generated
 .pi
 
+# --- Runtime logs written next to the exe (may land in the root when running
+#     with --game_data_root) ---------------------------------------------------
+fable2_func_trace.log
+fable2_func_trace_prev.log
+fable2_func_summary.log
+fable2_func_summary_prev.log
+fps_probe.log
+
 # --- SDK / runtime artifacts ------------------------------------------------
 .fable2_image.bin
 
