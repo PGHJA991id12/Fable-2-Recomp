@@ -11,13 +11,19 @@
 #include <rex/system.h>
 #include <rex/system/gpu_plugin.h>
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cstdlib>
 #include <format>
+#include <fstream>
+#include <sstream>
 #include <thread>
+#include <vector>
 
+#ifdef _WIN32
 #include <windows.h>
+#endif
 
 #include "alloc_watch.h"
 // 30fps-cap instrumentation (writes fps_probe.log next to the exe). Disabled
@@ -25,6 +31,7 @@
 // Re-enable to re-measure the frame pacing:
 // #include "fps_probe.h"
 #include "keyboard_gamepad.h"
+#include "xex_verify.h"
 
 class Fable2App : public rex::ReXApp {
  public:
@@ -90,11 +97,43 @@ class Fable2App : public rex::ReXApp {
       // The guest arena is commit-on-fault; a page may be uncommitted when we
       // sample early. Use VirtualQuery to only read committed pages, so an
       // early sample is skipped instead of faulting the monitor thread.
+      // (Linux/Android: the analogue is a /proc/self/maps scan; PROT_NONE
+      // arena pages show up in maps but are not safe to read, so require
+      // r+w permissions, refreshed periodically.)
       auto committed = [](const volatile void* p) {
+#ifdef _WIN32
         MEMORY_BASIC_INFORMATION mbi{};
         if (::VirtualQuery(const_cast<void*>(const_cast<const void*>(p)), &mbi, sizeof(mbi)) == 0) return false;
         return mbi.State == MEM_COMMIT &&
                (mbi.Protect & (PAGE_READWRITE | PAGE_READONLY | PAGE_WRITECOPY)) != 0;
+#else
+        static std::vector<std::pair<uintptr_t, uintptr_t>> rw_ranges;
+        static std::chrono::steady_clock::time_point last_refresh{};
+        auto now = std::chrono::steady_clock::now();
+        if (now - last_refresh > std::chrono::milliseconds(500)) {
+          last_refresh = now;
+          rw_ranges.clear();
+          std::ifstream maps("/proc/self/maps");
+          std::string line;
+          while (std::getline(maps, line)) {
+            uintptr_t lo = 0, hi = 0;
+            char dash = 0;
+            std::istringstream iss(line);
+            if (!(iss >> std::hex >> lo >> dash >> hi)) continue;
+            std::string perms;
+            iss >> perms;
+            if (perms.find('r') != std::string::npos &&
+                perms.find('w') != std::string::npos) {
+              rw_ranges.emplace_back(lo, hi);
+            }
+          }
+        }
+        const auto a = reinterpret_cast<uintptr_t>(p);
+        for (const auto& r : rw_ranges) {
+          if (a >= r.first && a < r.second) return true;
+        }
+        return false;
+#endif
       };
       auto safe_sample = [&](uint32_t& tbl, uint32_t& flag, uint32_t& head) -> bool {
         tbl = flag = head = 0;
@@ -160,6 +199,73 @@ class Fable2App : public rex::ReXApp {
   // void OnPostInitLogging() override {}
   // void OnLoadXexImage(std::string& xex_image) override {}
   // void OnPostLoadXexImage() override {}
+
+  // Startup integrity check: this build was recompiled against a specific
+  // default.xex, so verify its SHA-256 before the runtime loads it (see
+  // src/xex_verify.h). A previously verified file is skipped via the
+  // cache/default.xex.sha256 marker; a mismatch aborts with a dialog that
+  // shows how to check the hash yourself.
+  void OnLoadXexImage(std::string& xex_image) override {
+    // Resolve the host path the same way the SDK does (game:\ / d:\ ->
+    // game_data_root). The SDK's path may use either slash direction
+    // (e.g. "game:\\default.xex" or "game:/default.xex"), so strip the
+    // device prefix and any following separator generically.
+    std::string_view tail = xex_image;
+    if (tail.starts_with("game:")) tail.remove_prefix(5);
+    else if (tail.starts_with("d:")) tail.remove_prefix(2);
+    if (!tail.empty() && (tail.front() == '\\' || tail.front() == '/'))
+      tail.remove_prefix(1);
+    std::string host_tail{tail};
+    std::replace(host_tail.begin(), host_tail.end(), '\\', '/');
+    const std::filesystem::path xex = game_data_root() / host_tail;
+    std::filesystem::path cache = cache_root();
+    if (cache.empty()) cache = game_data_root() / "cache";
+    const std::filesystem::path marker = cache / "default.xex.sha256";
+
+    REXSYS_INFO("[xex-verify] {}", xex.string());
+    REXSYS_INFO("[xex-verify] expected SHA-256: {}", fable2::xexverify::kExpectedSha256);
+    const auto r = fable2::xexverify::Check(xex, marker);
+    switch (r.result) {
+      case fable2::xexverify::Result::VerifiedCached:
+        REXSYS_INFO("[xex-verify] actual SHA-256: {} (verified on a previous start; "
+                    "size/mtime unchanged, hash pass skipped)",
+                    r.actual_hash);
+        break;
+      case fable2::xexverify::Result::VerifiedFresh:
+        REXSYS_INFO("[xex-verify] actual SHA-256: {} (MATCH; recorded in {} so "
+                    "future starts skip the check)",
+                    r.actual_hash, marker.string());
+        break;
+      case fable2::xexverify::Result::Mismatch: {
+        REXSYS_ERROR("[xex-verify] actual SHA-256: {}", r.actual_hash);
+        REXSYS_ERROR("[xex-verify] expected SHA-256: {} (MISMATCH)",
+                     fable2::xexverify::kExpectedSha256);
+        const std::string msg = std::format(
+            "default.xex hash mismatch\n\n"
+            "This build was recompiled against a specific default.xex, but\n"
+            "the file found here has a different SHA-256 hash, so the game\n"
+            "may not run correctly.\n\n"
+            "File:     {}\n"
+            "Actual:   {}\n"
+            "Expected: {}\n\n"
+            "You can check the hash yourself in a Windows terminal:\n"
+            "  certutil -hashfile \"{}\" SHA256\n"
+            "(PowerShell: Get-FileHash \"{}\" -Algorithm SHA256)\n\n"
+            "If you have the correct default.xex, replace the one above and\n"
+            "start the game again.",
+            xex.string(), r.actual_hash, fable2::xexverify::kExpectedSha256,
+            xex.string(), xex.string());
+        REXSYS_ERROR("[xex-verify] {}", msg);
+        rex::ShowSimpleMessageBox(rex::SimpleMessageBoxType::Error, msg);
+        std::exit(1);
+      }
+      case fable2::xexverify::Result::ReadFailed:
+      default:
+        REXSYS_WARN("[xex-verify] could not hash {} (read error); "
+                   "skipping the integrity check", xex.string());
+        break;
+    }
+  }
 
   // Self-contained layout: everything lives next to the executable.
   //   <exe>/               <- content root (default.xex, data/, nxeart/,

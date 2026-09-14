@@ -33,6 +33,7 @@ rebuild2.log
 # rexglue-sdk-submodule-pins.txt, vulkan/, vk_video/) stay in the repo.
 thirdparty/rexglue-sdk/
 thirdparty/rexglue-sdk-src/
+thirdparty/android-ndk/
 
 # --- Historical reference (pre-ReXGlue XenonRecomp configs) -------------------
 XenonRecomp
