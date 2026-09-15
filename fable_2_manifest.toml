@@ -2046,6 +2046,1102 @@ name = "VcallSlot3_Flag4_82372070"
 [entrypoint.functions."0x82A0C0A0"]
 name = "Construct3FloatPayload_82A0C0A0"
 
+# A vtable-slot-5 call wrapper: deref obj, load vtable offset 20 (slot 5), and call it
+# with obj as the sole argument, returning the result.
+
+# Arg: obj (r3, whose ->0 is a vtable). Loads *(obj->0) = the vtable, then vtable[20]
+# (slot 5, 20/4), and calls it with obj (bctr). Returns the callee's result. 0 direct
+# callers, so it is most likely a VIRTUAL method (a wrapper that forwards to the
+# object's own vtable slot 5 -- a delegating thunk). The method (slot 5) isn't
+# resolvable without the vtable, so the name states the mechanism: call the object's
+# vtable slot 5.
+[entrypoint.functions."0x82C1DC40"]
+name = "VcallSlot5_82C1DC40"
+
+# A string comparator (3-way): compare two string-wrapper objects (their ->0 holds the
+# string pointer) using the signed string compare.
+
+# Args: (r3), a (r4, a->0 = a pointer to a's string), b (r5, b->0 = a pointer to b's
+# string). If a->0 == b->0, return 0 (equal). If a->0 == 0, return 1 (a is null). If
+# b->0 == 0, return 0 (b is null). Otherwise both are non-null: StrCmp_Signed_8226D7A8
+# (*a->0, *b->0) and return the sign bit of the result (negative/zero/positive -- a
+# 3-way ordering). 42 callers (sub_825D8308, sub_822B84F0, sub_825D7718, ...). A
+# string-ordering predicate for the string-wrapper class. Named CompareStrings to state
+# the mechanism: compare two (wrapper) strings and return the ordering.
+[entrypoint.functions."0x8228B5A0"]
+name = "CompareStrings_8228B5A0"
+
+# A doubly-linked-list splice: reorder / remove a node in a list by rewiring the
+# ->0 / ->4 / ->8 links.
+
+# Args: obj (r3, ->4 = a list context), node (r4, the node to splice; ->0 prev, ->4
+# next, ->8 a link). Reads node->8's target, checks a ->25 flag on it, and rewires the
+# node's prev/next pointers (and the neighboring nodes' links) to splice the node into
+# or out of the list -- a classic doubly-linked-list manipulation. Returns void. 67
+# lines, 0 external callees (all inline). 30 callers (sub_8234DB40, sub_82366668,
+# sub_8278C580, ..., ProcessNodeString_82A128B0, ...). The list element class isn't
+# resolvable, so the name states the mechanism: splice a node in a doubly-linked list.
+[entrypoint.functions."0x827C6448"]
+name = "List_SpliceNode_827C6448"
+
+# A vtable-slot-8 call wrapper: deref obj, load vtable offset 32 (slot 8), and call it
+# with obj as the sole argument, returning the result.
+
+# Arg: obj (r3, whose ->0 is a vtable). Loads *(obj->0) = the vtable, then vtable[32]
+# (slot 8, 32/4), and calls it with obj (bctr). Returns the callee's result. A sibling
+# of VcallSlot5_82C1DC40 (same wrapper shape, different slot). 1 caller:
+# sub_82C4A410. The method (slot 8) isn't resolvable without the vtable, so the name
+# states the mechanism: call the object's vtable slot 8.
+[entrypoint.functions."0x82C1DC70"]
+name = "VcallSlot8_82C1DC70"
+
+# A vtable-slot-1 call on an embedded sub-object: deref obj->4, treat (obj->4 + 12) as
+# `this`, and call its vtable slot 1.
+
+# Arg: obj (r3, ->4 = a container). Sets this = obj->4 + 12 (an embedded object at
+# offset 12 within the container). Loads the vtable at (obj->4 + 12)->0, then vtable[4]
+# (slot 1), and calls it with this (bctr). Returns the callee's result. 0 direct
+# callers, so it is most likely a VIRTUAL method (a delegating thunk on the embedded
+# sub-object). The method (slot 1) and the container class aren't resolvable, so the
+# name states the mechanism: call slot 1 on the sub-object embedded at obj->4 + 12.
+[entrypoint.functions."0x82C14D40"]
+name = "VcallSlot1_SubObj12_82C14D40"
+
+# A binary-search-tree walk (search/insert point): walk the tree from the root, comparing
+# the key at each node, following the child pointer indicated by the comparison.
+
+# Args: obj (r3, ->0 = the root node, ->4 = the key), key (r4), dst (r5, a 16-byte
+# scratch/result). Sets dst->0 = dst->4 = obj->4 (the key). Starting from the root
+# (obj->0), loads each node and compares the key to the node's value via sub_82C46A30
+# (the comparator); follows the appropriate child pointer (node->0 or node->8) based on
+# the comparison result, until it reaches the target / null. Returns the found node
+# (or the insertion point). 104 lines. 1 caller: sub_82C46CF8 (a sibling, also in the
+# TODO -- plausibly the get-or-create wrapper). The tree key type and the comparator
+# (sub_82C46A30) aren't resolvable, so the name states the mechanism: a BST search walk.
+[entrypoint.functions."0x82C46AF0"]
+name = "Tree_Search_82C46AF0"
+
+# A tree get-or-create (insert): search for an entry in the tree and, if absent, create
+# and insert a new node at a computed offset.
+
+# Args: obj (r3, the tree container), src (r4, a source / key wrapper, ->0 = a vtable
+# object), offset (r5). Makes a vcall on src (vtable slot 4, offset 16), computes the
+# destination as (obj + offset), then calls Tree_Search_82C46AF0 (sub_82C46AF0) to locate
+# the entry; afterwards it initializes the resulting node (sets flags at ->12, ->16, and
+# links it) -- so it's a get-or-create: find the key in the tree, creating a node if not
+# present. Returns the node. 355 lines. 18 callers (sub_82C13F50, sub_82C50270,
+# sub_82C1E2E0, ...). The tree key type and node layout aren't resolvable, so the name
+# states the mechanism: search the tree and create a node if the entry is missing.
+[entrypoint.functions."0x82C46CF8"]
+name = "Tree_GetOrCreate_82C46CF8"
+
+# A large (449-line) self-contained tree walk: traverse a BST, rewiring node links and
+# setting a boolean flag (node->12) -- part of the 0x82C46 tree subsystem.
+
+# Args: obj (r3, ->4 = a value), node (r4, a tree node with ->0 / ->4 / ->8 child links
+# and a ->12 flag). Two entry paths (depending on whether node->12 is set). Walks the
+# tree (a loop at loc_82C46FF4) comparing the running pointer to the target, following
+# the child links (node->8 / ->4 / ->0), and rewiring the links as it goes. At the end it
+# sets node->12 to 0 or 1 (a boolean flag). Returns void. 449 lines, 0 external callees
+# (the whole tree manipulation is inline). 1 caller: sub_82C47318 (a sibling, also in the
+# TODO). A core operation of the 0x82C46 BST subsystem (siblings: Tree_Search_82C46AF0,
+# Tree_GetOrCreate_82C46CF8). The exact operation (walk + rewire + set a flag) is the
+# resolvable mechanism; the node/key class isn't.
+[entrypoint.functions."0x82C46FD8"]
+name = "Tree_Walk_82C46FD8"
+
+# A tree node-locate-and-process operation: find the target node in the tree (fast path
+# or a search) and then process/rewire it -- part of the 0x82C46 tree subsystem.
+
+# Args: obj (r3, ->4 = a value/key), node (r4, a starting node). If node->0 or node->4
+# matches obj->4, use that node directly; otherwise call sub_82C46BA0 (a tree search) to
+# locate the node. Then process the located node: compare it to the value, set up the
+# child pointer (node->4), and call Tree_Walk_82C46FD8 (sub_82C46FD8) to rewire the
+# surrounding tree. Returns void. 195 lines. 1 caller: sub_82C47470 (a sibling, also in
+# the TODO). Siblings in the 0x82C46 BST subsystem: Tree_Search_82C46AF0,
+# Tree_GetOrCreate_82C46CF8, Tree_Walk_82C46FD8. The node/key class and whether the
+# rewire is specifically a removal aren't fully resolvable, so the name states the
+# mechanism: locate a tree node and process (rewire) it.
+[entrypoint.functions."0x82C47318"]
+name = "Tree_ProcessNode_82C47318"
+
+# A thin tree-process wrapper: make a vcall on the source, then dispatch to
+# Tree_ProcessNode_82C47318 -- the 17-caller entry point of the 0x82C46 tree-process path.
+
+# Args: obj (r3, the tree container), src (r4, a source wrapper, ->0 = a vtable object),
+# offset (r5). Makes a vcall on src (vtable slot 4, offset 16), computes (src + offset),
+# then calls Tree_ProcessNode_82C47318 (sub_82C47318) with obj and (src + offset). Returns
+# void. 17 callers (sub_82C55F10, sub_82C103E8, sub_82C0CE28, ...). A wrapper in the
+# 0x82C46 BST subsystem that prepares the call (vcall) and then processes the tree node.
+# Named for what it does: a wrapper that dispatches to the tree-process path.
+[entrypoint.functions."0x82C47470"]
+name = "Tree_Process_Wrapper_82C47470"
+
+# A reset/clear: zero four fields of an object (a 5-insn function).
+
+# Arg: obj (r3). Sets obj->0, obj->4, obj->8, and obj->16 all to 0 (note it leaves
+# offset 12 alone). Returns void. 18 callers, all in the 0x82C0-0x82C5 tree region
+# (sub_82C0AF00, sub_82C0CC98, sub_82C0E5D8, sub_82C50270, sub_82C13F50, ...), so this
+# clears a tree-node / tree-object back to its empty state. The object class isn't
+# resolvable, so the name states the mechanism: reset the (tree) object's fields to zero.
+[entrypoint.functions."0x82C474C8"]
+name = "ResetTreeObj_82C474C8"
+
+# A vtable-slot-10 call wrapper: deref obj, load vtable offset 40 (slot 10), and call it
+# with obj as the sole argument, returning the result.
+
+# Arg: obj (r3, whose ->0 is a vtable). Loads *(obj->0) = the vtable, then vtable[40]
+# (slot 10, 40/4), and calls it with obj (bctr). Returns the callee's result. A sibling
+# of VcallSlot12_82C010D0 (0x30 bytes away, slot 12) in the 0x82C010 vcall-wrapper family.
+# 3 callers (sub_82C14EA0 -- also in the TODO -- plus sub_82EE42B8, sub_82EE3F70). The
+# method (slot 10) isn't resolvable without the vtable, so the name states the mechanism:
+# call the object's vtable slot 10.
+[entrypoint.functions."0x82C010A0"]
+name = "VcallSlot10_82C010A0"
+
+# A vtable-slot-3 call on the sub-object at obj->16 (offset 12 / slot 3) with a flag of
+# 2 (r5 = 2), returning a boolean derived from the result's sign -- a member of the
+# recurring slot-3 interface.
+
+# Args: obj (r3, ->16 = the sub-object), value (r4). Builds a 2-element struct {value, 0}
+# on the stack, then vcall `(*obj->16)->vtable[3](obj->16, &{value, 0}, 2)` (vtable slot
+# at offset 12, with the 3rd arg = 2). Takes the result, does a clz-based sign test, and
+# returns (sign ^ 1) -- a 0/1 boolean. 0 direct callers, so it is most likely a VIRTUAL
+# method. A slot-3 sibling (compare VcallSlot3_Bool_82C01E78 / _Bool_82C01E20,
+# VcallSlot3_Flag4_82372070). The slot-3 method isn't resolvable without the vtable, so
+# the name states the mechanism: a slot-3 vcall on obj->16 that returns a boolean.
+[entrypoint.functions."0x82C01DC8"]
+name = "VcallSlot3_Bool_82C01DC8"
+
+# A multi-step vcall chain on obj: slot 6, then (if the result is nonzero) slot 10 via
+# VcallSlot10_82C010A0, then (if that result is nonzero) slot 7 -- each step gated on the
+# previous result's byte 3.
+
+# Args: obj (r3, ->0 = a vtable), (r4), value (r5). Makes a vcall on obj (vtable slot 6,
+# offset 24); if the result's top byte is nonzero, calls VcallSlot10_82C010A0 (sub_82C010A0,
+# slot 10) with obj and value; if that result's top byte is nonzero, makes another vcall
+# on obj (vtable slot 7, offset 28). Returns void. 86 lines. 1 caller: sub_82C15100 (a
+# sibling, also in the TODO). A gated vcall chain (slots 6, 10, 7); a sibling of
+# VcallChain_6_12_7_82C14E08 and VcallChain_AllSuccess. The slots aren't resolvable
+# without the vtable, so the name states the mechanism: a gated slot-6 -> 10 -> 7 vcall
+# chain.
+[entrypoint.functions."0x82C14EA0"]
+name = "VcallChain_6_10_7_82C14EA0"
+
+# A complex vcall dispatcher (271 lines): make an initial vcall on the source, then
+# orchestrate a sequence of vcall chains (VcallTriple_AllSuccess, VcallChain_AllSuccess,
+# VcallChain_6_12_7, VcallChain_6_10_7, ...) based on each result.
+
+# Args: obj (r3, a tree/object container), src (r4, a wrapper, ->0 = a vtable object),
+# value (r5). Makes a vcall on src (vtable slot 5, offset 20); depending on the result it
+# branches into a sequence of higher-level operations: VcallTriple_AllSuccess_82C011E8,
+# VcallChain_AllSuccess_82C14F38, VcallChain_6_12_7_82C14E08, VcallChain_6_10_7_82C14EA0,
+# plus DestructRefCounted_82214F08, sub_821F7798, sub_8228A4C0, and sub_82C14D70. So it's
+# the top-level dispatcher that drives the object's virtual operation sequence. 271 lines.
+# 1 caller: sub_82C168E0 (a sibling, also in the TODO). The object class and the exact
+# semantics of each vcall chain aren't resolvable, so the name states the mechanism: a
+# dispatcher that runs a gated sequence of vcall chains.
+[entrypoint.functions."0x82C15100"]
+name = "Dispatch_VcallSequence_82C15100"
+
+# A multi-step vcall chain on obj: slot 6, then (if the result is nonzero)
+# Dispatch_VcallSequence_82C15100, then (if that result is nonzero) slot 7 -- each step
+# gated on the previous result's byte 3. Structurally like VcallChain_6_10_7_82C14EA0, but
+# the middle step is the full dispatcher.
+
+# Args: obj (r3, ->0 = a vtable), (r4), value (r5). Makes a vcall on obj (vtable slot 6,
+# offset 24); if the result's top byte is nonzero, calls Dispatch_VcallSequence_82C15100
+# (sub_82C15100) with value and obj; if that result's top byte is nonzero, makes another
+# vcall on obj (vtable slot 7, offset 28). Returns void. 86 lines. 1 caller:
+# sub_82C17E48 (a higher-level function). A gated vcall chain (slot 6 -> dispatch -> slot
+# 7); a sibling of VcallChain_6_10_7_82C14EA0. The slots aren't resolvable without the
+# vtable, so the name states the mechanism: a gated slot-6 -> dispatcher -> slot-7 vcall
+# chain.
+[entrypoint.functions."0x82C168E0"]
+name = "VcallChain_6_Dispatch_7_82C168E0"
+
+# A get-or-create for a 24-byte element: search for the element (via
+# ProcessElements_Vcall4_82C46C10) and, if absent, allocate + initialize a new 24-byte
+# node.
+
+# Args: obj (r3, ->8 = a container), value (r4). Calls ProcessElements_Vcall4_82C46C10
+# (sub_82C46C10) to search the container for the element; if it is found (result nonzero),
+# returns 0 (the existing element). Otherwise it allocates 24 bytes via
+# Allocate_OrDbgBreak_8221F388(24), resets it (ResetTreeObj_82C474C8), and inserts it
+# (Tree_GetOrCreate_82C46CF8). So it's a get-or-create: find the 24-byte element, creating
+# one if missing. 95 lines. 1 caller: sub_82C174D8 (a sibling, also in the TODO). Part of
+# the 0x82C17/0x82C46 tree+element subsystem. The element class isn't resolvable, so the
+# name states the mechanism: get-or-create a 24-byte element.
+[entrypoint.functions."0x82C173C0"]
+name = "GetOrCreate24Element_82C173C0"
+
+# A process-element operation: search for the element (via ProcessElements_Vcall4_82C46C10)
+# and then process it (via Tree_Process_Wrapper_82C47470) -- the "process" sibling of
+# GetOrCreate24Element_82C173C0 (same caller, sub_82C174D8).
+
+# Args: obj (r3, ->8 = a container), value (r4). Calls ProcessElements_Vcall4_82C46C10
+# (sub_82C46C10) to search the container for the element; then calls
+# Tree_Process_Wrapper_82C47470 (sub_82C47470) to process the located element. On some
+# paths it frees (Free_Thunk_824FE010) or no-ops (NoOp_Stub_829CE870). 70 lines. 1 caller:
+# sub_82C174D8 (a sibling, also in the TODO). Part of the 0x82C17/0x82C46 tree+element
+# subsystem. The element class isn't resolvable, so the name states the mechanism: search
+# for and process a 24-byte element.
+[entrypoint.functions."0x82C17460"]
+name = "Process24Element_82C17460"
+
+# A binary-search lookup-and-handle for a 24-byte element: find the index (BinarySearch),
+# then either create the element (GetOrCreate24Element) or process it (Process24Element).
+
+# Args: obj (r3, ->4 = a container), key (r4). Calls BinarySearch_82C0BC08 (sub_82C0BC08)
+# to find the index of the key in the sorted container (obj->4 + 52); then indexes a
+# parallel array to fetch the associated element pointer, and dispatches to
+# GetOrCreate24Element_82C173C0 (sub_82C173C0) or Process24Element_82C17460 (sub_82C17460)
+# depending on the element's state. Returns the element (or null). 102 lines. 1 caller:
+# sub_82C1ACD8. Part of the 0x82C17 tree+element subsystem (siblings: GetOrCreate24Element,
+# Process24Element, BinarySearch_82C0BC08). The element class isn't resolvable, so the name
+# states the mechanism: look up a 24-byte element by binary search and handle it.
+[entrypoint.functions."0x82C174D8"]
+name = "Lookup24Element_82C174D8"
+
+# A binary search (4-byte stride over an array of pointers, comparing the dereferenced
+# values): find the target and write a result byte.
+
+# Args: obj (r3, ->0 = the array base, ->8 = the count), target (r4, ->0 = the target
+# value), result (r5, an output byte). Sets *result = 0. Binary-searches the array
+# (4-byte slots; each slot holds a pointer, and the comparison is on *slot): mid =
+# (lo + hi) / 2, val = *array[mid]; if val > target, hi = mid - 1; if val == target, the
+# result byte is set; else lo = mid + 1. Returns the index (or 0 if empty). 102 lines, 0
+# external callees (all inline). 22 callers (sub_82C402B8, sub_82C26518, sub_82C29328,
+# ...). A member of the binary-search family (sibling of BinarySearch_12Stride,
+# BinarySearch_82C0BC08) -- the 4-byte pointer-array variant.
+[entrypoint.functions."0x82C40EC0"]
+name = "BinarySearch_4Stride_82C40EC0"
+
+# A 5-way switch dispatch (a state/command dispatcher in the 0x82BCB region): set a flag
+# bit, index a function-pointer table by (obj->36->4 - 5), and dispatch to one of five
+# handlers.
+
+# Arg: obj (r3, ->36 = a sub-object). Sets bit 2 of (obj->36)->5 (a flag). Computes an
+# index = (obj->36)->4 - 5; if the index > 4, take the default path. Otherwise it loads a
+# function pointer from a global table (indexed by the index) and calls it (bctr), then
+# switches on the index (cases 0-4, each calling one of sub_82BCAA58 / sub_82BCAC98 /
+# sub_82BCAE28 / sub_82BCAF40). So it's a state/command dispatcher keyed on the
+# sub-object's byte-4 state. 271 lines. 2 callers (StateDispatch_82BCBB40 -- a state
+# dispatcher in the same region -- plus sub_82BCB2A0). The states/commands aren't
+# resolvable, so the name states the mechanism: a 5-way state dispatch (sibling of
+# StateDispatch_82BCBB40 / StateDispatch_82BCA7D8).
+[entrypoint.functions."0x82BCB0A8"]
+name = "StateDispatch_82BCB0A8"
+
+# A polynomial rolling hash of a C-string: a simple string hash/checksum.
+
+# Arg: buffer (r3, a byte string). If buffer[0] == 0 (empty), return 0. Otherwise compute
+# a rolling hash: crc = 0; for each byte (up to 100, or until a null byte): crc = crc * 
+# 0x0001003F (65635) + signed_byte. Returns the hash. So it's a polynomial (base-65635)
+# rolling hash of a null-terminated string, capped at 100 chars. 282 callers (sub_8328CC90,
+# sub_8328E5F0, sub_8328D780, sub_823F75A0, ...), many in the 0x8328 region -- a high-value
+# string-hash primitive. Named HashCstring to state the mechanism: hash a C-string with a
+# polynomial roll.
+[entrypoint.functions."0x82188CF0"]
+name = "HashCstring_82188CF0"
+
+# A trivial two-level getter: return (obj->0)->4, or 0 if obj->0 is null (a 5-insn
+# function).
+
+# Arg: obj (r3, ->0 = a pointer). If obj->0 == 0, return 0. Otherwise return *(obj->0 + 4)
+# (the u32 at field 4 of the pointed-to object). 20 callers (sub_821EE858, sub_82A1A360,
+# sub_82B3A9A8, ...). A plain accessor for a nested object's field at offset 4; the field's
+# meaning needs the object class. Named for what it does: get field 4 of the object pointed
+# to by obj->0.
+[entrypoint.functions."0x821EEA78"]
+name = "GetSubObjField4_821EEA78"
+
+# A source-evaluation operation: conditionally run two slot-3 vcalls on the source object
+# (updating its byte-4 flag) and copy a resulting value into the destination.
+
+# Args: dst (r3), src (r4, ->4 = a byte flag). If src->4 != 0, calls
+# SubObject_VcallSlot3_GatedStore32_82C842C8 (sub_82C842C8) with src and a stack slot, and
+# stores the result back to src->4. Copies a stack value to dst->0. If src->4 is still
+# nonzero, calls VcallSlot3_ReturnBit_82372268 (sub_82372268) and stores the result to
+# src->4. So it evaluates the source (two slot-3 vcalls, gated on the flag) and writes a
+# value to the destination. Returns void. 103 lines. 1 caller: sub_82371820. The object
+# class and the slot-3 method semantics aren't resolvable, so the name states the
+# mechanism: evaluate a source object (via two slot-3 vcalls) and copy out a value.
+[entrypoint.functions."0x8236D3C8"]
+name = "EvaluateSource_8236D3C8"
+
+# A gated vcall sequence: call VcallTriple_AllSuccess_82C011E8 on the source, and (if the
+# result's top byte is nonzero) call it again with obj+4 as the 3rd argument.
+
+# Args: obj (r3), src (r4). Calls VcallTriple_AllSuccess_82C011E8 (sub_82C011E8) with src,
+# a global (a 3rd-arg constant ~0x82C0F0C0), and obj; if the result's top byte is nonzero,
+# calls VcallTriple_AllSuccess_82C011E8 again with src, a second global, and (obj + 4). So
+# it's a gated two-step vcall sequence driving the source object. Returns the final result
+# byte. 75 lines. 1 caller: sub_82C16AA8 (a sibling, also in the TODO). The vcall-triple
+# slots aren't resolvable, so the name states the mechanism: a gated sequence of two
+# VcallTriple_AllSuccess calls.
+[entrypoint.functions."0x82C15358"]
+name = "VcallTriple_Sequence_82C15358"
+
+# A multi-step vcall chain on obj: slot 6, then (if the result is nonzero)
+# VcallTriple_Sequence_82C15358, then (if that result is nonzero) slot 7 -- each step
+# gated on the previous result's byte 3. Same shape as VcallChain_6_10_7_82C14EA0 and
+# VcallChain_6_Dispatch_7_82C168E0, but the middle step is the vcall-triple sequence.
+
+# Args: obj (r3, ->0 = a vtable), (r4), value (r5). Makes a vcall on obj (vtable slot 6,
+# offset 24); if the result's top byte is nonzero, calls VcallTriple_Sequence_82C15358
+# (sub_82C15358) with value and obj; if that result's top byte is nonzero, makes another
+# vcall on obj (vtable slot 7, offset 28). Returns void. 86 lines. 1 caller:
+# sub_82C188A8. A gated vcall chain (slot 6 -> vcall-triple sequence -> slot 7); a sibling
+# of the other 6-?-7 chains in the 0x82C15/0x82C16 dispatcher cluster. The slots aren't
+# resolvable without the vtable, so the name states the mechanism.
+[entrypoint.functions."0x82C16AA8"]
+name = "VcallChain_6_Triple_7_82C16AA8"
+
+# A large (408-line) complex vcall dispatcher: make an initial pair of vcalls on the
+# source (slots 5 and 0), then orchestrate a long gated sequence of vcall chains
+# (VcallTriple_AllSuccess, VcallChain_AllSuccess x2, VcallChain_6_12_7, ...) -- the bigger
+# sibling of Dispatch_VcallSequence_82C15100.
+
+# Args: obj (r3, a tree/object container), src (r4, a wrapper, ->0 = a vtable object),
+# value (r5). Makes a vcall on src (vtable slot 5, offset 20), then another vcall on src
+# (vtable slot 0, offset 0), then VcallTriple_AllSuccess_82C011E8; depending on the results
+# it branches through VcallChain_AllSuccess_82C14F38, VcallChain_AllSuccess_82C15068,
+# VcallChain_6_12_7_82C14E08, plus DestructRefCounted_82214F08, sub_821F7798, sub_82BFD780,
+# and sub_82C14D70. So it's the top-level dispatcher that drives a long virtual-operation
+# sequence on the source object. 408 lines. 1 caller: sub_82C1EAF8 (a sibling, also in the
+# TODO). The object class and the exact semantics of each vcall chain aren't resolvable, so
+# the name states the mechanism: a dispatcher that runs a long gated sequence of vcall
+# chains (the "2" distinguishes it from Dispatch_VcallSequence_82C15100).
+[entrypoint.functions."0x82C1E360"]
+name = "Dispatch_VcallSequence2_82C1E360"
+
+# A lookup via vcall + binary search: obtain a value from a vtable slot-1 call on the
+# source, then binary-search for it (BinarySearch_4Stride_82C40EC0).
+
+# Args: (r3), src (r4, ->0 = a vtable object), value (r5). Makes a vcall on src (vtable
+# slot 1, offset 4) passing src, a global (~0x82C24C60), and value; if the result is 0,
+# returns 0. Otherwise it processes the result (result + 4) and calls
+# BinarySearch_4Stride_82C40EC0 (sub_82C40EC0) to look the value up in a sorted array.
+# Returns the lookup result. 83 lines. 2 callers (sub_82C1E7F0 -- also in the TODO -- plus
+# sub_82C1E878). Part of the 0x82C1E lookup cluster. The object class and the slot-1 method
+# aren't resolvable, so the name states the mechanism: obtain a value via a vcall and
+# binary-search for it.
+[entrypoint.functions."0x82C1E760"]
+name = "LookupByVcall_82C1E760"
+
+# A boolean predicate: call LookupByVcall_82C1E760 and return 0/1 based on the result's
+# sign (a "does it exist / is it valid" test).
+
+# Args: (r3), src (r4), value (r5). Calls LookupByVcall_82C1E760 (sub_82C1E760) with the
+# same arguments, then does a clz-based sign test on the result and returns (sign ^ 1) --
+# a 0/1 boolean. So it's a predicate built on the lookup: true (1) when the lookup returns
+# a "nonzero-sign" result. 0 direct callers, so it is most likely a VIRTUAL method (or
+# currently dead). Part of the 0x82C1E lookup cluster. The lookup semantics aren't fully
+# resolvable, so the name states the mechanism: a boolean predicate over the vcall+binary-
+# search lookup.
+[entrypoint.functions."0x82C1E7F0"]
+name = "LookupPredicate_82C1E7F0"
+
+# A multi-step vcall chain on obj: slot 6, then (if the result is nonzero)
+# Dispatch_VcallSequence2_82C1E360, then (if that result is nonzero) slot 7 -- each step
+# gated on the previous result's byte 3. Same shape as VcallChain_6_Dispatch_7_82C168E0,
+# but the middle step is the second (larger) dispatcher.
+
+# Args: obj (r3, ->0 = a vtable), (r4), value (r5). Makes a vcall on obj (vtable slot 6,
+# offset 24); if the result's top byte is nonzero, calls Dispatch_VcallSequence2_82C1E360
+# (sub_82C1E360) with value and obj; if that result's top byte is nonzero, makes another
+# vcall on obj (vtable slot 7, offset 28). Returns void. 86 lines. 1 caller: sub_82C1EBE8.
+# A gated vcall chain (slot 6 -> dispatcher2 -> slot 7); a sibling of
+# VcallChain_6_Dispatch_7_82C168E0 / VcallChain_6_Triple_7_82C16AA8. The slots aren't
+# resolvable without the vtable, so the name states the mechanism.
+[entrypoint.functions."0x82C1EAF8"]
+name = "VcallChain_6_Dispatch2_7_82C1EAF8"
+
+# A vcall + direct array index: make a vtable-slot-1 call on the source, then index a
+# 4-byte-stride array (src->4) at the given index and return the pointed-to element.
+
+# Args: (r3), src (r4, ->0 = a vtable object, ->4 = an array base), index (r5). Makes a
+# vcall on src (vtable slot 1, offset 4) passing src and a global (~0x82C24C60) as the 2nd
+# arg. Then computes slot = index * 4, loads the element pointer from src->4[slot], and
+# returns *element. So it's a "call slot 1, then fetch array[index]" accessor. 50 lines,
+# 0 external callees (the vcall + array index are inline). 0 direct callers, so it is most
+# likely a VIRTUAL method (or currently dead). Part of the 0x82C1E lookup cluster (a
+# sibling of LookupByVcall_82C1E760, but with a direct index instead of a binary search).
+# The slot-1 method and array element class aren't resolvable, so the name states the
+# mechanism.
+[entrypoint.functions."0x82C1EB90"]
+name = "VcallAndIndexArray_82C1EB90"
+
+# A circular linked-list destroy: detach the list rooted at obj->4, walk it freeing each
+# node (Free_SizeBucketed_Thunk), then clear the container's flag.
+
+# Arg: obj (r3, ->4 = the head of a circular doubly-linked list, ->8 = a count/flag). Detaches
+# the list (head->0 = head, head->4 = head, obj->8 = 0). Then walks the circular list (each
+# node's ->0 is the next node) freeing every node via Free_SizeBucketed_Thunk_8221BE68 until
+# it returns to the head. Returns void. 66 lines. 135 callers (sub_8290F760, sub_82882DB8,
+# sub_8266CFD8, ...) -- a high-value list-destructor. The list element class isn't
+# resolvable, so the name states the mechanism: destroy (free all nodes of) a circular
+# linked list.
+[entrypoint.functions."0x82A0F5C0"]
+name = "DestroyCircularList_82A0F5C0"
+
+# A refcounted object CONSTRUCTOR (the construct counterpart of DestructRefCounted_82214F08,
+# one of the hottest functions in the game, 5200 callers): initialize the object and
+# atomically increment the global live-object counter.
+
+# Args: obj (r3, ->0 = the stored value), value (r4). Sets obj->0 = 0. Atomically
+# increments the global counter at ~0x82C489E0 (lwarx/stwcx under REX_ENTER_GLOBAL_LOCK) --
+# the SAME global live-object count that DestructRefCounted_82214F08 decrements. If value
+# (r4) is non-null it does additional setup (Release_RefCounted_821C67D8 on the old value,
+# sub_822079D8). So it's the COM-style refcounted operator=/constructor: take a reference
+# and bump the global live count. 104 lines. 5200 callers (sub_827CD5F0, sub_8325D140,
+# sub_83260CC0, ...). The object class isn't resolvable, so the name states the mechanism:
+# construct a refcounted object (init + increment the global count).
+[entrypoint.functions."0x8222CF18"]
+name = "ConstructRefCounted_8222CF18"
+
+# A chain-root finder (the byte-25-flag variant): validate, then walk up a chain (via
+# node->0) to the topmost node (the one whose byte-25 flag is set) and store it in obj->4.
+# Structurally identical to FindChainRoot_82A596F0 (which uses byte 17), but uses byte 25
+# and validates more aggressively.
+
+# Arg: obj (r3, ->0 = a base, ->4 = a starting node). Validates (obj->0 != 0, else `trap 22`;
+# the head node's byte-25 == 0, else `trap 22`). Then walks up the chain via node->0 (the
+# parent link) until it reaches a node whose byte-25 flag is nonzero (the root/top), and
+# stores that node in obj->4. Returns void. 93 lines, 0 external callees (all inline). 108
+# callers (sub_8267D818, sub_825D6FE8, sub_82367898, ...) -- a high-value chain-root lookup.
+# A sibling of FindChainRoot_82A596F0 (the byte-17 variant); the "2" distinguishes the two.
+# The node/chain class and the byte-25 flag's meaning aren't resolvable.
+[entrypoint.functions."0x823D4F20"]
+name = "FindChainRoot2_823D4F20"
+
+# A tree find-and-remove: search a BST for the key (walk node->12 vs key, left = node->0,
+# right = node->8, leaf flag = node->17), then remove the located node (Tree_RemoveNode).
+
+# Args: obj (r3, ->4 = a container, ->4->4 = the head node), key (r4, *r4 = the key). Walks
+# the tree from the head: at each node, if key >= node->12 go left (node->0), else go right
+# (node->8), stopping at a leaf (node->17 != 0). Then it calls FindChainRoot_82A596F0 and
+# Tree_RemoveNode_826A4A20 (sub_826A4A20) to detach/remove the located node. Returns the
+# removed node (or a marker). 153 lines. 3 callers (sub_83218420, sub_83215610, sub_83218350
+# -- the 0x83218/0x83215 constructor cluster). Part of the 0x82A14 tree cluster. The key
+# type and node class aren't resolvable, so the name states the mechanism: find a node by
+# key in the tree and remove it.
+[entrypoint.functions."0x82A14AE0"]
+name = "Tree_FindAndRemove_82A14AE0"
+
+# A lazy-init singleton getter: check a global flag and, on first call only, initialize a
+# global object, then return it.
+
+# No real args (operates on globals). Checks bit 0 of a global flag (~0x82C73F98); if it is
+# already set, skip to the return. Otherwise set the flag, initialize the global object at
+# ~0x82C78640 (sub_82BA8BB0), and call sub_82CA3700 (a string/format routine) with another
+# global (~0x82C38A80). Returns the global object. So it's a "get the singleton, initialize
+# on first use" accessor. 72 lines. 94 callers, mostly in the 0x82BA/0x82BB region
+# (sub_82BA8800, sub_82BA9938, sub_82BB1398, ...) -- a high-value subsystem getter. The
+# object class isn't resolvable, so the name states the mechanism: get the (lazy-init)
+# singleton.
+[entrypoint.functions."0x82BA8718"]
+name = "GetSingleton_82BA8718"
+
+# A range/counter advance: consume a delta by incrementing counters and advancing several
+# 12-byte range pointers (offsets 32/44 and 40/44) by the delta, with clamping.
+
+# Args: obj (r3, a multi-range object: ->0/->12 = counters, ->8 = a clamped counter,
+# ->32/->40/->44 = a range triple, and (obj + 32) = another range triple), delta (r4). If
+# delta <= 0, return (no-op). Otherwise: obj->0 += 1, obj->12 += 1; clamp obj->8 to
+# min(obj->8, obj->12); advance the ranges (obj->32 += delta, obj->44 += delta, and the
+# (obj + 32) range) with similar clamping. So it's a "consume/advance N" operation over a
+# multi-buffer / multi-range object. Returns void. 108 lines, 0 external callees (all
+# inline). 2 callers (sub_82BAA4A8, sub_82BA8F18 -- both in the TODO). The object class and
+# the exact range semantics aren't resolvable, so the name states the mechanism: advance the
+# range pointers by a delta.
+[entrypoint.functions."0x82BAA6F0"]
+name = "AdvanceRanges_82BAA6F0"
+
+# A value-at-position processor (in the 0x826C value-processing cluster): guard the
+# position, process the value via ProcessValue_FlagNonZero, and memset as needed.
+
+# Args: obj (r3, ->20 = a length), pos (r4), (r5). Guards the position (calls
+# sub_82CD11D0 -- the high-value guard helper -- if pos is out of range). If pos == 0,
+# returns. Otherwise it calls ProcessValue_FlagNonZero_821A9090 (sub_821A9090) with obj and
+# (obj->20 + pos); if the result's top byte is nonzero it does further processing (memset via
+# MemSet_SdkRuntime_82CA3190, and more). So it's a "process the value at a given position in
+# the buffer" operation. 130 lines. 4 callers (ProcessObject_82C669C0 -- a processor in the
+# 0x82C66 cluster -- plus sub_82C76100, sub_82C7AE40, sub_826C2250). The buffer class and
+# exact value semantics aren't resolvable, so the name states the mechanism.
+[entrypoint.functions."0x826C2FF8"]
+name = "ProcessValueAtPos_826C2FF8"
+
+# A hash-table lookup (linear probing, 4-byte stride): find a key in a flat open-addressing
+# hash table and return the located slot -- a sibling of HashTable_Find_829FAD30 (which
+# uses 8-byte stride).
+
+# Args: table (r3, ->0 = the bucket count, ->4 = the array base), key (r4). Computes the
+# starting bucket as (key & (count - 1)), then linearly probes (4-byte slots, wrapping
+# around) comparing each entry's ->0 (the stored key) to the key; stops on a match or an
+# empty slot (entry == 0). Returns the located slot (slot + 4) if found, else 0. 60 lines,
+# 0 external callees (all inline). 35 callers (sub_828907F8, sub_823AAC18, sub_829FC6A0 --
+# also in the TODO -- ...). The table key type isn't resolvable, so the name states the
+# mechanism: a linear-probing hash table lookup (the "2" distinguishes it from
+# HashTable_Find_829FAD30).
+[entrypoint.functions."0x829FC630"]
+name = "HashTable_Find2_829FC630"
+
+# A processing loop: iterate `count` times over a sub-object, calling sub_82BCD8A8 each
+# time (updating the counters) and copying data via MemCpy_SdkRuntime.
+
+# Args: obj (r3, ->4 = a sub-object with ->0 = a counter, ->4 = a remaining count), (r4),
+# count (r5). Loops `count` times: if sub->0 == 0, calls sub_82BCD8A8 (returns -1 or a
+# value) and updates sub->0 += 1, sub->4 -= 1; then processes/copies data (MemCpy_SdkRuntime,
+# sub_82BC8870, sub_82BCCB88). So it's a "process `count` elements" loop. 131 lines. 4
+# callers, all in the 0x82BDD cluster (sub_82BDD1E0, sub_82BDD518, sub_82BDDA98, sub_82BDD000
+# -- some also in the TODO). The element class and the per-element operation aren't
+# resolvable, so the name states the mechanism: a loop that processes a count of elements.
+[entrypoint.functions."0x82BDCF20"]
+name = "ProcessElements_82BDCF20"
+
+# A buffer reassignment: free the old buffer, allocate a new one of the requested size, set
+# the length/size fields, and null-terminate -- a "reset the buffer to a new size" operation.
+
+# Args: obj (r3, ->0 = the buffer, ->4 = the length, ->8 = a size field with a flag bit),
+# (r4), pos (r5). If obj->0 != 0, free the old buffer (Free_SizeBucketed_Thunk_8221BE68) and
+# clear obj->0. Then computes size = (pos + 4) aligned to 4, allocates a new buffer
+# (Allocate_OrDbgBreak_8221F388), and sets obj->0 = buffer, obj->4 = pos, obj->8 = (size << 1)
+# | (flag bit). Null-terminates at pos (stb). May also copy (MemCpy_Vectorized) or zero
+# (MemSet_SdkRuntime). So it's a buffer reassign/resize. 88 lines. 7 callers (sub_822079D8 --
+# a callee of ConstructRefCounted_8222CF18 and in the TODO -- plus sub_8222E840, sub_82275368,
+# ...). The buffer class isn't resolvable, so the name states the mechanism: reassign the
+# buffer to a new size.
+[entrypoint.functions."0x822088B0"]
+name = "ReassignBuffer_822088B0"
+
+# A state handler (one of the five cases dispatched by StateDispatch_82BCB0A8): conditionally
+# dispatch via StateDispatch_82BCA7D8, then loop over a sub-array checking elements.
+
+# Args: obj (r3), state (r4, ->12 = a sub-object with a ->5 flag byte, ->6 and ->7 = gate
+# bytes, ->20 = a sub-array). If (state->12->5) & 0x3 != 0, calls StateDispatch_82BCA7D8
+# (sub_82BCA7D8). If state->6 != 0 and state->7 != 0, it loops over the sub-array at
+# (state + 20) checking each element (element->4 == 4) and processing it. So it's a specific
+# state/command handler in the 0x82BCA state cluster. 157 lines. 1 caller:
+# StateDispatch_82BCB0A8 (a state dispatcher, also in this batch). The state semantics aren't
+# resolvable, so the name states the mechanism: a state handler (one of the dispatcher's
+# cases).
+[entrypoint.functions."0x82BCAE28"]
+name = "StateHandler_82BCAE28"
+
+# A trivial pointer adjustment: return obj + 492 (a 2-insn function: addi r3, r3, 492; blr).
+
+# Arg: obj (r3). Returns (obj + 492) -- a pointer to a sub-field / embedded object at offset
+# 492 within the object. 0 direct callers, so it is most likely a VIRTUAL method (a vtable
+# accessor) or currently dead. It's a plain "get the embedded object at offset 492" accessor;
+# the field's meaning needs the object class. Named for what it does: return obj + 492.
+[entrypoint.functions."0x82BAA138"]
+name = "GetSubObj_492_82BAA138"
+
+# A 2D region operation: compute a rectangle's width/height (in 4-byte units), derive a step
+# via the Euclidean (gcd) algorithm, then traverse the 2D region.
+
+# Args: base (r3), p1 (r4), p2 (r5) -- plausibly a base point and two offsets/points. Computes
+# dx = p1 - base, dy = p2 - base; width = dx / 4, height = dy / 4. Runs the Euclidean algorithm
+# (gcd of width and height via divw/mod in a loop). If the gcd is nonzero and < height, it
+# traverses the 2D region (4-byte stride, a nested loop over the rectangle). Returns void. 122
+# lines, 0 external callees (all inline). 10 callers (sub_82C2BB20, sub_82C289E8 -- in the TODO
+# -- sub_82C2E000, sub_82C196E8, sub_82C204F0 -- in the TODO -- ...). The exact operation (the
+# gcd-derived step suggests a strided/diagonal 2D traversal) isn't fully resolvable, so the name
+# states the mechanism: process a 2D region (with a gcd-derived step).
+[entrypoint.functions."0x82C3C010"]
+name = "Process2DRegion_82C3C010"
+
+# A 16-byte allocation + self-referential init: allocate a 16-byte block, make it point at
+# itself (sentinel self-references), and store it in the container.
+
+# Arg: obj (r3, ->4 = the block pointer, ->8 = a flag). Allocates a 16-byte block via
+# Allocate_OrDbgBreak_8221F388(16). If the block is non-null, sets block->0 = block (a
+# self-reference) and block->4 = block (another self-reference). Stores obj->4 = block and
+# obj->8 = 0. So it's a constructor for a small (16-byte) self-referential object. Returns
+# void. 56 lines. 48 callers (sub_828514D8, sub_82755FD0, sub_82646D18, ...) -- a high-value
+# small-object constructor. The object class (the self-references are likely sentinels for a
+# small buffer / string / node) isn't resolvable, so the name states the mechanism: allocate a
+# 16-byte self-referential block.
+[entrypoint.functions."0x821EE1B8"]
+name = "Construct16SelfRef_821EE1B8"
+
+# A very large (533-line) structure-processing operation: make a vcall on the source, copy
+# variable-length byte data, and orchestrate a long sequence of build/teardown operations
+# (DestroyCircularList, Construct16SelfRef, Free, plus the 0x82A0F/0x82A11/0x82A1B node ops).
+
+# Args: obj (r3), src (r4, ->0 = a vtable object, ->4/->12 = data, ->20 = a size), (r5).
+# Makes a vcall on src (vtable slot 2, offset 8). If src->20 >= 4, copies a variable-length
+# byte array from src->12 (byte-by-byte to the stack). Then it branches into a long sequence
+# of sub-operations: DestroyCircularList_82A0F5C0, Free_SizeBucketed_Thunk_8221BE68,
+# Construct16SelfRef_821EE1B8, sub_82A0F0A0, sub_82A0F6B8, sub_82A118B0, sub_82A1B480, and
+# sub_8322EFB0. So it's a top-level "process the data structure" routine (parse + build /
+# teardown). 533 lines. 1 caller: sub_832206E8 (a sibling, also in the TODO). The data-structure
+# class and the exact operation sequence aren't resolvable, so the name states the mechanism:
+# a large structure-processing routine.
+[entrypoint.functions."0x82A0DD10"]
+name = "ProcessDataStructure_82A0DD10"
+
+# A block reassign / cleanup (198 lines): free the old block and, on the larger path, allocate
+# a new one and reinitialize it -- a "reassign the object's data block" operation.
+
+# Args: obj (r3, ->0 = a data block pointer), gate (r4, ->8 = a count/flag), (r5). If gate->8
+# <= 1, it frees obj->0 (Free_SizeBucketed_Thunk_8221BE68, if non-null) and clears obj->0
+# (a teardown of a small object). Otherwise (gate->8 > 1) it allocates a new block
+# (Allocate_OrDbgBreak_8221F388), reinitializes it, and calls sub_82A0FB80 (a further setup
+# routine). So it's a reassign/realloc of the object's data block (free old, allocate new).
+# Returns void. 198 lines. 2 callers (sub_82A0DD10 -- ProcessDataStructure_82A0DD10 -- plus
+# sub_82A0E0C0). Part of the 0x82A0F structure cluster. The block class isn't resolvable, so
+# the name states the mechanism: reassign the object's data block.
+[entrypoint.functions."0x82A0F6B8"]
+name = "ReassignBlock_82A0F6B8"
+
+# A large (393-line) structure constructor / build: allocate self-referential blocks, build a
+# multi-element structure, and orchestrate teardown (destroy/free) as needed.
+
+# Args: obj (r3, ->8 = a count/flag), (r4). If obj->8 < 2, takes a short path. Otherwise it
+# allocates 16-byte self-referential blocks (Allocate_OrDbgBreak_8221F388, each block set to
+# point at itself -- the same pattern as Construct16SelfRef_821EE1B8) and builds a multi-element
+# structure in a loop (r29 = 25 elements, plus further Allocate_SizeBucketed_Thunk_8221F3F0
+# calls). It also orchestrates DestroyCircularList_82A0F5C0, Free_SizeBucketed_Thunk_8221BE68,
+# sub_82A0F120, sub_82A0F290, and sub_82CBBB58. So it's a top-level "build the structure"
+# routine. 393 lines. 3 callers (sub_82A0E0C0, sub_82A11500, sub_82A0DD10 --
+# ProcessDataStructure_82A0DD10). Part of the 0x82A11 structure cluster. The structure class
+# isn't resolvable, so the name states the mechanism: a large structure-construction routine.
+[entrypoint.functions."0x82A118B0"]
+name = "BuildStructure_82A118B0"
+
+# A float-data processing routine (in the 0x8322 cluster): load global floats and a float
+# array (indexed), build a stack struct, then process it via ProcessDataStructure.
+
+# Args: obj (r3), (r4), index (r5), (r6), (r7). Loads several global floats (and a float from
+# a global float array at index * 4), building a small stack struct (stack[80..92]). Then it
+# calls ProcessDataStructure_82A0DD10 (sub_82A0DD10) and sub_82A0B5C8 (a constructor in the
+# 0x82A0B cluster), and frees (Free_SizeBucketed_Thunk_8221BE68). So it's a "process float
+# data" routine that feeds the data-structure processor. 127 lines. 8 callers, in the
+# 0x8323/0x8321 region (sub_8323AE00, sub_8323F5B0, sub_83217688, ...). The float data's
+# meaning (plausibly geometry / transform / animation values) and the object class aren't
+# resolvable, so the name states the mechanism: process float data.
+[entrypoint.functions."0x832206E8"]
+name = "ProcessFloatData_832206E8"
+
+# A 2D strided-processing routine (in the 0x82BDD cluster): call ProcessElements with
+# count * stride, then dispatch on the stride (an 8-way switch) for stride-specific handling.
+
+# Args: obj (r3, ->16 = a flag), (r4), count (r5), stride (r6), (r7). Computes (count * stride)
+# and calls ProcessElements_82BDCF20 (sub_82BDCF20) to process the elements. If obj->16 != 0,
+# it does an 8-way switch on (stride - 1) (cases 0-7) for stride-specific processing (via
+# sub_82BC8870 / sub_82BCCB88). So it's a "process 2D data, with per-stride handling" routine.
+# 213 lines. 5 callers, all in the 0x82BDD cluster (sub_82BDD518, sub_82BDD170, sub_82BDD1E0,
+# sub_82BDD8A8, sub_82BDD258). The data class and the per-stride operations aren't resolvable,
+# so the name states the mechanism: process 2D strided data.
+[entrypoint.functions."0x82BDD000"]
+name = "Process2DStrided_82BDD000"
+
+# A range/counter advance (the sibling of AdvanceRanges_82BAA6F0): if delta > 0, update the
+# counters and advance the range pointers -- but in the opposite (shrink/consume) direction
+# (obj->36 += delta while obj->44 -= delta, etc.).
+
+# Args: obj (r3, a multi-range object: ->4/->12 = counters, ->20/->28, ->36/->44, ->52/->60 =
+# range triples), delta (r4). If delta <= 0, return (no-op). Otherwise: obj->12 -= 1, obj->4 +=
+# 1, obj->20 += 1, obj->28 -= 1; advance the ranges (obj->36 += delta while obj->44 -= delta,
+# obj->52 += delta while obj->60 -= delta) -- so it shrinks the ranges from both ends. Returns
+# void. 64 lines, 0 external callees (all inline). 3 callers (sub_82BA9068, sub_82BAA570 -- in
+# the TODO -- sub_82BA8D90). A sibling of AdvanceRanges_82BAA6F0 (same multi-range object,
+# opposite direction); the "2" distinguishes the two. The object class and exact range
+# semantics aren't resolvable.
+[entrypoint.functions."0x82BAA7B8"]
+name = "AdvanceRanges2_82BAA7B8"
+
+# A string allocation: compute the string length (if pos == -1) or use the given length, then
+# allocate the string's buffer (ReassignBuffer).
+
+# Args: (r3), src (r4, a C-string), pos (r5, a length, or -1 to auto-compute). If pos == -1,
+# it allocates a 16-byte block (zeroed: block->0/->4/->8 = 0) and computes the string length
+# (a strlen loop over src until a null byte). Otherwise it uses the given length. Then it
+# calls ReassignBuffer_822088B0 (sub_822088B0) to (re)allocate the string's data buffer at the
+# computed length. So it's a "create/allocate a string object from a C-string" routine. 107
+# lines. 3 callers (sub_821E3950, ConstructRefCounted_8222CF18 -- which calls it to set up a
+# string value -- plus sub_82B3A0E8). The string class isn't resolvable, so the name states the
+# mechanism: allocate a string (compute length, allocate buffer).
+[entrypoint.functions."0x822079D8"]
+name = "AllocateString_822079D8"
+
+# A dispose / destructor for a specific object type: free the object's block, clear its
+# value, and preserve a flag bit -- called by Release_RefCounted_821C67D8 when the refcount
+# hits zero.
+
+# Arg: obj (r3, ->0 = a data block, ->4 = a value, ->8 = a field with a flag bit). If obj->0
+# != 0, frees it (Free_SizeBucketed_Thunk_8221BE68) and sets obj->0 = 0. Sets obj->4 = 0.
+# Preserves bit 0 of obj->8 (obj->8 &= 1), clearing the rest (the size/length bits). So it's a
+# dispose: release the block, reset the value, keep the flag. Returns void. 53 lines. 1 caller:
+# Release_RefCounted_821C67D8 (the refcounted release -- this is the object-type-specific
+# dispose it dispatches to when the reference count reaches zero). The object class isn't
+# resolvable, so the name states the mechanism: dispose (free + reset, keep a flag).
+[entrypoint.functions."0x82B39A30"]
+name = "Dispose_82B39A30"
+
+# A chain-root finder (the byte-33-flag variant): validate, then walk up a chain (via
+# node->0) to the topmost node (the one whose byte-33 flag is set) and store it in obj->4.
+# A third variant, structurally identical to FindChainRoot_82A596F0 (byte 17) and
+# FindChainRoot2_823D4F20 (byte 25), but uses byte 33.
+
+# Arg: obj (r3, ->0 = a base, ->4 = a starting node). Validates (obj->0 != 0, else `trap 22`;
+# the head node's byte-33 == 0, else `trap 22`). Then walks up the chain via node->0 (the
+# parent link) until it reaches a node whose byte-33 flag is nonzero (the root/top), and
+# stores that node in obj->4. Returns void. 93 lines, 0 external callees (all inline). 64
+# callers (sub_8278C8E0, sub_8292C840, sub_823B0DB8, ...) -- a high-value chain-root lookup.
+# Siblings: FindChainRoot_82A596F0 (byte 17), FindChainRoot2_823D4F20 (byte 25); the "3"
+# distinguishes this byte-33 variant. The node/chain class and the byte-33 flag's meaning
+# aren't resolvable.
+[entrypoint.functions."0x82A962B0"]
+name = "FindChainRoot3_82A962B0"
+
+# A linear search (8-byte stride): scan an array of 8-byte elements, comparing a masked 27-bit
+# field of each to the target, and return the located slot offset.
+
+# Args: obj (r3, ->28 = a u16 with a flag bit, ->31 = the count, ->32/->68 = the array base),
+# target (r4). Selects the array base as (obj + 68) if bit 0 of (obj->28) is set, else (obj +
+# 32). Reads count = obj->31; if 0, returns 0. Otherwise scans the array (8-byte slots): for
+# each element, masks it to 27 bits (element & 0x7FFFFFF) and compares to target; on a match,
+# returns the slot offset. Returns 0 if not found. 60 lines, 0 external callees (all inline).
+# 13 callers (sub_821BD468, sub_823F75A0, sub_82283ED0, ...). The element class and the target
+# type aren't resolvable, so the name states the mechanism: a linear search over an 8-byte
+# array (masked-field comparison).
+[entrypoint.functions."0x82284448"]
+name = "LinearSearch_82284448"
+
+# A string-key lookup: walk a node structure, comparing node keys via StrCmp_Signed_8226D7A8,
+# and set a 0/1 result.
+
+# Args: obj (r3, ->4 ->4 = a starting node, node->17 = a flag, node->12 = a key), src (r4,
+# ->0 = the target). Reads the starting node (obj->4->4); if the node's byte-17 flag is 0, it
+# walks the node structure comparing each node's key (node->12) to the target via
+# StrCmp_Signed_8226D7A8, setting a 0/1 result (found/not) in r11. Returns that result. 100
+# lines. 1 caller: sub_825D7688 (a sibling, also in the TODO). The node/key class (a string-key
+# lookup over a tree/list of nodes) isn't resolvable, so the name states the mechanism: a
+# string-key lookup (walk + StrCmp compare, return a 0/1 result).
+[entrypoint.functions."0x822ADCB8"]
+name = "LookupString_822ADCB8"
+
+# A string-key lookup (the larger sibling of LookupString_822ADCB8): walk a node structure,
+# comparing node keys via StrCmp_Signed_8226D7A8 / CompareStrings_8228B5A0, and set a 0/1
+# result.
+
+# Args: obj (r3, ->4 ->4 = a starting node, node->17 = a flag, node->12 = a key), (r4), src
+# (r5, ->0 = the target). Reads the starting node (obj->4->4); if the node's byte-17 flag is 0,
+# it walks the node structure comparing each node's key (node->12) to the target via
+# StrCmp_Signed_8226D7A8 and CompareStrings_8228B5A0, setting a 0/1 result (found/not). Also
+# calls sub_8246CF80 and sub_824708F8 (further lookup helpers). Returns the 0/1 result. 220
+# lines. Many callers (sub_82514818, sub_825C7278, sub_8291FC20, ...). A larger sibling of
+# LookupString_822ADCB8 (same walk + string-key compare + 0/1 result shape, but with extra
+# helpers and a longer body); the "2" distinguishes the two. The node/key class isn't
+# resolvable, so the name states the mechanism: a string-key lookup.
+[entrypoint.functions."0x8246C010"]
+name = "LookupString2_8246C010"
+
+# A lookup-and-compare: call LookupString_822ADCB8 to find the node, validate it, then confirm
+# the match with CompareStrings_8228B5A0.
+
+# Args: obj (r3), target-obj (r4), src (r5). Calls LookupString_822ADCB8 (sub_822ADCB8) to
+# find the matching node. If the result is 0, raises `trap 22` (an invalid/missing-node
+# assertion). Otherwise it reads the node's key (result->4) and, if it doesn't already equal the
+# lookup result, confirms the match with CompareStrings_8228B5A0 (sub_8228B5A0, comparing the
+# node's +12 string to src). Returns the 0/1 match result. 86 lines. Many callers (sub_82B71020,
+# sub_825C6368, sub_825C79D8, ...). It's a thin "find the node, then verify the string matches"
+# wrapper around LookupString + CompareStrings. The node class and exact comparison semantics
+# aren't resolvable, so the name states the mechanism: lookup and compare.
+[entrypoint.functions."0x825D7688"]
+name = "LookupAndCompare_825D7688"
+
+# A register/init with a global counter: initialize the object, atomically increment a global
+# counter (under the global lock), and run a couple of string lookups.
+
+# Args: obj (r3, ->0 = a value, ->4 = a field), (r4), (r5). Sets obj->0 = r5 and obj->4 = 0
+# (initializing the object). Then it atomically increments a global counter (lwarx/stwcx CAS
+# loop under the global lock, REACQUIRE until success) -- the classic "register this object / assign
+# it an ID" pattern. It then calls LookupString2_8246C010 (sub_8246C010), LookupAndCompare_825D7688
+# (sub_825D7688), and CopyAssign_RefCounted2_82265160. Returns. 112 lines. 4 callers, in the
+# 0x82B7 cluster (sub_82B5C8B0, sub_82B745A0, sub_82B714A0, sub_82B80D70). The object class and
+# the exact registry semantics aren't resolvable, so the name states the mechanism: register/init
+# the object and bump a global counter.
+[entrypoint.functions."0x82B71020"]
+name = "RegisterWithCounter_82B71020"
+
+# A sorting network / bubble-sort over a small set of wrapper pointers: compare pairs
+# (a,b), (b,c), ... and swap the pointers so they come out in order.
+
+# Args: a (r3), b (r4), c (r5), (r6) -- three (or four) pointers to wrapper objects, where each
+# wrapper's ->0 is a value object and value->0 / value->4 are the two sort keys. For each pair,
+# it compares (value->0 of A vs value->0 of B); if A > B it swaps the two pointers; if equal it
+# tiebreaks on (value->4). It walks the pairs (a,b), (b,c), ... performing swaps, producing an
+# ordered sequence. Returns void. 89 lines, 0 external callees (all inline compares/swaps). 1
+# caller: sub_82C170D0. The element class and the exact number of inputs aren't resolvable, so
+# the name states the mechanism: a pointer-sorting (comparison/swap) network.
+[entrypoint.functions."0x82C280C0"]
+name = "SortPointers_82C280C0"
+
+# A bit-flag processing routine: inspect bit 13 of the incoming flags and of obj->28, compute a
+# parity bit (via a leading-zero count), and dispatch further flag handling.
+
+# Args: (r3), obj (r4, ->28 = a u16 flag field), flags (r5), (r6). Tests bit 13 (0x1000) of the
+# incoming flags; if it's clear, jumps to a fast path. Otherwise it inspects obj->28 (its upper
+# bits and its bit 13) and, in one branch, computes a parity bit as (32 - clz(obj->28 & 0xFF)) &
+# 1 (an odd/even bit-count test). It then calls sub_82284810 (a further flag handler). Returns.
+# 110 lines. 0 direct callers (it's reached via a dispatch/vcall, not a direct call). The flag
+# semantics (what bit 13 and the parity select) and the object class aren't resolvable, so the
+# name states the mechanism: process bit flags.
+[entrypoint.functions."0x82284750"]
+name = "ProcessFlags_82284750"
+
+# A comparator-based binary search over a 4-byte-stride array: linear scan for small ranges
+# (<= 32 elements), otherwise binary search using sub_82C42828 as the comparator.
+
+# Args: low (r3, array start), high (r4, array end), count (r5), (r6). Computes the element
+# span as ((high - low) >> 2) (4-byte stride). If the span is <= 32, it takes a linear-scan path.
+# Otherwise it binary-searches: computes a mid (rounding up), calls sub_82C42828 (the comparator,
+# with (low, high, ...) args) to decide which half to recurse into, and narrows the range. It
+# also calls sub_82C16D20, sub_82C273A8, sub_82C289E8 (further search/insert helpers) and recurses
+# (self-call). Returns the located position. 176 lines. 8 callers, in the 0x82C1-0x82C2 cluster
+# (sub_82C2E968, sub_82C3ADF0, sub_82C1B998, ...). A sibling of BinarySearch_4Stride_82C40EC0
+# (same 4-byte-stride array search, but with an explicit comparator + linear fallback); the
+# "Cmp" distinguishes it. The array element class and the comparator's ordering aren't
+# resolvable.
+[entrypoint.functions."0x82C39988"]
+name = "BinarySearch_Cmp_82C39988"
+
+# A bubble-sort over a range of 4-byte-stride wrapper pointers: walk the (start, end) range,
+# compare adjacent wrappers (via ->0->0), and swap them into order.
+
+# Args: start (r3, array start), end (r4, array end) -- a range of wrapper pointers, each
+# wrapper's ->0 a value object (value->0 the sort key). If start == end (or start + 4 == end,
+# i.e. fewer than 2 elements), returns immediately (nothing to sort). Otherwise it walks the
+# range, comparing adjacent elements ((start)->0->0 vs (start+4)->0->0) and swapping them when
+# out of order (a bubble sort). It also calls Process2DRegion_82C3C010 on one path. Returns
+# void. 113 lines. 1 caller: BinarySearch_Cmp_82C39988 (sub_82C39988). A range-based sibling of
+# SortPointers_82C280C0 (same compare/swap sorting of wrapper pointers, but over a start/end
+# range); the name states the mechanism: bubble-sort the pointer range. The element class
+# isn't resolvable.
+[entrypoint.functions."0x82C289E8"]
+name = "BubbleSortPointers_82C289E8"
+
+# A heapify / priority-queue sift over a 4-byte-stride array: compare the root against the
+# elements at the mid/child indices and swap them to maintain heap order.
+
+# Args: heap (r3, ->0 = the root element, then a 4-byte-stride array), (r4), end (r5), (r6). Computes
+# the element count as ((end - heap) >> 2). If the count is <= 40, it takes a linear path
+# (loc_82C3C454). Otherwise it does a heap sift: computes a mid index (roughly (count + 1) / 8,
+# rounded up) and compares the root (heap->0->0) against the elements at the mid and 2*mid
+# positions (binary-heap parent/child indices); when out of order it swaps the elements
+# (rewiring the pointer slots). 298 lines, 0 external callees (all inline compares/swaps). 1
+# caller: sub_82C42828 (the same routine BinarySearch_Cmp_82C39988 uses as its comparator --
+# so this is the sift it invokes). The element class and the heap's ordering (min/max) aren't
+# resolvable, so the name states the mechanism: a heap sift.
+[entrypoint.functions."0x82C3C298"]
+name = "HeapSift_82C3C298"
+
+# A heap-range processor: compute the mid index of a 4-byte-stride range, sift the left half
+# (HeapSift_82C3C298), then continue processing / recursing over the range.
+
+# Args: (r3), start (r4, array start), end (r5, array end), (r6) -- a range of 4-byte-stride
+# elements (a heap). Computes the element count as ((end - start) >> 2) and the mid index
+# (roughly count / 2, rounded up). It calls HeapSift_82C3C298 (sub_82C3C298) to sift the left
+# half (start .. start + mid), then continues walking/processing the range (comparing and
+# reordering elements). Returns. 310 lines, 1 callee (HeapSift_82C3C298). 1 caller:
+# BinarySearch_Cmp_82C39988 (sub_82C39988) -- so it's the heap routine the comparator invokes
+# during its search. The element class and the exact heap invariant (min/max) aren't
+# resolvable, so the name states the mechanism: process the heap range (sift + recurse).
+[entrypoint.functions."0x82C42828"]
+name = "HeapProcess_82C42828"
+
+# A recursive tree / structure destructor: recurse into the child subtree (child->8), free each
+# node's data block (child->20), and clear the node's fields.
+
+# Args: node (r3), child (r4), (r5). If the child's byte-33 flag is 0, it recurses into the
+# child subtree: calls itself with (node, child->8) (the next child), frees child->20
+# (Free_SizeBucketed_Thunk_8221BE68, a size-bucketed block, if non-null), advances to the next
+# node (child->0), and zeroes the node's fields ((child + 16)->4/->8/->12 = 0). So it's a
+# recursive teardown of a tree (free each node's block, recurse on the children). Returns void.
+# 75 lines. 2 callers (sub_82B4CC70, sub_82371958). A sibling of DestroyList_Recursive (same
+# recursive-free pattern, but for a tree with data blocks). The node class and the child link
+# semantics aren't resolvable, so the name states the mechanism: a recursive tree destructor.
+[entrypoint.functions."0x82B4D218"]
+name = "DestroyTree_Recursive_82B4D218"
+
+# An indexed-region processor: index a 16-byte-stride array in a large object (index clamped to
+# 0-511), update the region's counters, and advance the ranges (AdvanceRanges2_82BAA7B8).
+
+# Args: obj (r3, a large object with a 16-byte-stride array starting at offset 44), gate (r4,
+# a non-zero check), index (r5, clamped to 511), (r6). If gate == 0, returns. Clamps index to
+# 511. Accesses the region at (obj + 44 + (index + 196) * 16) and updates its counters (region->4
+# += 1, region->12 -= 1), then walks the region (a loop over obj + 44) and calls
+# AdvanceRanges2_82BAA7B8 (sub_82BAA7B8) and sub_82BAA570. So it's a "process the region at the
+# clamped index" routine. 196 lines. Many callers, in the 0x82BB/0x82BA cluster (sub_82BB7700,
+# sub_82BAE500, sub_823F8F40, ...). The region object and the exact counter semantics aren't
+# resolvable, so the name states the mechanism: process an indexed region.
+[entrypoint.functions."0x82BA9068"]
+name = "ProcessIndexedRegion_82BA9068"
+
+# A trivial constant-return stub: always returns 2.
+
+# Args: (none used). Sets r3 = 2 and returns. 2 lines. 0 direct callers -- so it's most likely a
+# virtual method reached via a vtable (a type-ID / small-value getter that always yields 2), or
+# otherwise-dead code. The constant 2's meaning (a type tag, an element count, a mode, ...) can't
+# be determined from the body alone. The name states the mechanism: a stub that returns the
+# constant 2.
+[entrypoint.functions."0x823314B8"]
+name = "ReturnConstant2_823314B8"
+
+# A trivial global getter: returns a fixed global address (0x83334D40).
+
+# Args: (none used). Loads a fixed 32-bit address via lis/addi (0x83334D40, in the tail of the
+# .text/.data region) into r3 and returns it. 2 lines. 0 direct callers -- so it's most likely a
+# virtual method reached via a vtable (a "get the global object/pointer" accessor) or otherwise-
+# dead code. The global it points at (0x83334D40) and its meaning can't be determined from the
+# body alone. The name states the mechanism: a stub returning a fixed global pointer.
+[entrypoint.functions."0x82C27FA0"]
+name = "GetGlobalPtr_82C27FA0"
+
+# A trivial global getter (the sibling of GetGlobalPtr_82C27FA0): returns a fixed global
+# address (0x83334D28, 24 bytes before GetGlobalPtr_82C27FA0's 0x83334D40).
+
+# Args: (none used). Loads a fixed 32-bit address via lis/addi (0x83334D28) into r3 and returns
+# it. 2 lines. 0 direct callers -- most likely a virtual method reached via a vtable (a "get the
+# global object/pointer" accessor) or otherwise-dead code. Sibling of GetGlobalPtr_82C27FA0
+# (same shape, a nearby global in the same region); the "2" distinguishes the two. The global's
+# meaning can't be determined from the body alone. The name states the mechanism: a stub
+# returning a fixed global pointer.
+[entrypoint.functions."0x82C23D00"]
+name = "GetGlobalPtr2_82C23D00"
+
+# An indexed-region processor (the sibling of ProcessIndexedRegion_82BA9068): index a
+# 16-byte-stride array in a large object (index clamped to 0-511), update the region's counters,
+# and advance the ranges (AdvanceRanges_82BAA6F0).
+
+# Args: obj (r3, a large object with a 16-byte-stride array), index (r4, clamped to 511), (r5),
+# (r6), (r7). Clamps index to 511. Accesses the region at (obj + (index + 196) * 16) and updates
+# its counters (region->0 += 1, region->12 += 1), clamps region->8 to the new region->12, then
+# walks the region and calls AdvanceRanges_82BAA6F0 (sub_82BAA6F0) and sub_82BAA4A8. So it's a
+# "process the region at the clamped index" routine. 194 lines. Many callers, in the 0x82BB/
+# 0x82BC/0x82BA cluster (sub_82BBDC90, sub_82BAFBE8, sub_82BC4040, ...). A sibling of
+# ProcessIndexedRegion_82BA9068 (same 16-byte-stride array + clamped-index shape, but increments
+# ->0/->12 and calls AdvanceRanges rather than AdvanceRanges2); the "2" distinguishes the two.
+# The region object and the exact counter semantics aren't resolvable.
+[entrypoint.functions."0x82BA8F18"]
+name = "ProcessIndexedRegion2_82BA8F18"
+
+# A range-advance + dispatch: call AdvanceRanges_82BAA6F0 to advance the object's ranges, then
+# dispatch (a vcall via a global function pointer / sub_82BAA688).
+
+# Args: obj (r3), (r4), (r5), (r6). Calls AdvanceRanges_82BAA6F0 (sub_82BAA6F0) with a global
+# base pointer + obj + the range args to advance the ranges. Then it loads a global function
+# pointer (from a global table) and dispatches a call through it (bctrl) with obj, and also calls
+# sub_82BAA688 (a further advance/range helper). It also loads/compares a 2-field global
+# (a low/high pair). So it's an "advance the ranges, then dispatch" routine. 116 lines. 1 caller:
+# ProcessIndexedRegion2_82BA8F18 (sub_82BA8F18). Part of the 0x82BAA range/advance cluster. The
+# object class and the dispatched call's meaning aren't resolvable, so the name states the
+# mechanism: advance the ranges and dispatch.
+[entrypoint.functions."0x82BAA4A8"]
+name = "AdvanceAndDispatch_82BAA4A8"
+
+# A large structure-node processor: branch on a child's flag, and on the null-child path call a
+# helper (sub_82B4C1C0); otherwise process the node (FindChainRoot3_82A962B0 + helpers).
+
+# Args: obj (r3), child (r4, ->4 = a value, ->8 = a flag), (r5), (r6). If child->8 == 0, it calls
+# sub_82B4C1C0 (a leaf helper, with child->4 / 1 / r6) and returns. Otherwise it processes the
+# node: calls FindChainRoot3_82A962B0 (sub_82A962B0) to find the chain root, plus sub_828836E8 and
+# sub_82B4C080 (further structure helpers). So it's a "process the structure node" routine. 306
+# lines. 1 caller: sub_82B4B2B8. Part of the 0x82B4B structure cluster (siblings of
+# DestroyTree_Recursive_82B4D218, sub_82B4C080, sub_82B4C1C0). The node class and the exact
+# processing aren't resolvable, so the name states the mechanism: process a structure node.
+[entrypoint.functions."0x82B4BB10"]
+name = "ProcessStructureNode_82B4BB10"
+
+# A large node-value constructor (in the 0x82B4C cluster): check a type/code field, build a
+# string, allocate, and construct a value (ConstructFromArray + the 0x826C3 helpers).
+
+# Args: obj (r3), child (r4, ->8 = a type/code), (r5), (r6), (r7). Tests child->8 against a code
+# (0x0CCE03); on the matching path it builds a string (SetString_822F2020 with a global string,
+# then sub_826C3EF0 -- a format op), allocates (Allocate_OrDbgBreak_8221F388), and constructs a
+# value (ConstructFromArray_82B4BFD8, a sibling in the 0x82B4B cluster, plus sub_822F1F00,
+# sub_8234D600, sub_826C3FA8, sub_8292CC88, sub_82171810). So it's a "construct the node's value"
+# routine (branch on the type, build the string, allocate, construct). 349 lines. 2 callers
+# (sub_82B4BB10 -- ProcessStructureNode_82B4BB10 -- and sub_82B4C080). The node/value class and
+# the 0x0CCE03 code's meaning aren't resolvable, so the name states the mechanism: construct a
+# node value.
+[entrypoint.functions."0x82B4C1C0"]
+name = "ConstructNodeValue_82B4C1C0"
+
+# A chain-root finder (a byte-33-flag variant): validate, then walk a chain (via node->8 / node->0)
+# to the topmost node (byte-33 flag set) and store it in obj->4.
+
+# Arg: obj (r3, ->0 = a base, ->4 = a starting node). Validates (obj->0 != 0, else `trap 22`).
+# Reads the head node (obj->4): if the head's byte-33 flag is set, it advances to the next node
+# (obj->4 = head->8) and returns if that node's byte-33 flag is 0 (else `trap 22`). Otherwise it
+# walks up the chain via node->0 / node->8 until it reaches a node whose byte-33 flag is set (the
+# root/top), and stores that node in obj->4. Returns void. 112 lines, 0 external callees (all
+# inline). Many callers (sub_82883068, sub_822FF270, sub_82616CA0, ...). Siblings:
+# FindChainRoot_82A596F0 (byte 17), FindChainRoot2_823D4F20 (byte 25), FindChainRoot3_82A962B0
+# (byte 33, via node->0); this one also uses byte 33 but walks via node->8/node->0, hence the
+# "4". The node/chain class and the byte-33 flag's meaning aren't resolvable.
+[entrypoint.functions."0x828836E8"]
+name = "FindChainRoot4_828836E8"
+
+# A hash table insert / get-or-insert (the sibling of HashTable_Find2_829FC630): look up the
+# key; if not present, increment the count, compute the value's length, allocate, and insert.
+
+# Args: table (r3, ->24 = a count/size), key (r4), value (r5, a C-string). Calls
+# HashTable_Find2_829FC630 (sub_829FC630) to look up the key. If it's already present, returns it.
+# Otherwise it increments the count (table->24 += 1), computes the value's length (a strlen loop),
+# allocates (Allocate_OrDbgBreak_8221F388) and copies the value (MemCpy_SdkRuntime_82CA2C60), then
+# inserts the entry into the open-addressing table. So it's a "get or insert into the hash table"
+# routine. 148 lines. 1 caller: sub_829FC7A8. Sibling of HashTable_Find2_829FC630 (the lookup
+# this insert uses); the table's key/value class (a string-key -> string-value map, plausibly) isn't
+# fully resolvable, so the name states the mechanism: insert into the hash table.
+[entrypoint.functions."0x829FC6A0"]
+name = "HashTable_Insert_829FC6A0"
+
+# A hash table insert with auto-grow: call HashTable_Insert_829FC6A0, then check whether the
+# table is at its load threshold and grow/rehash (sub_829FAB50) if needed.
+
+# Args: table (r3, ->0 = a size/mask, ->24 = a count), (r4, a key/index), (r5). Calls
+# HashTable_Insert_829FC6A0 (sub_829FC6A0) to insert the entry. Then it checks the table's load
+# (count = table->24 against a threshold derived from the size table->0, a (3/4)-fill-style
+# threshold); if it's at the threshold it grows the table by calling sub_829FAB50 (a rehash,
+# with the new size table->0 << 1). It then recomputes the probe index ((size - 1) & key). So it's
+# an "insert, and grow the table if it's getting full" routine. 101 lines. 1 caller: sub_829FC858.
+# Part of the 0x829FC hash-table cluster (HashTable_Find2_829FC630, HashTable_Insert_829FC6A0,
+# sub_829FAB50). The table's key/value class isn't resolvable, so the name states the mechanism:
+# insert with auto-grow.
+[entrypoint.functions."0x829FC7A8"]
+name = "HashTable_InsertGrow_829FC7A8"
+
+# A ctype predicate (a sibling of the 0x82CA6AB0-0x82CA6BB0 char-classification cluster): look up
+# the u16 char table and return bit 3 (0x8) of the entry.
+
+# Arg: c (r3, a char). Computes the table index as (c * 2) (a u16 per character), loads the u16
+# entry from the global char-classification table (a fixed base near the .data region, the same
+# table the 0x82CA6AB0-BB0 ctype siblings use), masks it to bit 3 (0x8) (rlwinm ... 28,28), and
+# returns that single bit. So it's a character-classification predicate: "does char c have the
+# bit-3 class set?". 5 lines, 0 external callees (all inline table lookup). 13 callers
+# (sub_82C47A50, sub_83045EC0, sub_82B47610, ...). Siblings in the same cluster:
+# Ctype_Pred_Bit2_82CA6B10 (bit 2), and the bit-0 (_UPPER) predicates; the "Bit3" identifies which
+# class bit this one returns. The exact class (bit 3's meaning in the table) isn't resolvable from
+# the body alone.
+[entrypoint.functions."0x82CA6B50"]
+name = "Ctype_Pred_Bit3_82CA6B50"
+
+# A trivial constant-return stub: always returns 8.
+
+# Args: (none used). Sets r3 = 8 and returns. 2 lines. 0 direct callers -- so it's most likely a
+# virtual method reached via a vtable (a "get the size / count / type" getter that always yields
+# 8), or otherwise-dead code. The constant 8's meaning (an element size, a count, a type tag, ...)
+# can't be determined from the body alone. The name states the mechanism: a stub that returns the
+# constant 8.
+[entrypoint.functions."0x826EB210"]
+name = "ReturnConstant8_826EB210"
+
 # Existing Functions
 [entrypoint.functions."0x8222B3C8"]
 name = "SwitchDispatch_8222B3C8"

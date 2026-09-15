@@ -8,6 +8,8 @@ default.xex
 out
 generated
 .pi
+nul
+pi-session-*.html
 
 # --- Runtime logs written next to the exe (may land in the root when running
 #     with --game_data_root) ---------------------------------------------------
@@ -45,4 +47,3 @@ thirdparty/android-ndk/
 
 # --- Historical reference (pre-ReXGlue XenonRecomp configs) -------------------
 XenonRecomp
-nul
