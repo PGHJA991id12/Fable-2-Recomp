@@ -368,6 +368,1684 @@ name = "CsGuardedVcall_Slot60_82CD2DF8"
 [entrypoint.functions."0x82CE32B0"]
 name = "StoreUnitTimesCount_82CE32B0"
 
+# SDK C-runtime ctype predicate: returns bit 0 (the _UPPER flag) of the
+# 256-entry u16 character-type table. Table base is runtime-loaded from
+# global 0x82CCC8C4 (entry = *(base + c*2), zero-extended 16-bit). One of
+# 9 uniform siblings in the 0x82CA6AB0-0x82CA6BB0 block, each extracting a
+# different bit/mask of the same u16 entry: bit0 (this one, sub_82CA6AD0),
+# bits 0|1|8 (sub_82CA6AB0: andi 259, sub_82CA6B90: andi 263), and single
+# bits 24/26/27/28/29/30 (sub_82CA6B30/BB0/B70/B50/B10/AF0 — note: beyond
+# the 16-bit load, so these read zero in the current table layout). The
+# _UPPER meaning of bit 0 is pinned by its only non-cluster consumer,
+# ToLower_SdkRuntime_82CA4288, which gates an A-Z -> a-z fold on it.
+# 2 call sites: ToLower_SdkRuntime_82CA4288 and the dispatch table
+# sub_82A25230 (which routes to the sibling predicates by index).
+[entrypoint.functions."0x82CA6AD0"]
+name = "Ctype_IsUpper_82CA6AD0"
+
+# SDK C-runtime tolower, in classic CRT shape:
+# if (0 <= c < 256 && Ctype_IsUpper(c)) return sub_821EE9E8(c); else return c
+# where sub_821EE9E8 is plain ASCII fold (A-Z -> a-z, else c unchanged;
+# 22 callers image-wide, so it is also the general tolower). The ctype
+# guard is what makes this the locale-aware variant. 2 call sites, both
+# string processing: sub_82448030 is a CASE-INSENSITIVE FNV-1 string hash
+# (hash = tolower(byte) ^ (hash * 16777619), 16777619 = 0x01000193 = the
+# 32-bit FNV prime) and sub_83002B80 converts a character to a 0-25 letter
+# index (result - 96, 'a' = 97). Named ToLower_SdkRuntime (not bare
+# "tolower") to keep the guest symbol distinct from host libc, matching the
+# MemCpy_SdkRuntime convention.
+[entrypoint.functions."0x82CA4288"]
+name = "ToLower_SdkRuntime_82CA4288"
+
+# Plain ASCII tolower, the raw fold without the ctype guard:
+# if (c < 65) return c; if (c > 90) return c; return c + 32.
+# i.e. A-Z -> a-z, everything else passes through unchanged. 22 call sites
+# image-wide, so this is the general tolower used across the engine (the
+# locale-aware ToLower_SdkRuntime_82CA4288 is a rarer variant that gates the
+# same fold on Ctype_IsUpper_82CA6AD0). 6 insns, no prologue (leaf). Named
+# ToLower_Ascii to distinguish it from ToLower_SdkRuntime and to keep the
+# guest symbol distinct from host libc (MemCpy_SdkRuntime convention).
+[entrypoint.functions."0x821EE9E8"]
+name = "ToLower_Ascii_821EE9E8"
+
+# Constant-true predicate / stub: "li r3,1; blr" — ignores every argument
+# and always returns 1. 6 call sites, all treating the result as a boolean
+# gate: sub_83205F58 sets up (r3=*(obj+16), r4, r6, r7) then "cmpwi r3,1;
+# bne" to choose between (byte & 0x1F) and a fallback value (so it always
+# takes the & 0x1F path); four 0x8304-region callers (sub_83040418,
+# Func_83040FEC, Func_8304100C, Func_8304101C) share an identical
+# "lwz r3,192(r31); li r5,0; li r6,0; bl" shape; sub_8301D688 gates on a
+# byte == 118 ('v') before the call. The call shape (this + args, result
+# used as yes/no) suggests a query method the compiler folded to a constant
+# (a feature always on, an "accept all" policy, or a debug gate compiled
+# out) — the original semantic is not recoverable without the lost
+# vtable/branch source, so the name describes the mechanism only.
+[entrypoint.functions."0x82C43198"]
+name = "ConstTrue_Predicate_82C43198"
+
+# The game's SIMD-optimized byte-copy kernel (a second memcpy, distinct from
+# the SDK C-runtime MemCpy_SdkRuntime_82CA2C60). Convention: copy(dst=r3,
+# src=r4, len=r5), returns dst (r26). Forward-only, NO overlap/direction
+# handling (plain memcpy semantics). Two paths: len < 16 takes a small path
+# (optional 8-byte head if src is 8-aligned, then an aligned 4-byte chunk via
+# sub_82CA30E8, then a 4-byte remainder loop); len >= 16 takes a vectorized
+# path using 128-bit SIMD (lvx128/vperm128/stvx128) for 16-byte main-loop
+# moves with dcbt (source) and dcbzl (destination) 128-byte prefetch, chunked
+# at 1024. 34 call sites across the engine. Named MemCpy_Vectorized to
+# distinguish it from the SDK memcpy and to keep the guest symbol distinct
+# from host libc (the MemCpy_SdkRuntime convention).
+[entrypoint.functions."0x822085D0"]
+name = "MemCpy_Vectorized_822085D0"
+
+# 1-instruction tail-branch thunk: "b 0x822085d0" — a plain (unswapped)
+# alias to the vectorized memcpy kernel MemCpy_Vectorized_822085D0, passing
+# (dst=r3, src=r4, len=r5) through unchanged. Single caller: sub_830FB4E8,
+# which sets up (r3=r23=dst, r4=r31=src, r5=*(r25)=len) — a straightforward
+# forward copy. Its 8-byte neighbor sub_82B93040 is the SWEAP-direction
+# sibling (swaps r3/r4 then tail-calls the same kernel, single caller
+# sub_83045C00), so the pair offers both argument orders of the same SIMD
+# copy kernel. Named as a thunk/trampoline to the vectorized memcpy.
+[entrypoint.functions."0x82B93038"]
+name = "MemCpy_Vectorized_Thunk_82B93038"
+
+# Spin-lock acquire (test-and-set with spin). Args: addr (r3) -> a u32
+# flag where 0 = free / 1 = held. Behavior: read *addr; if 0, atomically
+# CAS it to 1 (claim) and return; if non-zero (held), spin re-reading
+# *addr until it reads 0, then claim it. Uses an lwarx/stwcx. atomic pair
+# inside the recompiler's global-lock region (mfmsr/mtmsrd MSR sync), with
+# an lwsync after the claim, and a db16cyc delay hint once the spin counter
+# passes 40 (bus-contention back-off). Returns void. Sits in the wait/
+# sync infrastructure (immediately before KeWaitForSingleObject at
+# 0x822D74A0). 15 call sites, all in a data-processing subsystem: each
+# loads a global object, adds an offset (a per-object lock word at +12/+32/
+# +36/+40/-7828 etc.), and calls this BEFORE reading that object's fields —
+# i.e. a spin-lock guard. Named SpinLock_Acquire (the matching release that
+# sets the flag back to 0 is a separate function).
+[entrypoint.functions."0x822D7408"]
+name = "SpinLock_Acquire_822D7408"
+
+# Vtable method of the 0x82B49 object family (ZERO static call sites —
+# reached only through virtual dispatch). One of the two largest methods in
+# the region (291 insns; near-identical twin sub_82B49320 at 290). Args:
+# obj (r3), src (r4, a pointer to a u64), len (r5). obj->16 is a 64-bit
+# read position (it has a public getter, sub_82B495F8: "ld r3,16(r3)");
+# obj->24 a 64-bit bound; obj->32 a size; obj->36 an index into a 32-byte-
+# stride entry array. Flow: bounds-check (position + len <= bound, else
+# return the 0x80004005 failure code), then a loop that (a) reads a value
+# from src, (b) dispatches to a handler from a GLOBAL FUNCTION-POINTER
+# TABLE (r24) indexed by the high 32 bits of *src, passing (bound,
+# computed_ptr, chunk_len), (c) advances the position (obj->16) by the
+# chunk, and (d) calls sibling sub_82B49730(obj) for a status (low byte
+# checked) and sub_82B49678(obj, flag) on the overflow path. Returns 0 on
+# success, a 0x8000xxxx status on failure. Mechanism is clear (bounds-
+# checked, position-advancing, handler-table-dispatched chunk processing —
+# a buffer/stream reader of some kind) but the object identity and handler
+# table are unresolved, so the name describes the mechanism only and keeps
+# the address suffix.
+[entrypoint.functions."0x82B49110"]
+name = "ProcessChunk_TableDispatch_82B49110"
+
+# Pure no-op stub: "blr" — does nothing, returns whatever was in r3.
+# 396 call sites (one of the hottest functions in the image). The dominant
+# caller pattern is "call a helper (sub_82317E50 / sub_82317F98 / ...), then
+# addi r3,r1,N; bl sub_829CE870" — i.e. it is invoked on a stack slot (often
+# twice, at two different offsets) right after constructing/using an object,
+# and a second common shape is "mr r3,obj; bl sub_829CE870" (called on an
+# object, then another op follows). A no-op called this uniformly on
+# objects/stack slots is the signature of an EMPTY virtual method — most
+# likely a no-op destructor / release / delete for an object type whose
+# teardown does nothing in this build (the call is still emitted for ABI/
+# dispatch correctness). The exact interface slot is not resolvable without
+# the vtables, so the name states the observable fact: it is a no-op.
+[entrypoint.functions."0x829CE870"]
+name = "NoOp_Stub_829CE870"
+
+# Spin-locked pool / free-list node acquisition. Args: obj (r3) — selected
+# by the 4 callers by indexing an array (base = caller's obj->4, 4-aligned
+# index) to pick a per-slot object. Layout: obj->16 = head of a node list,
+# obj->4 = step/size, obj->24 = lower window bound, obj->28 = upper window
+# bound, obj+36 = the spin-lock word (guarded by SpinLock_Acquire_822D7408).
+# Flow: acquire the spin-lock; if the list is empty call sub_83230568(obj)
+# to produce a node (if that also yields nothing, release and return 0);
+# otherwise take the head node, advance its internal chain pointer
+# (node->0 = *node->0), increment a counter (node->4 += 1), and if the
+# chain is exhausted (*node->0 == 0) unlink the node from the list (via the
+# node->8 next pointers, fixing the head if needed); then advance the
+# allocation window (obj->24 += obj->4, obj->28 -= obj->4); release the
+# lock; return the new chain head (node->0) or 0. A synchronized block/node
+# dispense from a pool. The object identity is unresolved (it is one of the
+# per-slot objects in the data-processing subsystem), so the name describes
+# the mechanism and keeps the address suffix.
+[entrypoint.functions."0x83230688"]
+name = "Pool_AcquireNode_83230688"
+
+# ---------------------------------------------------------------------------
+# MAIN SIZE-BUCKETED ALLOCATOR (the game's primary "malloc", 3725 call sites)
+#
+# This is a SEPARATE, higher-level allocator from the low-level custom heap
+# (Heap_AllocateBlock_82238828 / Heap_FreeBlock_822394F0, which carve blocks
+# out of NtAllocateVirtualMemory regions). Three functions form the entry
+# chain:
+#
+#   sub_8221F388 (3725 callers) -- the "safe" wrapper everyone calls:
+#       r31 = sub_8221F3F0(size);            // allocate
+#       if (r31 == 0) {                       // OOM:
+#           if (*(global_fnptr @ ~0x82000B0C)) { r4 = 0; call it }  // OOM error-report callback
+#           sub_82CBBB58();                   // = __imp__DbgBreakPoint (1-insn thunk)
+#       }
+#       return r31;
+#   sub_8221F3F0 (142 callers) -- 1-insn thunk: "b 0x83231d20" -> the core.
+#   sub_83231D20 (2 callers)   -- the core size-bucketed allocator.
+#
+# So sub_8221F388 = "allocate(size); on OOM report + debug-break". OOM is
+# treated as fatal (DbgBreakPoint), which is why this is the dominant
+# allocation path: game code allocates through it and never checks for NULL
+# (the wrapper guarantees non-NULL or a breakpoint).
+# ---------------------------------------------------------------------------
+
+# The core size-bucketed allocator. Arg: size (r3). Returns a pointer, or 0
+# if the size can't be satisfied. Flow:
+#   1. Lazy init: if an init-flag byte (game data) is 0, call sub_83231B60().
+#   2. FAST PATH: linear-scan a 6-entry table of cached sizes; if `size` is
+#      one of them, jump to a per-size fast path.
+#   3. Otherwise dispatch by size to a pool:
+#        size <= 64        -> index (size+3) into a pre-built node pool and
+#                            Pool_AcquireNode_83230688 the selected node
+#                            (returns 0 if size > that pool's max entry).
+#        64  < size <= 512 -> spin-locked pool: SpinLock_Acquire(pool+40),
+#                            sub_83231590(pool, size), release (->40 = 0).
+#        512 < size <= 10240 -> a second spin-locked pool (same shape).
+#        10240 < size <= 10485760 (10 MB) -> a third spin-locked pool.
+#        size > 10 MB        -> sub_83230900(size) (large-allocation path).
+#   Each pool has a max-size cap (checked via a global); exceeding it returns 0.
+# A size-bucketed allocator: small sizes use a fixed-node pool, mid/large sizes
+# use dedicated spin-locked pools, and huge sizes fall through to a large path.
+[entrypoint.functions."0x83231D20"]
+name = "Allocate_SizeBucketed_83231D20"
+
+# 1-insn thunk: "b 0x83231d20" -- forwards (size) to the core allocator
+# Allocate_SizeBucketed_83231D20 unchanged and returns its pointer. 142
+# callers use this entry directly (they handle the 0/NULL result themselves
+# rather than going through the OOM-crashing wrapper sub_8221F388).
+[entrypoint.functions."0x8221F3F0"]
+name = "Allocate_SizeBucketed_Thunk_8221F3F0"
+
+# The game's PRIMARY allocation entry point (3725 call sites -- the dominant
+# "malloc"). Arg: size (r3). Calls Allocate_SizeBucketed_Thunk_8221F3F0(size)
+# (-> Allocate_SizeBucketed_83231D20) to get a pointer. If the result is 0
+# (OOM): read a global function pointer (~0x82000B0C), and if non-zero call it
+# with (r4 = 0) as an OOM error-report callback, then call sub_82CBBB58 which
+# is a 1-insn thunk to __imp__DbgBreakPoint (debug breakpoint). Returns the
+# pointer. Net effect: "allocate(size); on failure report + debug-break", i.e.
+# OOM is fatal and callers never need to NULL-check. Sits one layer above the
+# low-level custom heap (Heap_AllocateBlock_82238828).
+[entrypoint.functions."0x8221F388"]
+name = "Allocate_OrDbgBreak_8221F388"
+
+# 2-insn pointer getter: "lwz r3, 32(r3); blr" -- returns the u32/pointer
+# stored at offset +32 of the object in r3. 6 callers (all in the 0x830F-0x831B
+# region); the result is passed as the first arg to various functions, and one
+# caller null-checks it ("cmplwi r3,0"), so offset 32 holds a NULL-able pointer
+# (a sub-object / back-reference). The owning class isn't resolved, so the name
+# states the mechanism (get the pointer field at offset 32) + address suffix.
+[entrypoint.functions."0x824C23D0"]
+name = "GetPtr_Field32_824C23D0"
+
+# ---------------------------------------------------------------------------
+# FREE SIDE of the size-bucketed allocator (the game's primary "free",
+# 4498 call sites -- even hotter than the allocate entry at 3725).
+#
+#   sub_8221BE68 (4498 callers) -- the main free() entry: 1-insn thunk
+#       "b 0x83231be8" -> Free_SizeBucketed_83231BE8.
+#   sub_83231BE8 (2 callers)    -- the core free(): given a pointer, try to
+#       release it from each size pool in turn; return 1 if freed, 0 if not.
+#       - not initialized (same init byte as the allocator) -> return 0
+#       - ptr == NULL                                        -> return 1 (no-op ok)
+#       - pool <=64   : Pool_FreeByAddress_832304E8(ptr, pool)  -> freed?
+#       - pool 64-512 : Pool_FreeByAddress_832304E8(ptr, pool)  -> freed?
+#       - pool 512-10240 / 10240-10MB / one more : SpinLock +
+#         sub_83231518(pool, ptr) (spin-locked pool free)        -> freed?
+#       - else (large): sub_83230848(ptr) (large-path free)     -> freed?
+#   sub_832304E8 (4 callers)    -- find the block containing `ptr` in a pool
+#       (walk the pool's block list r4->28; base r4->20) and free it; return
+#       1 if the pointer was in this pool, 0 otherwise. Used by the two small
+#       pools of Free_SizeBucketed.
+#   sub_83230320 (1 caller)     -- the spin-locked single-block free: push the
+#       address back onto its block's free list, decrement the block's in-use
+#       count, advance the pool window; if the block empties, unlink the whole
+#       block from the pool's free-block list. Called only by sub_832304E8.
+#
+# This is the exact counterpart of the allocate side (Allocate_OrDbgBreak / 
+# Allocate_SizeBucketed): free walks the same size buckets the allocator used.
+# ---------------------------------------------------------------------------
+
+# 1-insn thunk: "b 0x83231be8" -- forwards the pointer to Free_SizeBucketed_
+# 83231BE8. The game's PRIMARY free() entry point (4498 call sites -- the
+# dominant free, called more often than the allocate entry). Plain free(ptr):
+# returns 1 if the pointer was released (or was NULL), 0 if it was not owned
+# by this allocator. Sits one layer above the low-level custom heap
+# (Heap_FreeBlock_822394F0).
+[entrypoint.functions."0x8221BE68"]
+name = "Free_SizeBucketed_Thunk_8221BE68"
+
+# The core size-bucketed free(). Arg: pointer (r3). Returns 1 if freed, 0 if
+# not owned. Flow: (1) if the allocator's init byte is 0, return 0. (2) NULL
+# -> return 1 (freeing NULL is a valid no-op). (3) Try the small pools first
+# via Pool_FreeByAddress_832304E8(ptr, pool) for the <=64 and 64-512 pools;
+# if either reports the pointer was freed, return 1. (4) Then the spin-locked
+# pools (512-10240, 10240-10MB, and one more) via SpinLock_Acquire(pool+40) +
+# sub_83231518(pool, ptr) + release; return 1 if one frees it. (5) Otherwise
+# the large path: sub_83230848(ptr); return the freed bit. The exact mirror of
+# Allocate_SizeBucketed_83231D20's size buckets. 2 callers (the thunk and
+# sub_82BEAB88).
+[entrypoint.functions."0x83231BE8"]
+name = "Free_SizeBucketed_83231BE8"
+
+# Find-and-free by address for a pool's small blocks. Args: ptr (r3), pool
+# (r4). Walks the pool's block list (head at r4->28; each node ->0 = start
+# offset, ->12 = next; base at r4->20) looking for the block whose range
+# [node_start, base + node_start) contains ptr. If found: align ptr down to
+# the pool's granularity (r4->0), load the block descriptor at the aligned
+# address + 12, call Pool_FreeNode_83230320(desc, ptr) to release it, and
+# return 1. If no block contains ptr, return 0. 4 callers: the two small pools
+# of Free_SizeBucketed_83231BE8, plus sub_828456C8 and sub_8240DAA8.
+[entrypoint.functions."0x832304E8"]
+name = "Pool_FreeByAddress_832304E8"
+
+# The spin-locked single-block free for a pool. Args: pool (r31), ptr (r4).
+# SpinLock_Acquire(pool+36). Aligns ptr to the block granularity, pushes the
+# address onto its block's free list (head at block->0, in-use count at
+# block->4, decrementing it), and advances the pool's window (pool->24 /
+# pool->28, step pool->4). If the block's in-use count reaches 0, unlinks the
+# whole block from the pool's free-block list (head pool->16, via block->8
+# next). Calls sub_83235FC0(pool->20) as a helper, recomputes the window, then
+# releases the lock (pool+36 = 0). The release counterpart of
+# Pool_AcquireNode_83230688. Single caller: Pool_FreeByAddress_832304E8.
+[entrypoint.functions."0x83230320"]
+name = "Pool_FreeNode_83230320"
+
+# ---------------------------------------------------------------------------
+# REFERENCE-COUNTED RESOURCE RELEASE (the game's main "Release()", 2794
+# call sites) plus two sub-object vtable-slot-3 delegates.
+# ---------------------------------------------------------------------------
+
+# The game's primary reference-counted Release(). Arg: wrapper object (r3) that
+# holds a reference-counted resource at wrapper->4. Flow: if wrapper->4 is NULL,
+# just clear the wrapper and return. Otherwise ATOMICALLY decrement the
+# resource's reference count (*(wrapper->4)) using an lwarx/stwcx. loop under the
+# global lock (mfmsr/mtmsrd). If the count is still > 0, another holder remains
+# -- just clear the wrapper's fields and return. If it reaches 0 (last reference):
+# call the resource's destructor callback (resource->4, invoked with resource->8
+# as the object) and then free the resource via Free_SizeBucketed_Thunk_8221BE68
+# (the main free). Finally clear wrapper->0 and wrapper->4. A classic COM-style
+# Release(): drop one reference, and if this was the last, destroy + free.
+# 2794 call sites -- the dominant reference-release path.
+[entrypoint.functions."0x829FF648"]
+name = "Release_RefCounted_829FF648"
+
+# A vtable method (0 DIRECT callers -- reached only via virtual dispatch) that
+# delegates to a sub-object's vtable slot 3 and returns a boolean. Args: obj
+# (r3), arg1 (r4). Loads the sub-object at obj->16, builds a 2-word arg block
+# on the stack {arg1, 0}, and calls sub_obj->vtable[3](sub_obj, &argblock, 4)
+# (vtable = *(sub_obj->0); slot at vtable offset 12 / index 3). Reduces the
+# call's result to a 0/1 boolean via a clz-based bit test and returns it. The
+# interface method (slot 3) is not resolvable without the vtable, so the name
+# states the mechanism: a delegating vtable method over the +16 sub-object that
+# returns a bool.
+[entrypoint.functions."0x82C01E78"]
+name = "SubObject_VcallSlot3_Bool_82C01E78"
+
+# Conditionally delegates to a sub-object's vtable slot 3 and stores a 32-bit
+# result. Args: obj (r3), dest (r4). Reads a flag byte at obj->5 and, when a
+# clz-based bit test on it is set, loads the sub-object at obj->0, builds a
+# 2-word arg block {dest, 0} on the stack, and calls
+# sub_obj->vtable[3](sub_obj, &argblock, 4) (same vtable slot 3 / offset 12 as
+# SubObject_VcallSlot3_Bool_82C01E78). Stores the call's 32-bit result into
+# *dest. 17 callers (sub_82C680F8, sub_82372108, sub_82A4AF78, ...). The
+# interface method (slot 3) isn't resolvable without the vtable, so the name
+# states the mechanism: a flag-gated vtable-slot-3 delegate over the +0
+# sub-object that writes a u32 result.
+[entrypoint.functions."0x82C842C8"]
+name = "SubObject_VcallSlot3_GatedStore32_82C842C8"
+
+# ---------------------------------------------------------------------------
+# A word-aligned memcpy (SDK region, sibling of memset sub_82CA3190), a
+# triple-vcall gate, and a table-dispatched chunk writer.
+# ---------------------------------------------------------------------------
+
+# A word-aligned memcpy: memcpy(dst=r3, src=r4, len=r5), returns nothing
+# (void). Classic PPC byte-align -> word-copy -> tail-bytes structure: a byte
+# loop aligns dst to a 4-byte boundary, then a 4-byte word loop (with a separate
+# unaligned-source branch) copies the bulk, then a final byte loop copies the
+# <4 remainder. Forward-only, no overlap handling (plain memcpy semantics).
+# Sits in the SDK runtime region immediately before memset (sub_82CA3190).
+# 34 DIRECT call sites (e.g. `r4=src; r5=496; bl`), AND it is the aligned-chunk
+# helper that MemCpy_Vectorized_822085D0 calls for its small-path (len<16) word
+# copy. Named MemCpy_Aligned to distinguish it from MemCpy_SdkRuntime_82CA2C60
+# (the ~1.2 KB unrolled CRT memcpy) and MemCpy_Vectorized_822085D0 (SIMD), and
+# to keep the guest symbol distinct from host libc.
+[entrypoint.functions."0x82CA30E8"]
+name = "MemCpy_Aligned_82CA30E8"
+
+# A triple-vcall gate: makes THREE virtual calls in sequence and returns 1 only
+# if all three succeed (nonzero), else 0. Args: obj (r3), arg (r5). Reads the
+# vtable at *(obj->0) and, in order: (1) calls vtable slot 6 (offset 24);
+# if it returns 0, bail with 0. (2) calls vtable slot 8 (offset 32) passing the
+# arg; if it returns 0, bail with 0. (3) calls vtable slot 7 (offset 28); the
+# low byte of its result is the return value (1 = all three succeeded, 0 = some
+# step failed). 40 callers, all in the 0x82C0-0x82C4 region (sub_82C033D8,
+# sub_82C49680, sub_82C2D040, ...). The three interface methods (slots 6/8/7)
+# aren't resolvable without the vtable, so the name states the mechanism: a
+# three-step all-or-nothing virtual sequence.
+[entrypoint.functions."0x82C011E8"]
+name = "VcallTriple_AllSuccess_82C011E8"
+
+# A table-dispatched chunked write/emit (the write-side sibling of
+# ProcessChunk_TableDispatch_82B49110, same 0x82B48/0x82B49 data-processing
+# family and the same 0x80004005 failure code). Args: obj (r3), a pointer to a
+# 64-bit descriptor (r4), and a total length (r5). The descriptor's high 32
+# bits select a handler from a global function-pointer table (index = (hi<<2)
+# & ~3) and its low 32 bits is the data pointer being emitted. Guards: if the
+# descriptor is 0, return 0x80004005. Then loops: computes the chunk length as
+# min(obj->24 - obj->20, remaining) (calling sub_82B48A40(obj) first when
+# obj->24 is 0, returning 0x80004005 if that fails), looks up the handler,
+# calls it with (data, obj->16 + position, chunk_len, ...), and advances the
+# position (obj->24) and a 64-bit byte offset (obj->40); repeats until the
+# length is exhausted. Returns 0 on success, 0x80004005 on failure. Single
+# caller: sub_82B48898.
+[entrypoint.functions."0x82B486D0"]
+name = "WriteChunk_TableDispatch_82B486D0"
+
+# ---------------------------------------------------------------------------
+# A general CS enter/try-enter (270 callers), a CS-guarded handler-dispatch
+# vtable method, and a position-advancing vtable-slot-3 write.
+# ---------------------------------------------------------------------------
+
+# A general critical-section acquire: enters (blocking) or try-enters
+# (non-blocking) a CS and records whether it succeeded. Args: lock-state obj
+# (r3), CS pointer (r4), mode flag (r5). Stores the CS pointer at obj->0. If
+# the flag (low byte of r5) is 0: call __imp__RtlEnterCriticalSection(CS)
+# (blocking). If nonzero: call __imp__RtlTryEnterCriticalSection(CS) (non-
+# blocking); if it returns != 1 (failed to acquire), set the acquired flag to 0.
+# On success set obj->4 = 1 (acquired), on try-enter failure obj->4 = 0.
+# 270 call sites -- a widely-used lock-acquire helper (the matching release is
+# a direct __imp__RtlLeaveCriticalSection call at the callers). The obj is a
+# small lock-state wrapper: obj->0 = CS pointer, obj->4 = acquired flag.
+[entrypoint.functions."0x82200688"]
+name = "CriticalSection_EnterOrTry_82200688"
+
+# A CS-guarded handler-table dispatch -- a VTABLE METHOD (0 direct callers,
+# reached only via virtual dispatch) in the 0x82B43 data-processing family
+# (same 0x80004005 failure code as ProcessChunk_TableDispatch / 
+# WriteChunk_TableDispatch). Args: obj (r3), a pointer (r4), an offset (r5),
+# and a value (r6). Guards (else return 0x80004005): obj->12 != 0, *r4 != 0,
+# and (r6_low32 + r5) <= obj->32 (a 64-bit bounds check). On success: acquires
+# a CS via CriticalSection_EnterOrTry_82200688 on the wrapper at obj+40, makes
+# a virtual call on obj->36 (vtable slot 4) plus sub_82C6F8E8, and if that
+# returns 1, computes a handler-table index and dispatches to a global
+# function-pointer table with (*r4, r5 + obj->12, r6, ...); releases the CS
+# (__imp__RtlLeaveCriticalSection) and returns 0. Any failed guard/step returns
+# 0x80004005. The interface method and the handler-table entries aren't
+# resolvable without the vtables, so the name states the mechanism: a
+# bounds-checked, CS-protected dispatch.
+[entrypoint.functions."0x82B43CF0"]
+name = "CsGuarded_HandlerDispatch_82B43CF0"
+
+# A position-advancing write via vtable slot 3 (a member of the same slot-3
+# interface as SubObject_VcallSlot3_Bool_82C01E78 and 
+# SubObject_VcallSlot3_GatedStore32_82C842C8, but over a +8 sub-object). Args:
+# obj (r3), arg (r4), count (r5). Guards (else return): count > 0 and obj->8 !=
+# 0. Loads the sub-object at obj->8 and calls sub_obj->vtable[3](sub_obj, 
+# &{arg, 0}, sign_extend(obj->12), count) (vtable slot at offset 12 / index 3),
+# then advances the position counter obj->12 += count. Returns void. Single
+# caller: sub_829FCBE0. The slot-3 interface method isn't resolvable without
+# the vtable, so the name states the mechanism: a slot-3 write that advances a
+# position by the count.
+[entrypoint.functions."0x82C62EB0"]
+name = "VcallSlot3_AdvancePosition_82C62EB0"
+
+# ---------------------------------------------------------------------------
+# A signed-byte strcmp (169 callers), two vtable methods (a slot-3 product
+# write and a global-callback accumulator), and a value/state processor.
+# ---------------------------------------------------------------------------
+
+# A signed-byte string compare (strcmp with sign-extended bytes). Args: str1
+# (r3), str2 (r4). Loop: load *str1 as a SIGNED byte (lbz then extsb) into r10;
+# if *str1 != 0 go to compare; else (str1 hit its 0 terminator) load *str2 and
+# if *str2 == 0 return 0 (both empty / equal), else fall through to compare
+# (where 0 < *str2 so str1 is shorter). Compare: load *str2 as a signed byte
+# into r11; if r10 < r11 return -1, if r10 > r11 return 1, else advance both
+# and loop. Returns -1 (str1 < str2), 0 (equal), 1 (str1 > str2). The sign-
+# extension (extsb) makes this a SIGNED byte compare (bytes >= 0x80 sort as
+# negative), distinct from an unsigned strcmp. 169 call sites. Named
+# StrCmp_Signed to convey the signed-byte ordering and to keep the guest symbol
+# distinct from host libc.
+[entrypoint.functions."0x8226D7A8"]
+name = "StrCmp_Signed_8226D7A8"
+
+# A vtable method (0 direct callers, reached only via virtual dispatch) that
+# computes a 32-bit product and writes it via vtable slot 3. Args: arg (r3),
+# factor a (r4), factor b (r5), and a pointer-to-object (r6). Computes
+# product = (int32)a * (int32)b, dereferences r6 to get the object, and calls
+# object->vtable[3](r6, arg, product, 0) (vtable slot at offset 12 / index 3 --
+# the same slot-3 interface as the other SubObject_VcallSlot3_* wrappers, but
+# here the object is a dereferenced pointer and the product is passed in). 
+# Returns the product. A "unit x count, write it" shape (cf.
+# StoreUnitTimesCount_82CE32B0). The slot-3 method isn't resolvable without the
+# vtable, so the name states the mechanism: a slot-3 write carrying a product.
+[entrypoint.functions."0x82305270"]
+name = "VcallSlot3_WithProduct_82305270"
+
+# A vtable method (0 direct callers, reached only via virtual dispatch) that
+# accumulates the results of calling a global function-pointer callback in a
+# loop. Args: obj (r3), base (r4), count (r5). Guards: if the two byte fields
+# obj->8 == obj->9, or count == 1, take a single-iteration/special path. 
+# Otherwise loop (count-1) times: each iteration calls the global callback (a
+# fixed function pointer in game data) with (base + descending_counter, 1,
+# obj->4, 1) and adds the return to an accumulator. Returns the accumulated
+# sum. The callback's identity and the object class aren't resolvable without
+# more context, so the name states the mechanism: a looped global-callback
+# accumulator.
+[entrypoint.functions."0x82BC30D0"]
+name = "AccumulateGlobalCallback_82BC30D0"
+
+# A value/state processor that returns the non-zero-ness of its value argument.
+# Args: obj (r3), value (r4), flag (r5). Every exit path evaluates the idiom
+# (r11 = 0 - value; r10 = -1 + carry; return r10 & 1), which is 1 iff value !=
+# 0 and 0 iff value == 0 -- so the RETURN is simply (value != 0). The real work
+# is value-dependent SIDE EFFECTS along the way: if value > -2 call
+# sub_82CD11D0(); if obj->24 < value call sub_821A9170(obj, value, obj->20);
+# else (obj->24 >= value), if flag != 0 and value < 16 and value < obj->20 call
+# sub_822F1DB0(obj, 1, value), and if value == 0 and obj->20 < 16 store 0 to
+# obj->20 and a byte to obj->4. 8 callers, all consuming the low byte of the
+# result as a boolean gate. The object class and helper identities aren't
+# resolvable, so the name states the observable contract: process a value
+# (with side effects) and return whether it was non-zero.
+[entrypoint.functions."0x821A9090"]
+name = "ProcessValue_FlagNonZero_821A9090"
+
+# ---------------------------------------------------------------------------
+# Nine functions: two hot 0x822F value/buffer operators, a hot bounded buffer
+# copy with error codes, a heap carve, a lazy getter, two vtable-slot-3
+# methods, an all-success vcall chain, a vtable thunk, and a return-0 stub.
+# ---------------------------------------------------------------------------
+
+# A lazy-initialized (memoized) getter for a 64-bit field -- a VTABLE METHOD
+# (0 direct callers, reached only via virtual dispatch). Args: obj (r3). Loads
+# obj->40; if it is already nonzero, return it immediately. If it is 0: call
+# sub_82CC1460(obj->8, &out) to compute the value, cache the result at obj->40,
+# then return it. A classic "compute once, cache, return" memoized getter for
+# the obj->40 resource. The cached value is a 64-bit pointer/resource handle
+# (ld/stw of the full 64 bits). Named for the mechanism: a lazy getter of the
+# +40 field.
+[entrypoint.functions."0x82B4F958"]
+name = "LazyGet_Field40_82B4F958"
+
+# A bounded buffer operation that copies or zero-fills and raises an error
+# code on the failure paths. 61 call sites (a hot SDK-region routine at 0x82CA).
+# Args (r3, r4, r5, r6): guards on r6 != 0 (else return 0) and r3 != 0 (else
+# raise error 22). Compares two length fields (r4 vs r6): when the first is >=
+# the second it copies via MemCpy_SdkRuntime_82CA2C60; when r5 == 0 it
+# zero-fills via the SDK memset (sub_82CA3190) and then raises error 22 (or 34
+# on one length-branch). The error is raised via a sub_82CAB770() call, a
+# store of the code (22 or 34) into an out-slot, then sub_82CAB630() -- the
+# SDK exception/bug path. Returns the error code (22 or 34) on failure paths
+# and 0 otherwise. The exact class/args aren't resolvable (the recompiler reuses
+# r3), so the name states the observable behavior: a length-checked buffer copy
+# (or zero) that raises an error code on the failure paths.
+[entrypoint.functions."0x82CA3730"]
+name = "Buffer_CopyOrZero_Error_82CA3730"
+
+# A vtable method (0 direct callers) -- the fifth known member of the recurring
+# vtable-slot-3 interface, this one over the +16 sub-object (same sub-object
+# offset and 0x82C01E region as SubObject_VcallSlot3_Bool_82C01E78). Args:
+# wrapper (r3), arg (r4). Loads the sub-object at wrapper->16 and calls
+# sub_obj->vtable[3](sub_obj, &{arg, 0}, 1) (vtable slot at offset 12 / index
+# 3). From the returned value it derives a boolean through a
+# clz/clz/rotate/xor-1 bit idiom and returns 0 or 1 (a negated/derived bit of
+# the slot-3 result). The slot-3 method isn't resolvable without the vtable, so
+# the name states the mechanism: a slot-3 vcall that returns a derived bool.
+[entrypoint.functions."0x82C01E20"]
+name = "VcallSlot3_Bool_82C01E20"
+
+# A low-level custom-heap block carve/split in the 0x8323 allocator (sibling of
+# the named Pool_*/Allocate_SizeBucketed family). Args: obj (r3), a key/value
+# (r4), a pointer to the sorted-list head (r5), and a pointer to an offset (r6).
+# Walks a SORTED linked list (node->0 = key, node->12 = next) to find the first
+# node whose key is >= the value (else return 0). On a hit it runs alignment/
+# mask arithmetic (obj->0 is an alignment mask, 16-byte block overhead), calls
+# sub_83230D00 to carve/split the block, then UNLINKS the node from the list
+# (fixing the predecessor's ->12 and the head) and rewrites the block's
+# next/size fields. Single caller: sub_83231590 (the spin-locked pool carve). 
+# Named for the mechanism: carving an aligned block out of a sorted free-list
+# node.
+[entrypoint.functions."0x83231058"]
+name = "Heap_CarveBlock_83231058"
+
+# A trivial 2-instruction stub: `li r3,0; blr` (returns 0). 20 call sites, all
+# in the SDK region (sub_82CAB7E0, sub_82C00C90, sub_82CADF00, ...). This is a
+# no-op default method / interface fallback (the same shape as NoOp_Stub_829CE870
+# but returning 0 instead of void). Named for the mechanism: a return-zero stub.
+[entrypoint.functions."0x831FD318"]
+name = "Stub_ReturnZero_831FD318"
+
+# A pure vtable thunk (a vtable_x forwarder, Section G). Args: wrapper (r3).
+# Dereferences r3 to get the object, loads vtable slot 14 (offset 56 / 4), and
+# `bctrl`s straight into it, passing the args through unmodified. Single caller:
+# sub_82C14F38 (as the middle step of that all-success chain). Named per the
+# Section G convention: VtableSlotX<index>.
+[entrypoint.functions."0x82C01090"]
+name = "VtableSlotX14_82C01090"
+
+# A chained all-success vcall gate -- a sibling of VcallTriple_AllSuccess_82C011E8
+# (same "run a sequence of virtual calls, short-circuit on the first failure, 
+# return 1 only if every step succeeds" pattern). Args: wrapper (r3), arg (r5).
+# (1) vcall (*wrapper)->vtable[6] (offset 24); if it returns 0, return 0. (2)
+# Otherwise call VtableSlotX14_82C01090(wrapper, arg); if it returns 0, return
+# 0. (3) Otherwise vcall (*wrapper)->vtable[7] (offset 28); return 1 if nonzero,
+# else 0. So it returns 1 iff all three virtual steps succeed. 5 callers, all in
+# the 0x82C1-0x82C3 region. Named for the mechanism: an all-success vcall chain.
+[entrypoint.functions."0x82C14F38"]
+name = "VcallChain_AllSuccess_82C14F38"
+
+# A value/state processor -- a SIBLING of ProcessValue_FlagNonZero_821A9090
+# (same structure, different thresholds and helpers). Args: obj (r3), value
+# (r4), flag (r5). Every exit path evaluates the (r11 = 0 - value; r10 = -1 +
+# carry; return r10 & 1) idiom, so the RETURN is simply (value != 0). The real
+# work is value-dependent side effects: if value > 32767 call sub_82CD11D0();
+# if obj->24 < value call sub_8217A4F8(obj, value, obj->20); else (obj->24 >=
+# value), if flag != 0 and value < 8 and value < obj->20 call a helper and do
+# bookkeeping. 7 callers (sub_826C3AA8, sub_822F6CB0, sub_822F52A8, ...), all
+# consuming the low byte as a boolean gate. Named parallel to its 0x821A sibling:
+# process a value (with side effects) and return whether it was non-zero.
+[entrypoint.functions."0x8217A5E0"]
+name = "ProcessValue_FlagNonZero_8217A5E0"
+
+# A hot (51 callers) range/clamp + object-update operator in the 0x822F
+# value/buffer subsystem (the same region as the ProcessValue_FlagNonZero_*
+# pair, which it calls). Args: obj a (r3), obj b (r4), offset (r5), value (r6).
+# If (b->20 < offset) call sub_82CD12C8() (a grow/extend); then compute a
+# CLAMPED amount = min(value, b->20 - offset). If obj a == obj b: call
+# sub_822F6E18 twice to update in place. Otherwise (obj a != obj b): call
+# ProcessValue_FlagNonZero_8217A5E0(obj a, clamped, 0) and update both objects'
+# fields (->4 / ->24), using a small-buffer inline-vs-pointer indirection (when
+# the size field is < 8, treat the field as an inline 4-byte slot; otherwise
+# dereference it). The object class isn't resolvable, so the name states the
+# observable behavior: clamp a value to a range (growing if needed) and update
+# the objects.
+[entrypoint.functions."0x822F6380"]
+name = "ClampAndUpdate_822F6380"
+
+# A load-from-source (copy-assign) for the 0x822F object class.
+
+# Initializes an object from a source: sets obj->20 = 0, obj->24 = 7 (a fixed
+# type/size constant), and the 16-bit obj->4 = 0; then calls
+# ClampAndUpdate_822F6380(obj, src, 0, -1) to load the variable-length buffer
+# part from src; then copies the tail fields src->28 -> obj->28 and
+# src->32 -> obj->32. Returns void. 9 callers (sub_823725E8, sub_82376A90,
+# sub_825F2E10, ...). The "init to fixed defaults + clamp/copy the buffer + copy
+# the tail" shape is a load-from / copy-assign for this class. The class itself
+# isn't resolvable, so the name states the observable behavior: load this object
+# from a source (initializing the fixed fields first).
+[entrypoint.functions."0x822F2398"]
+name = "LoadFrom_Source_822F2398"
+
+# A recursive tree/list destructor that frees its nodes.
+
+# Args: obj (r3, the owning object, passed down unchanged), node (r4). Reads
+# node->17 (a byte flag): if it is nonzero, STOP (this node is a leaf/sentinel).
+# Otherwise loop: (1) recurse on the child node->8 -- sub_82859340(obj, node->8);
+# (2) FREE the current node via Free_SizeBucketed_Thunk_8221BE68(node); (3)
+# advance node = node->0 (next) and continue while the new node->17 is 0. So it
+# recursively destroys the child subtree at +8, frees each node on the way, and
+# walks the +0 chain, stopping at a node whose +17 flag is set. 19 callers
+# (sub_829FDAE8, sub_825F0248, sub_824FF8B8, ...). The node class isn't
+# resolvable, so the name states the mechanism: a recursive destroy that frees
+# the nodes of this tree/list.
+[entrypoint.functions."0x82859340"]
+name = "DestroyTreeNodes_82859340"
+
+# A write-a-range-at-position operation on the 0x821A/0x822F small-buffer
+# object (the same class as LoadFrom_Source_822F2398 / ClampAndUpdate_822F6380 /
+# ProcessValue_FlagNonZero_*).
+
+# Args: obj (r3), position (r4), length (r5). Uses the small-buffer
+# inline-vs-pointer indirection: the buffer base is *obj->4 (external) when
+# obj->24 >= 16, else &obj->4 (inline). If the position lies within
+# [base, base + obj->20) it updates IN PLACE via sub_8218EA38(obj, position -
+# base, length). Otherwise (position out of the current range) it routes through
+# ProcessValue_FlagNonZero_821A9090(obj, length, 0) and does follow-up bookkeeping
+# (a grow/realloc-style path). Returns void. 32 callers (sub_82CD1A98,
+# sub_82C694C0, sub_82C83900, ...). Named for the mechanism: write a range at a
+# position, in place when it fits, else via the grow path.
+[entrypoint.functions."0x821A8F68"]
+name = "WriteRange_AtPos_821A8F68"
+
+# The game's PRIMARY 32-bit string hash -- FNV-1 (case-SENSITIVE). 2167 call
+# sites, making it one of the hottest functions in the binary.
+
+# Args: str (r3, a null-terminated byte string), seed (r4, the initial hash
+# value). First scans str to find its length (stop at the 0 byte); if the string
+# is empty, return immediately (returning the seed). Otherwise run the FNV-1
+# loop over each byte: hash = (hash * 0x01000193) ^ byte, where 0x01000193
+# (16777619) is the FNV-1 32-bit prime. Returns the 32-bit FNV-1 hash. The
+# callers pass seed = 0x811C9DC5 (the standard FNV-1 32-bit offset basis), so
+# in practice this is the canonical FNV-1 32 hash of a string. This is the
+# case-SENSITIVE variant; the case-insensitive FNV-1 is sub_82448030. Named
+# FNV1Hash to convey the exact algorithm.
+[entrypoint.functions."0x821F3C28"]
+name = "FNV1Hash_821F3C28"
+
+# A lazy/memoized getter for the data pointer (obj->28) of the 0x822F/0x821A
+# small-buffer object (same class as LoadFrom_Source_822F2398 / 
+# WriteRange_AtPos_821A8F68).
+
+# Arg: obj (r3). If obj->28 (the cached data pointer) is already set, return it.
+# Otherwise, if obj->20 (length) is 0, return obj->28 (which is 0). Else resolve
+# the buffer base using the small-buffer indirection -- *obj->4 (external) when
+# obj->24 >= 8, else &obj->4 (inline) -- call sub_822CA580(base), cache the
+# result in obj->28, and return it. A "compute once, cache, return" getter for
+# the object's data pointer. 19 callers (sub_825ADB40, sub_825B27D0, ...). Named
+# for the mechanism: a lazy getter of the data pointer.
+[entrypoint.functions."0x822F2088"]
+name = "LazyGetData_822F2088"
+
+# An insert-at-position (with possible growth) on a 12-byte-stride dynamic
+# array in the 0x8237 region.
+
+# Args: obj (r3), a value (r4), a count/offset (r5), and a data triple (r6, a
+# 3-word struct). The obj holds a 12-byte-stride array: start = obj->4, current
+# position = obj->8, end/capacity = obj->12. It computes element indices as
+# (obj->12 - obj->4)/12 (total) and (obj->8 - obj->4)/12 (current), clamps the
+# requested index/insertion point against these, and -- when the array must
+# grow -- reallocates (frees via Free_SizeBucketed_Thunk_8221BE68 and calls
+# sub_82684B38 for the new block, with sub_8264EFE0 as a helper). Returns void.
+# 2 callers (sub_8236FDD8, sub_82B423F0). The exact element semantics aren't
+# resolvable, so the name states the mechanism: insert at a position in a
+# 12-byte-stride dynamic array, growing it as needed.
+[entrypoint.functions."0x82370A98"]
+name = "Array_InsertAt_82370A98"
+
+# A validated single-element insert into the 12-byte-stride dynamic array --
+# the count==1 wrapper around Array_InsertAt_82370A98 (same 0x8236/0x8237 array
+# family).
+
+# Args: obj (r3), array (r4), value (r5), data triple (r6). Validates the array
+# preconditions with debug assertions (ppc_trap 22 on violation): array->4 (start)
+# ordering vs array->8 (current), and the data pointer. Computes the current
+# element index (array->8 - array->4)/12, then calls Array_InsertAt_82370A98
+# (array, value, count=1, data) to insert ONE element. Returns void. 3 callers
+# (sub_8236F0F0, sub_8236E1B0, sub_82B41738). Named for the mechanism: a
+# single-element (count==1) insert with precondition checks.
+[entrypoint.functions."0x8236FDD8"]
+name = "Array_InsertOne_8236FDD8"
+
+# A major refcount Release (690 callers) -- a sibling of 
+# Release_RefCounted_829FF648, but over the obj->0 resource.
+
+# Arg: obj (r3). Loads obj->0 (a reference-counted resource pointer); if it is
+# 0, return. Otherwise atomically decrement the refcount at (obj->0 + 12) using
+# an lwarx/stwcx. retry loop under the global lock (mfmsr/mtmsrd + 
+# REX_ENTER/LEAVE_GLOBAL_LOCK). If the new count is still > 0, return (not the
+# last reference). If it reaches <= 0 (last reference), call the destructor
+# sub_82B39A30(obj->0) and then Free_SizeBucketed_Thunk_8221BE68(obj->0). Returns
+# void. 690 callers (sub_824E7BA0, sub_8328C2E0, sub_828592B0, ...) -- one of
+# the hottest release paths in the binary. The COM-style "decrement, destroy +
+# free on zero" contract is the same as Release_RefCounted_829FF648, except the
+# resource lives at obj->0 (not obj->4) and its refcount at resource+12.
+[entrypoint.functions."0x821C67D8"]
+name = "Release_RefCounted_821C67D8"
+
+# A free-forwarding thunk (743 callers) -- a single `b` to the primary free.
+
+# 1-instruction body: `b Free_SizeBucketed_Thunk_8221BE68`. It forwards its
+# argument straight to the game's primary free(). 743 callers (sub_82C0D9D0,
+# sub_82C2F000, sub_82C748D0, ...) -- a distinct free entry point (most likely a
+# vtable operator-delete / destructor-tail for a specific class) that simply
+# delegates to the size-bucketed free. Named for the mechanism: a free thunk.
+[entrypoint.functions."0x824FE010"]
+name = "Free_Thunk_824FE010"
+
+# A pure vtable thunk (a vtable_x forwarder, Section G) -- the offset-52 sibling
+# of VtableSlotX14_82C01090.
+
+# Arg: wrapper (r3). Dereferences r3 to get the object, loads vtable slot 13
+# (offset 52 / 4), and `bctr`s straight into it, passing the args through
+# unmodified. 2 callers (sub_82C15068, sub_82C4A410). Named per the Section G
+# convention: VtableSlotX<index>.
+[entrypoint.functions."0x82C010B0"]
+name = "VtableSlotX13_82C010B0"
+
+# A chained all-success vcall gate -- a sibling of VcallChain_AllSuccess_82C14F38
+# (same "run a sequence of virtual calls, short-circuit on the first failure, 
+# return 1 only if every step succeeds" pattern; only the middle thunk differs).
+
+# Args: wrapper (r3), arg (r5). (1) vcall `(*wrapper)->vtable[6]` (offset 24);
+# if it returns 0, return 0. (2) Otherwise call VtableSlotX13_82C010B0(wrapper,
+# arg) (vtable slot 13 / offset 52); if it returns 0, return 0. (3) Otherwise
+# vcall `(*wrapper)->vtable[7]` (offset 28); return 1 if nonzero, else 0. So it
+# returns 1 iff all three virtual steps succeed. 16 callers, all in the
+# 0x82C1-0x82C4 region. Named parallel to its 0x82C14F38 sibling (which uses
+# VtableSlotX14 in the middle instead of VtableSlotX13).
+[entrypoint.functions."0x82C15068"]
+name = "VcallChain_AllSuccess_82C15068"
+
+# A string setter / copy-constructor for the 0x822F/0x821A small-buffer object
+# (same class as LoadFrom_Source_822F2398 / WriteRange_AtPos_821A8F68).
+
+# 330 callers (sub_82AB77A8, sub_82A665B8, sub_82370060, ...) -- a major string-
+# setting operation. Args: obj (r3), src (r4, a null-terminated byte string).
+# Initializes the object: obj->20 = 0 (length), obj->24 = 15 (the max inline
+# size, matching the < 16 inline threshold of the small-buffer indirection), and
+# clears the inline byte at obj->4. Computes strlen(src) by scanning to the 0
+# byte, then copies the string in via WriteRange_AtPos_821A8F68(obj, src,
+# strlen). Returns void. So it resets this object and makes it hold a copy of
+# the C string. Named for the mechanism: set this (small-buffer) object to a
+# string.
+[entrypoint.functions."0x822F2020"]
+name = "SetString_822F2020"
+
+# A name-hash initializer: computes the FNV-1 hash of a fixed global string and
+# stores it in obj->0.
+
+# Arg: obj (r3). Loads a fixed global string (via a pointer at ~0x81FF7B98),
+# copies it into a temporary small-buffer on the stack via SetString_822F2020,
+# resolves the buffer (inline vs external per the small-buffer indirection), and
+# computes its FNV-1 32 hash via FNV1Hash_821F3C28 (seed = 0x811C9DC5, the offset
+# basis). Stores the hash in obj->0. If the temp buffer was external it frees it
+# (Free_SizeBucketed_Thunk_8221BE68). Finally clears bit 0 of obj->4 (obj->4 &=
+# 0x1FFFFFFF). Returns void. 3 callers (sub_8236E1B0, sub_8236D6A8, 
+# sub_8236E348). So it initializes obj->0 to the FNV-1 hash of a known global
+# name and clears a flag bit in obj->4. Named for the mechanism: initialize the
+# name hash from a global string.
+[entrypoint.functions."0x8236D358"]
+name = "InitNameHash_8236D358"
+
+# A case-INSENSITIVE string compare (stricmp). 211 call sites.
+
+# Args: str1 (r3), str2 (r4). Walks both strings byte-by-byte (lbzu
+# pre-increment). At each step compute diff = str1byte - str2byte; if str2byte is
+# the 0 terminator, return (0 if the strings are equal, else the running diff);
+# if diff == 0 continue. On the FIRST difference, fold both bytes to lowercase
+# (if a byte is in 'A'..'Z', OR in bit 5 / 32) and recompute diff; if the
+# folded diff is 0 (they differ only by case) keep scanning, else return the
+# signed folded difference. So it returns 0 when the strings are equal ignoring
+# case, and a nonzero signed value otherwise. Named StrCmpIgnoreCase to convey
+# the case-insensitive ordering (and keep the guest symbol distinct from host
+# libc); the signed-byte variant is StrCmp_Signed_8226D7A8.
+[entrypoint.functions."0x82CA6320"]
+name = "StrCmpIgnoreCase_82CA6320"
+
+# A push_back / append to a u32 dynamic array (4-byte stride).
+
+# Args: obj (r3, the array), value (r4). The array layout: obj->0 = base
+# pointer, obj->8 = current index/count, obj->4 = capacity. If (obj->4 - obj->8)
+# < 1 (no room), it calls sub_82C21C90 (an ensure-capacity/grow) with a new
+# size. Then stores value at base[obj->8] (a 4-byte-stride slot: *(obj->0 +
+# obj->8 * 4) = value) and increments obj->8. Returns void. 38 callers, all in
+# the 0x82C2-0x82C3 region. Named for the mechanism: append a u32 to a dynamic
+# array (grow as needed, then store + bump the index).
+[entrypoint.functions."0x82C21E08"]
+name = "Array_PushBack_82C21E08"
+
+# A binary search (lower_bound-style) over a sorted array of keyed objects,
+# returning the index or insertion point plus a found flag.
+
+# Args: obj (r3, the array: obj->0 = base pointer, obj->8 = count), a key
+# pointer (r4, the target key is at r4->0), and an out flag (r5). Sets *out = 0
+# (not found). If count == 0, return 0. Otherwise binary-search: low = 0, high =
+# count-1; while low <= high: mid = (low+high)/2, elem = base[mid] (4-byte
+# stride), key = elem->0; if key > target, high = mid-1; if key == target, set
+# *out = 1 and RETURN mid (found); if key < target, low = mid+1. If the loop
+# exits without a match, RETURN the insertion point (mid or mid+1) with *out
+# still 0. So it's a lower_bound: exact index when found (flag set), else the
+# insertion position. 11 callers (sub_82C0DEA8, sub_82C1ACD8, sub_82224FE0,
+# ...). Named for the mechanism: a key-based binary search with a found flag.
+[entrypoint.functions."0x82C0BC08"]
+name = "BinarySearch_82C0BC08"
+
+# The primary refcounted copy-assignment (operator=) -- 2524 callers, one of
+# the hottest functions in the binary. The AddRef counterpart to
+# Release_RefCounted_821C67D8.
+
+# Args: obj (r3, this), src (r4, other). Sets obj->0 = 0. Atomically increments
+# a global counter (lwarx/stwcx. retry under the global lock) -- a side-effecting
+# generation/sequence counter. If src == obj, return (self-assign guard). Then:
+# (1) RELEASE the old -- if obj->0 != 0, call Release_RefCounted_821C67D8(obj);
+# (2) ACQUIRE the new -- if src->0 != 0, copy it into obj->0 (obj->0 = src->0)
+# and atomically increment the new resource's refcount at (src->0 + 12) via the
+# same lwarx/stwcx. retry loop. Returns obj (r3). So this is the classic
+# refcounted copy-assign: Release(old), copy the pointer, AddRef(new). 2524
+# callers (sub_82690588, sub_82594EA0, sub_824B2540, ...).
+[entrypoint.functions."0x821F0108"]
+name = "CopyAssign_RefCounted_821F0108"
+
+# A push of a 36-byte element (a small-buffer object) into a 36-byte-stride
+# array (the 0x8237 array family; the elements are the small-buffer class that
+# LoadFrom_Source_822F2398 operates on).
+
+# Args: obj (r3, the array: obj->4 = start, obj->8 = current, obj->12 = end,
+# 36-byte stride), source element (r4). Computes the element counts (obj->8 -
+# obj->4)/36 and (obj->12 - obj->4)/36. If there is room (current element index
+# < end element index): copy the source element into the slot at obj->8 via
+# LoadFrom_Source_822F2398, then advance obj->8 by 36 (one element). Otherwise
+# (array full) it routes to sub_82376118 (a grow path). Returns void. 7 callers
+# (sub_82B3EDD0, sub_82B4B0E0, sub_82375270, ...). Named for the mechanism: push
+# a 36-byte element into the array (copy in, bump the position, grow if full).
+[entrypoint.functions."0x823758C0"]
+name = "Array_PushElement_823758C0"
+
+# A bounds-checked copy that validates its parameters and delegates to 
+# sub_82CAA2E0 (a later TODO function) -- a sibling of 
+# Buffer_CopyOrZero_Error_82CA3730 (same 0x82CA region, same error codes).
+
+# Args: dst (r3), capacity (r4), src (r5), len (r6). Guards (else raise an
+# error): len != 0, dst != 0, and src != 0 -- any null raises error 22 (via the
+# sub_82CAB770() + store-code + sub_82CAB630() SDK exception path). Then if
+# capacity < len, raise error 34 (buffer too small). Otherwise call
+# sub_82CAA2E0(dst, src, len) to perform the copy and return 0. So it's a
+# validated copy: check dst/src non-null and capacity >= len, then copy. 
+# Returns 0 on success, 22 (null pointer) or 34 (insufficient capacity) on
+# failure. 137 callers (sub_82B39B48, sub_82A4D7F0, sub_829BBE00, ...). Named
+# for the mechanism: a bounds-checked copy.
+[entrypoint.functions."0x82CA3808"]
+name = "CheckedCopy_82CA3808"
+
+# A SIMD (vector) memcpy KERNEL -- the 128-bytes-per-iteration vectorized loop
+# that a vectorized memcpy dispatches to for large blocks.
+
+# Args: dst (r3), src (r4), length (r5). For length >= 128 the main loop loads
+# 8 x 128-bit vectors from src (lvx at offsets 0/16/32/48/63/64/80/96 with vperm
+# alignment), stores them to dst (stvx at the same offsets), then advances dst
+# and src by 128 and length -= 128, looping while length >= 128 (with dcbt/dcbzl
+# cache-block hints for the large case). A scalar path (lvsl shift + tail store)
+# handles length < 128. Single caller: MemCpy_Vectorized_822085D0 (it calls this
+# as its large-block kernel). So it is the raw SIMD copy kernel. Named for the
+# mechanism: a SIMD (128-byte-unrolled) memcpy kernel.
+[entrypoint.functions."0x82CC9DA0"]
+name = "MemCpy_SIMDKernel_82CC9DA0"
+
+# A validated tree-node removal: destroys the node's subtree and rewires the
+# links to take the node out of the structure.
+
+# Args: obj (r3), node (r4), and two pointers (r5, r6). Validates preconditions
+# with `trap 22` assertions (r5 and r6 must be nonzero, not equal to node, and
+# must match node's fields). On success it destroys the node's subtree via
+# DestroyTreeNodes_82859340(node, node->4), then rewires: obj->0 = node, clears
+# node->8, sets the node's self-reference fields, and copies node->4->0 into
+# obj->4 (splicing the node out). Returns void. 11 callers (sub_82A6D9F0,
+# sub_82A56CA0, sub_82B150D8, ...). Named for the mechanism: remove a node from
+# a tree (destroy its subtree, rewire the links).
+[entrypoint.functions."0x826A4A20"]
+name = "Tree_RemoveNode_826A4A20"
+
+# A specialized allocation entry point: allocates `size` bytes via the primary
+# malloc, with conditional setup for size >= 2.
+
+# Args: size (r3), flag (r4, always 0 in the callers). If size == 0 or size == 1
+# (detected via (-1 / size) >= 1), skip the setup. Otherwise (size >= 2) it runs
+# a setup that references two fixed global strings (~0x81FF563C / 0x81FF5630) and
+# calls sub_822F1F00 (a local-stack preparation). Then it always calls
+# Allocate_OrDbgBreak_8221F388(size) (the game's primary malloc) and returns the
+# allocated pointer. So it's a wrapper around the primary allocator that does
+# some conditional initialization first. 4 callers (sub_821A9170, sub_82A1DA08,
+# sub_82A1DC28, sub_826C0D38). Named for the mechanism: allocate (with
+# conditional init) via the primary malloc.
+[entrypoint.functions."0x821A9258"]
+name = "Allocate_Init_821A9258"
+
+# A buffer grow/realloc for the 0x821A/0x822F small-buffer object -- the grow
+# path called by ProcessValue_FlagNonZero_821A9090.
+
+# Args: obj (r3), new size request (r4), new length (r5). Computes the new size
+# (r4 | 15, i.e. rounded up toward a 16-multiple, or a combined size derived from
+# obj->24 for small values), allocates a new buffer of (new_size + 1) bytes via
+# Allocate_Init_821A9258, and if the length (r5) is nonzero copies the existing
+# data into the new buffer via Buffer_CopyOrZero_Error_82CA3730 (resolving the
+# old base via the small-buffer inline-vs-external indirection). Frees the old
+# external buffer if obj->24 >= 16 (Free_SizeBucketed_Thunk_8221BE68). Then
+# updates obj->4 (new buffer pointer), obj->24 (new size), obj->20 (new length),
+# and null-terminates the external buffer. Returns void. Single caller:
+# ProcessValue_FlagNonZero_821A9090 (its grow path). So it's a data-preserving
+# realloc of the small-buffer object's storage. Named for the mechanism: grow the
+# buffer (allocate larger, copy, free old, update fields).
+[entrypoint.functions."0x821A9170"]
+name = "GrowBuffer_821A9170"
+
+# A clamped range update -- a SIBLING of ClampAndUpdate_822F6380 (same
+# structure, different update helper), and the in-place core that
+# WriteRange_AtPos_821A8F68 calls.
+
+# Args: obj a (r3), pos/obj b (r4), length (r5), extra (r6). If (b->20 < length)
+# call sub_82CD12C8 (a grow/extend); then compute a CLAMPED amount = min(extra,
+# b->20 - length). If obj a == obj b: update IN PLACE via sub_822F1F60 twice
+# (with (clamped + length, -1) then (0, length)). Otherwise (obj a != obj b):
+# a cross-object update path (loc_8218EAAC). Returns void. 41 callers (sub_82C6A248,
+# sub_82C84920, sub_82C83900, ...). Parallel to ClampAndUpdate_822F6380 (which
+# uses sub_822F6E18 for the in-place update); here the in-place helper is
+# sub_822F1F60. Named for the mechanism: a clamped range update (grow if
+# needed), in place or across objects.
+[entrypoint.functions."0x8218EA38"]
+name = "RangeUpdate_8218EA38"
+
+# A case-INSENSITIVE FNV-1 32 string hash -- the ToLower-per-byte sibling of
+# FNV1Hash_821F3C28.
+
+# Args: str (r3, null-terminated), seed (r4, initial hash). Scans str for its
+# length (stop at 0); if empty, return the seed. Otherwise run the FNV-1 loop
+# over each byte, but FIRST lowercase it via ToLower_SdkRuntime_82CA4288, then
+# hash = lowercased_byte ^ (hash * 0x01000193), where 0x01000193 (16777619) is
+# the FNV-1 32-bit prime. Returns the 32-bit case-insensitive FNV-1 hash. The
+# case-SENSITIVE variant is FNV1Hash_821F3C28. 2 callers (sub_821BC7E8,
+# sub_82C67878). Named to convey the exact algorithm + case-insensitivity.
+[entrypoint.functions."0x82448030"]
+name = "FNV1Hash_CaseInsensitive_82448030"
+
+# A vtable-slot-3 caller with a loop/single mode, selected by a flag bit in
+# obj->5 -- a member of the recurring slot-3 interface (over the *obj->0
+# sub-object).
+
+# Args: obj (r3), value (r4), count (r5). A bit test on obj->5 (via
+# clz/rotate/xor) selects the mode. MODE A (loop): if count != 0, loop `count`
+# times -- each iteration vcall `(*obj->0)->vtable[3](obj->0, &{value++, 0}, 1)`
+# (vtable slot at offset 12 / index 3), incrementing value each pass -- then
+# return 1. MODE B (single): one vcall `(*obj->0)->vtable[3](obj->0, &{value, 0},
+# count)`, returning a bit derived from the result (clz/rotate/xor). So it calls
+# the slot-3 method either `count` times or once, depending on the obj->5 flag.
+# 1 caller: sub_82C669C0. The slot-3 method isn't resolvable without the vtable,
+# so the name states the mechanism: a slot-3 vcall in loop or single mode.
+[entrypoint.functions."0x82C66330"]
+name = "VcallSlot3_LoopOrSingle_82C66330"
+
+# A stateful object processor in the 0x82C6 region that orchestrates a gated
+# slot-3 store, a buffer update, and a slot-3 loop/single call, returning a byte
+# flag.
+
+# Args: (r3), obj a (r4), obj b (r5). If obj a->4 (a byte) != 0: call
+# SubObject_VcallSlot3_GatedStore32_82C842C8(obj a, &out) and store the result
+# back into obj a->4. Reads the out value, and updates a buffer via sub_822F1F60
+# (if out-1 > obj b->20) or sub_826C2FF8 (else, with out-1-obj b->20). Resolves
+# obj b's buffer base via the small-buffer indirection (obj b->24 >= 16 ? *obj
+# b->4 : &obj b->4), then calls VcallSlot3_LoopOrSingle_82C66330(obj a, base,
+# out). Finally returns the byte obj a->4. 2 callers (sub_82C85250, 
+# sub_82C67878). The object class isn't resolvable, so the name states the
+# observable behavior: process the object (gated slot-3 store + buffer update +
+# slot-3 call), returning a byte flag.
+[entrypoint.functions."0x82C669C0"]
+name = "ProcessObject_82C669C0"
+
+# A push of a 12-byte element into a 12-byte-stride array (with growth) -- a
+# sibling of Array_PushElement_823758C0 (36-byte) and Array_PushBack_82C21E08
+# (u32), but here the element is a raw 12-byte struct copied verbatim.
+
+# Args: obj (r3, the array: obj->4 = start, obj->8 = current, obj->12 = end,
+# 12-byte stride), src (r4, a 12-byte struct). Computes current element count
+# (obj->8 - obj->4)/12 and total (obj->12 - obj->4)/12. If there is room (current
+# < total): copy the 12 bytes from src into the slot at obj->8 (obj->8+0/+4/+8 =
+# src->0/+4/+8), then advance obj->8 by 12. Otherwise (full): validate (obj->4 <=
+# obj->8, else `trap 22`) and grow via sub_82C66BE0, then push. Returns void.
+# Single caller: sub_82C67878. Named for the mechanism: push a 12-byte element
+# into the array (copy in, bump the position, grow if full).
+[entrypoint.functions."0x82C66E00"]
+name = "Array_Push12_82C66E00"
+
+# A 5-way state dispatch (state-machine switch) on the byte obj->16->21
+# (values 0-4) -- a switch/jump-table dispatcher.
+
+# Arg: obj (r3). Reads the state byte at obj->16->21. If it is > 4, jump to a
+# default path. Otherwise switch on it via a function-pointer table:
+#   case 0: sub_82BCB7E8(obj), return 0
+#   case 1: (obj->16->36 related path)
+#   case 2/3/4: other 0x82BC handler paths
+# (each case calls a distinct handler -- sub_82BC9860, sub_82BCB0A8, 
+# sub_82BCB610, sub_82BCB6E0, sub_82BCB8D0, sub_82BCD698, sub_8227BB58, ...).
+# 2 callers (sub_82BC62B8, sub_8227B8B8). The individual states/handlers aren't
+# resolvable, so the name states the mechanism: a 5-way dispatch on a state byte.
+[entrypoint.functions."0x82BCBB40"]
+name = "StateDispatch_82BCBB40"
+
+# A binary search with a VIRTUAL (polymorphic) comparison -- a sibling of
+# BinarySearch_82C0BC08, but the element-vs-target comparison is done by a
+# vtable method instead of a direct field compare.
+
+# Args: obj (r3, the array: obj->0 = base, obj->8 = count), a target (r4), and an
+# out flag (r5). Sets *out = 0. If count == 0, return 0. Otherwise binary-search:
+# low = 0, high = count-1; while low <= high: mid = (low+high)/2, element =
+# base[mid] (4-byte stride), and call (element->4)->vtable[1] (a virtual compare
+# method) to compare the element to the target; narrow low/high on the result. 
+# Returns the index/insertion point and sets *out on a match (like a lower_bound).
+# Single caller: sub_82C17350. The element class (and thus the compare method)
+# isn't resolvable, so the name states the mechanism: a binary search whose
+# comparison is a virtual method.
+[entrypoint.functions."0x82C15850"]
+name = "BinarySearch_VirtualCmp_82C15850"
+
+# A lookup-by-key that binary-searches an array (wrapper->4) with a virtual
+# comparison and returns the found element's field 4 -- the caller of
+# BinarySearch_VirtualCmp_82C15850.
+
+# Args: wrapper (r3, whose member at +4 is the array), key (r4). Calls
+# BinarySearch_VirtualCmp_82C15850(wrapper->4, key, &found) to binary-search the
+# array. If found (found != 0) and the element at the returned index is non-null:
+# return element->4 (a sub-object). Otherwise return 0. So it's a find-by-key that
+# returns the matched element's ->4 member (or 0 if not found). 0 direct callers
+# (a virtual/dead method). Named for the mechanism: look up a key via the
+# virtual-compare binary search and return the found element's field 4.
+[entrypoint.functions."0x82C17350"]
+name = "Lookup_ByVirtualCmp_82C17350"
+
+# A tree insertion: walk a binary tree to find the insertion point for a key, then
+# insert a node (with a fixup call).
+
+# Args: root (r3, whose ->4 is the first node), key wrapper (r4, *r4 = the key).
+# The nodes carry: ->8 = right child, ->0 = parent, ->12 = node key, ->21 = a
+# state byte (0 / nonzero). The search loop walks the tree -- if node->12 >= key,
+# step up to the parent (*node); else step right (node->8) -- until it reaches a
+# node with a nonzero state byte (the insertion point). It then performs the
+# insertion (splicing a new node in) and calls sub_82419280 (a tree fixup/rebalance
+# step). 7 callers (sub_829FF798, sub_823715E8, sub_8236DFC0, sub_8226A650,
+# sub_829FFC48, sub_82A000F8, sub_82509E40). The exact tree type (e.g. red-black)
+# isn't confirmed from the fields, so the name states the observable behavior: a
+# tree insert (find the point, insert, fix up).
+[entrypoint.functions."0x82A00620"]
+name = "Tree_Insert_82A00620"
+
+# A constant-return stub: returns the integer 4 (a 2-insn function: li r3,4; blr).
+# 0 direct callers, so it is almost certainly a VIRTUAL method (invoked through a
+# vtable) -- likely a property/type-code/size accessor whose value is the constant
+# 4. The exact meaning of 4 needs the vtable + class. Named for what it does: a
+# stub returning the constant 4.
+[entrypoint.functions."0x826A0520"]
+name = "Stub_Return4_826A0520"
+
+# A binary search (lower_bound) over a 12-byte-stride array, comparing each
+# element's field 0 to a key -- a sibling of BinarySearch_82C0BC08 (4-byte) and
+# BinarySearch_VirtualCmp_82C15850 (virtual cmp).
+
+# Args: obj (r3, the array: obj->4 = start, obj->8 = current, obj->12 = end, 12-byte
+# stride), key wrapper (r4, *r4 = the key). Validates the ranges (obj->8 <= obj->12,
+# obj->4 <= obj->8, else `trap 22`). Binary-searches: mid, element = base + mid*12;
+# compare element->0 (the element's key field) to the key -- if element->0 < key, move
+# right (base += 12, shrink the range); else move left. On completion, validate the
+# found position (several `trap 22` range checks) and return the insertion point / match.
+# 2 callers (sub_8236DFC0, sub_82372108). The element class (a 12-byte struct keyed on
+# its first word) isn't resolvable, so the name states the mechanism: a 12-byte-stride
+# binary search by element->0.
+[entrypoint.functions."0x8236F0F0"]
+name = "BinarySearch_12Stride_8236F0F0"
+
+# A RECURSIVE linked-list destroy: walk the list, releasing each node's ->0
+# sub-object and freeing the node.
+
+# Args: obj (r3, an owner/context), node (r4, the current list node; node->8 = next
+# link, node->0 = a refcounted payload, node+16 = a refcount slot, node->25 = a flag
+# byte). Recursively calls itself on node->8 (the next link); for the current node it
+# releases node->0 via Release_RefCounted_829FF648 (at node+16) and frees the node via
+# Free_SizeBucketed_Thunk_8221BE68, then advances to the next node (node->0) and loops
+# while the node->25 flag is 0. Returns void. So it recursively tears down a linked
+# list of refcounted nodes. 6 callers (sub_82443110, sub_823D46F8, sub_83218A40,
+# sub_8247E448, sub_82A121D8, sub_83218350). The exact list type isn't resolvable, so
+# the name states the mechanism: a recursive destroy of a linked list (release + free
+# each node).
+[entrypoint.functions."0x82443440"]
+name = "DestroyList_Recursive_82443440"
+
+# A string/buffer load into obj with a conditional FAST and SLOW path, selected by
+# a field on a control object (r4->20).
+
+# Args: obj (r3, the destination small-buffer object), control (r4, ->20 selects the
+# path), source (r5, the source small-buffer object). If control->20 == 0 (fast path):
+# just LoadFrom_Source_822F2398(obj, source). Otherwise (slow path): resolve the
+# source buffer via the small-buffer indirection (source->24 >= 8 ? *source->4 : 
+# &source->4), build a local buffer, and copy through ClampAndUpdate_822F6380 plus
+# sub_8217AA20 / sub_8217AB30 / sub_822F5208 / sub_822F6CB0, freeing temporaries via
+# Free_SizeBucketed_Thunk_8221BE68. 6 callers (sub_823735B0, sub_82B4FBD0, 
+# sub_823728E0, sub_82B41738, sub_825F2E10, sub_8260B9E0). The exact semantics of the
+# control object and the slow-path transform aren't fully resolvable, so the name
+# states the observable structure: load a string/buffer, fast path when control->20
+# is 0, otherwise the slower multi-step path.
+[entrypoint.functions."0x823725E8"]
+name = "LoadString_FastOrSlow_823725E8"
+
+# A SIMPLE 12-byte-stride binary search (comparing element->0 to a key over [start,
+# end)) -- a simpler sibling of BinarySearch_12Stride_8236F0F0 (no trap-22
+# validation), storing the result into *out.
+
+# Args: out (r3, receives the found position), start (r4), end (r5), key wrapper
+# (r6, *r6 = the key). count = (end - start)/12 (12-byte element stride). Binary-
+# searches: element = start + mid*12; if element->0 >= key move left, else move right
+# (start += 12). On completion, stores the result into *out. Returns void. 2 callers
+# (sub_82B40BD0, sub_82B41738). The element class (a 12-byte struct keyed on its first
+# word) isn't resolvable, so the name states the mechanism: a simple 12-byte-stride
+# binary search by element->0.
+[entrypoint.functions."0x82B429A0"]
+name = "BinarySearch_12Stride_Simple_82B429A0"
+
+# An identity/passthrough: returns its 2nd argument (r4) unchanged (a 2-insn
+# function: mr r3,r4; blr).
+
+# The 3 callers (sub_82EE53D8, sub_82FFE460, sub_82EE95D8) each pass a constant in
+# r3 (4, 752, or 312 -- an opcode/type-ish value) and a value in r4, and take back
+# r4 (the value, unchanged). So the observable behavior is an identity on the second
+# argument. This shape (pass a code + a value, get the value back) is the classic
+# default/identity implementation of a VIRTUAL method (a base handler that returns
+# its input unchanged), or an inlining artifact. The exact class/vtable isn't
+# resolvable, so the name states what it does: return arg2 unchanged.
+[entrypoint.functions."0x82C2CE58"]
+name = "Identity_ReturnArg2_82C2CE58"
+
+# A process-elements loop: walk a linked structure and, per element, dispatch 4
+# vmethods (slots 0-3) on a target object.
+
+# Args: obj (r3, ->0 = a vtable, ->4 = the end marker), target (r4, an object whose
+# ->0 is a vtable), plus two values (r5, r6). Loop while the current element (r29,
+# starting at *obj->0) != obj->4: each iteration calls four methods on target via its
+# vtable -- target->vtable[0](target, elem->16), target->vtable[1](target, r5),
+# target->vtable[2](target, prevResult), target->vtable[3](target, r6) -- then
+# advances the element to elem->0 or elem->4 (chosen by the call results). When the
+# element reaches obj->4, stop and return 0. 24 callers (sub_82C53B88, sub_82C14688,
+# sub_82C02730, sub_82C17460, ...). The object class and the four methods aren't
+# resolvable, so the name states the mechanism: process the elements, each with a
+# 4-vcall chain on the target.
+[entrypoint.functions."0x82C46C10"]
+name = "ProcessElements_Vcall4_82C46C10"
+
+# A constructor/initializer for a 12-byte (three u32 field) object from a value,
+# with a small/large distinction (a tagged-value init).
+
+# Args: obj (r3, zero-initializes obj->4, obj->8, obj->12), value (r4). If value ==
+# 0, return 0 (an empty object). Otherwise, if value <= 0x3FFFFFFF (fits in 30 bits, a
+# small/inline value): the small-value init path. Else (value > 0x3FFFFFFF, a pointer/
+# large value): build a local string via SetString_822F2020 (from a global string) and
+# convert it via sub_826C3EF0 into the object's fields. Returns a value the callers
+# mask to a byte (clrlwi r3, 24 -- a status/size). 3 callers (sub_82B4BFD8, 
+# sub_82B4B2B8, sub_82B4D300), all in the 0x82B4 data-processing region. The object
+# class and the exact meaning of the three fields aren't resolvable, so the name
+# states the mechanism: construct/init the object from a value (inline if small,
+# converted if large).
+[entrypoint.functions."0x82B4CB58"]
+name = "Construct_FromValue_82B4CB58"
+
+# A 7-way state dispatch (state-machine switch) on the byte (obj->4 - 4) (values
+# 0-6) -- a switch/jump-table dispatcher, a sibling of StateDispatch_82BCBB40.
+
+# Args: obj (r3), state obj (r4, whose ->4 is the switch key and ->5 a status byte).
+# Clears the low 2 bits of obj->5 (stb obj->5 = obj->5 & 0xFFFFFFFC), computes the
+# key = obj->4 - 4, and (if key is in 0..6) switches on it via a function-pointer
+# table; each case (0-6) performs inline register operations (no external sub-calls --
+# the case bodies manipulate obj's fields directly). 17 callers (sub_822DF280, 
+# sub_82BCC6F0, sub_82BD3A90, sub_82BC56F8, sub_82BCB7E8, ...). The individual states
+# and their effects aren't resolvable, so the name states the mechanism: a 7-way
+# dispatch on a state byte.
+[entrypoint.functions."0x82BCA7D8"]
+name = "StateDispatch_82BCA7D8"
+
+# A memmove (overlap-safe copy): copy `size` bytes from src to dst, handling the
+# case where the regions overlap.
+
+# Args: dst (r3), src (r4), size (r5). If dst == src, return (nothing to do). If dst
+# < src (no dangerous overlap), delegate to the forward SDK copy -- 
+# MemCpy_SdkRuntime_82CA2C60(dst, src, size). Otherwise (dst >= src, a backward
+# overlap): copy BACKWARDS so the source isn't clobbered -- first byte-by-byte until
+# dst is 4-byte aligned (from the end: *--dst = *--src), then 4-byte word-by-word
+# backwards. Returns void. 80 callers (sub_82171010, sub_8319BA60, Func_82CB4CB8,
+# sub_82BAF318, Exception_82CC031C, ...). This is the classic memmove: a copy that is
+# safe when src and dst overlap. Sits next to MemCpy_SdkRuntime in the memory family.
+[entrypoint.functions."0x82CAA2E0"]
+name = "MemMove_SdkRuntime_82CAA2E0"
+
+# A SIGNED 3-way comparator of two 32-bit values: returns -1 if a < b, 0 if a == b,
+# 1 if a > b (where a = *r4 and b = *r5).
+
+# Args: (r3), a wrapper (r4, a = *r4), b wrapper (r5, b = *r5). Compares a and b
+# (signed, cmplw/bge): if a < b, return -1. Otherwise (a >= b): compute the borrow of
+# (b - a) via subfc/subfe and return its LSB -- which is 0 when a == b (no borrow) and
+# 1 when a > b (b - a underflows, borrow set). So the return is -1 / 0 / 1 for
+# less-than / equal / greater-than -- a standard 3-way signed compare (like std::cmp / 
+# the sign of a - b). 0 direct callers, so it is most likely a VIRTUAL comparison
+# method (a comparator used by a sort/search). The operand class (a 4-byte value
+# deref'd from r4/r5) isn't resolvable, so the name states the mechanism: a signed
+# 3-way compare of two 32-bit values.
+[entrypoint.functions."0x82C13458"]
+name = "Compare3Way_Signed32_82C13458"
+
+# A vtable-slot-12 call wrapper: deref obj, load vtable offset 48 (slot 12), and call
+# it with obj as the sole argument, returning the result.
+
+# Arg: obj (r3, whose ->0 is a vtable). Loads *(obj->0) = the vtable, then vtable[48]
+# (slot 12, 48/4), and calls it with obj (bctr). Returns the callee's result. 1 caller:
+# sub_82C14E08. The method (slot 12) isn't resolvable without the vtable, so the name
+# states the mechanism: call the object's vtable slot 12.
+[entrypoint.functions."0x82C010D0"]
+name = "VcallSlot12_82C010D0"
+
+# A 3-step vcall chain (slots 6 -> 12 -> 7), each step gated on the previous result's
+# low byte being nonzero -- a sibling of VcallTriple_AllSuccess (6,8,7) and
+# VcallChain_AllSuccess (6,14,7).
+
+# Args: obj (r3, whose ->0 is a vtable), (r4), value (r5). Step 1: vcall
+# obj->vtable[6] (offset 24); if the result's low byte == 0, return 0. Step 2: vcall
+# slot 12 via VcallSlot12_82C010D0(obj, value); if the result's low byte == 0, return
+# 0. Step 3: vcall obj->vtable[7] (offset 28); return (result's low byte != 0). So it's
+# an all-or-nothing chain of three virtual calls (6, 12, 7), returning 1 only if all
+# three report success (nonzero byte). 2 callers (sub_82C1E360, sub_82C15100). The
+# methods (slots 6/12/7) aren't resolvable without the vtable, so the name states the
+# mechanism: a 3-step vcall chain, slots 6 -> 12 -> 7, all-or-nothing.
+[entrypoint.functions."0x82C14E08"]
+name = "VcallChain_6_12_7_82C14E08"
+
+# A vtable-slot-0 call with a null check and a flag of 1 -- the classic virtual
+# destructor-call shape (obj->vtable[0](obj, 1)).
+
+# Arg: obj (r3). If obj == null, return (no-op). Otherwise load *(obj->0) = the vtable
+# and call vtable[0] (offset 0 / slot 0) with obj and r4 = 1 (bctr). Returns the
+# callee's result. 0 direct callers, so it is most likely invoked VIRTUALLY (a
+# destructor/dispose entry) -- vtable slot 0 is typically the destructor in the Itanium
+# C++ ABI, and the r4 = 1 is plausibly a "deleting"/"full" flag. The exact class and
+# whether slot 0 is the destructor aren't resolvable here, so the name states the
+# mechanism: null-check, then call the object's vtable slot 0 with a flag of 1.
+[entrypoint.functions."0x829681C0"]
+name = "VcallSlot0_Flag1_829681C0"
+
+# A refcounted value setter that also builds an owning 12-byte wrapper: release the
+# current obj->0, store the new value, and (if non-null) allocate a refcounted wrapper.
+
+# Args: obj (r3, an 8-byte object: obj->0 = the value, obj->4 = a wrapper slot), value
+# (r4). First releases the current obj->0 via Release_RefCounted_829FF648, then sets
+# obj->0 = value. If value == null, set obj->4 = 0 and stop. Otherwise allocate a 12-byte
+# block via Allocate_OrDbgBreak_8221F388(12) and initialize it as a wrapper -- wrapper->0
+# = 1 (a refcount), wrapper->4 = a fixed constant (a type/offset), wrapper->8 = value --
+# then set obj->4 = that wrapper (or 0 if the allocation failed). Returns void. 171
+# callers (sub_8290DA78, sub_8246A048, sub_82807978, ...). The wrapper's exact role (the
+# constant and what obj->4 is used for) isn't resolvable, so the name states the
+# mechanism: set a refcounted value and, for a non-null value, allocate + populate a
+# 12-byte owning wrapper.
+[entrypoint.functions."0x8238A848"]
+name = "SetRefcountedWrapper_8238A848"
+
+# A vtable-slot-3 call on the sub-object obj->0 (offset 12 / slot 3) that passes a
+# value pointer and returns a BIT derived from the result -- a member of the recurring
+# slot-3 interface.
+
+# Args: obj (r3, whose ->0 is the sub-object and ->5 a flag byte), value (r4). A bit
+# test on obj->5 (via clz/rotate/xor) selects which stack slot holds the value pointer
+# (a 2-element struct {value, 0}). Then vcall `(*obj->0)->vtable[3](obj->0, &{value, 0},
+# 1)` (vtable slot at offset 12). Finally it returns a single bit derived from the
+# result (clz of the result, then rotate-right-27 and mask 1). 8 callers (sub_8236D3C8,
+# sub_82C85538, sub_82C84838, sub_82A4AF78, sub_82C680F8, sub_82B483D0, sub_82C85758,
+# sub_82365458). The slot-3 method isn't resolvable without the vtable, so the name
+# states the mechanism: a slot-3 vcall that returns a bit.
+[entrypoint.functions."0x82372268"]
+name = "VcallSlot3_ReturnBit_82372268"
+
+# A get-or-create-by-name: hash a name, binary-search a 12-byte-stride array for it,
+# and (if not found) insert a new element.
+
+# Args: obj (r3, whose member at +4 is the array: start/current/end, 12-byte stride),
+# name (r4, a string). First hashes the name via InitNameHash_8236D358 into a local. 
+# Validates the array ranges (start <= current, current <= end, else `trap 22`). Then
+# binary-searches the array (12-byte stride) comparing each element's key (element->0,
+# the stored name hash) to the computed hash. On a miss it inserts a new element via
+# Array_InsertOne_8236FDD8. So it's a find-or-create keyed on the name's hash. 2
+# callers (sub_82371820, sub_8236DD48). The element class (a 12-byte struct holding a
+# name hash + the name) isn't fully resolvable, so the name states the mechanism:
+# get-or-create an entry by name hash.
+[entrypoint.functions."0x8236E1B0"]
+name = "GetOrCreateByNameHash_8236E1B0"
+
+# A constant-return global getter: loads and returns a fixed global address (a
+# 2-insn function: lis r11, <hi>; addi r3, r11, <lo>; blr -- ~0x83654CE0).
+
+# Takes no meaningful arguments and always returns the same global pointer. 0 direct
+# callers, so it is most likely a VIRTUAL method (a getter for a global/singleton, or
+# an accessor whose value is that fixed address) -- the exact global's meaning needs
+# the vtable + class. The name states what it does: return a fixed global pointer.
+[entrypoint.functions."0x82C1E350"]
+name = "GetGlobal_82C1E350"
+
+# The SDK memset: fill `size` bytes at dst with the byte value (r3 = dst, r4 = value,
+# r5 = size).
+
+# Implementation: fill byte-by-byte (*r6++ = r4) until dst is 4-byte aligned; then build
+# a 32-bit word from the byte (rlwimi r4 = 0xNNNNNNNN, the byte replicated 4 times) and
+# fill word-by-word in 16-byte chunks (four stw per iteration); finally handle the
+# remaining tail bytes. Returns void. 479 callers (MemFree_82CBFD74, sub_831D9228,
+# sub_831CE8D8, ...). This is the SDK's memset -- the memory-family sibling of
+# MemCpy_SdkRuntime / MemMove_SdkRuntime. Named MemSet_SdkRuntime to keep the guest
+# symbol distinct from the host libc memset.
+[entrypoint.functions."0x82CA3190"]
+name = "MemSet_SdkRuntime_82CA3190"
+
+# A remove-and-free tree-node wrapper: remove obj->4 from the tree, then free it and
+# clear the slots.
+
+# Arg: obj (r3, an 8-byte object: obj->4 = the tree node, obj->8 = a related field). 
+# Calls Tree_RemoveNode_826A4A20(obj, obj->4, &out1, &out2) to detach the node from the
+# tree (the two out pointers are stack slots receiving the removal result), then frees
+# the node via Free_SizeBucketed_Thunk_8221BE68(obj->4), then sets obj->4 = 0 and obj->8
+# = 0. Returns void. So it's a detach-and-destroy of the node stored in obj->4. 20
+# callers (sub_832AB150, sub_8281FB68, sub_82441E90, sub_832AF290, sub_82724AE8, ...). 
+# The node/tree class isn't resolvable, so the name states the mechanism: remove the
+# node from the tree and free it.
+[entrypoint.functions."0x826A4978"]
+name = "RemoveAndFreeNode_826A4978"
+
+# A tree find-and-process: walk the tree to locate the node / insertion point for a
+# key, then process it -- a sibling of Tree_Insert_82A00620 (same node layout: ->8 right,
+# ->0 parent, ->12 key, ->25 state byte).
+
+# Args: obj (r3, ->4 = first node), key wrapper (r4, *r4 = the key). Walks the tree --
+# if node->12 < key step right (node->8), else step up to the parent (*node) -- until a
+# node with a nonzero ->25 state byte (the target). Then it processes the located node:
+# compares it to the key, and (depending on the result) calls sub_82A122F8 and
+# Release_RefCounted_829FF648 (releasing a node's payload). 166 lines, 1 caller:
+# sub_83218598. The exact find-vs-remove semantics and the node class aren't fully
+# resolvable, so the name states the observable mechanism: walk the tree to find the
+# node for a key, then process it (release + sub_82A122F8).
+[entrypoint.functions."0x82A120B0"]
+name = "Tree_FindNode_82A120B0"
+
+# A large (364-line) tree-node processor: the slow-path handler called by
+# Tree_FindNode_82A120B0, with a fast path (sub_82A128B0) and a validated slow path.
+
+# Args: (r3), obj (r4, an object with ->4 and ->8 fields), plus r5 and r6. If obj->8 ==
+# 0 (fast path): call sub_82A128B0(obj->4, r6, 1) and return. Otherwise (slow path):
+# validate (obj->4 != 0 and a pointer-equality check on r5, else `trap 22`) and perform
+# the heavier node processing (sub_823D4F20, sub_82498700, sub_82A126D0, sub_82A128B0).
+# 1 caller: Tree_FindNode_82A120B0. The node/tree class and the exact processing aren't
+# resolvable, so the name states the observable role: process a tree node (fast or slow
+# path). It is the deep handler behind the Tree_FindNode walk.
+[entrypoint.functions."0x82A122F8"]
+name = "ProcessTreeNode_82A122F8"
+
+# A large (329-line) node string-processing handler in the 0x82A1 tree cluster -- the
+# fast-path / deep handler behind ProcessTreeNode_82A122F8.
+
+# Args: (r3), obj (r4, ->8 = a size/length field), plus r5, r6, r7. Compares obj->8 to
+# a constant (0x01555554): if below it, one path (loc_82A12928). Otherwise: build a local
+# string via SetString_822F2020 (from a global string), convert it via sub_826C3EF0, then
+# further process it via sub_822F1F00 and sub_826C3FA8, and (in the longer path) call
+# sub_82171810, sub_827C6448, sub_827C64C0, and sub_82A12B90. 2 callers (ProcessTreeNode_
+# 82A122F8, sub_82A126D0). The node class and the exact string transform aren't fully
+# resolvable, so the name states the observable role: process a node's string (a
+# build/convert/format path selected by obj->8).
+[entrypoint.functions."0x82A128B0"]
+name = "ProcessNodeString_82A128B0"
+
+# A 28-byte node allocation + initialization (a "make a node" operation) -- the
+# allocation step called by ProcessNodeString_82A128B0.
+
+# Args: (r3), a (r4), b (r5), c (r6), src (r7). Allocates 28 bytes via
+# Allocate_OrDbgBreak_8221F388(28). On success, initializes the block: block->0 = a,
+# block->4 = b, block->8 = c, block->12 = src->0, block->16 = src->4, block->20 = src->8.
+# If src->8 (a linked field) is nonzero, it acquires the global lock (REX_ENTER_GLOBAL_
+# LOCK) and does an atomic load (lwarx) on src->8 (a lock-free linked-list append/splice
+# under the global lock). Returns the allocated block (or null on allocation failure).
+# 1 caller: ProcessNodeString_82A128B0. The node class isn't resolvable, so the name
+# states the mechanism: allocate a 28-byte node and initialize it from the args + a
+# source object.
+[entrypoint.functions."0x82A12B90"]
+name = "AllocateNode28_82A12B90"
+
+# A 20-byte object constructor: set the vtable (obj->0) and allocate + zero a 20-byte
+# payload.
+
+# Arg: obj (r3). Sets obj->0 to a fixed global (~0x82C3BBC0, plausibly a vtable/
+# type-object pointer). Then allocates 20 bytes via Allocate_OrDbgBreak_8221F388(20) and
+# zeroes the block (writes 0 to each 4-byte slot at alloc+0/+4/+8/... -- with null and
+# wraparound guards on the pointer arithmetic). Returns void. 21 callers (sub_83215B98,
+# sub_832159E0, sub_83215D98, sub_83215768, ...), all in the 0x83215 constructor cluster. 
+# The object class and the vtable's meaning aren't resolvable, so the name states the
+# mechanism: construct a 20-byte object (install the vtable, allocate + zero the 
+# payload).
+[entrypoint.functions."0x83215640"]
+name = "Construct20Byte_83215640"
+
+# The DESTRUCTOR counterpart of Construct20Byte_83215640 (same vtable ~0x82C3BBC0):
+# destroy the tree and free the node.
+
+# Arg: obj (r3). Sets obj->0 to the fixed global (~0x82C3BBC0, the same vtable the
+# constructor installs). Then destroys the object's tree: DestroyTreeNodes_82859340(
+# obj->8, obj->8->4) (recursively destroy the tree rooted at obj->8), performs cleanup
+# (obj->12 = 0 and some self-reference rewiring of the obj->8 node), then calls
+# RemoveAndFreeNode_826A4978(obj+4) to detach and free the node. Returns void. 31
+# callers (sub_83215A70, sub_82A146C0, sub_82A14720, sub_83215D08, sub_82A14600, ...). 
+# The object class isn't resolvable, so the name states the role: the destructor for
+# the 20-byte tree-owning object -- install the vtable, destroy the tree, remove +
+# free the node.
+[entrypoint.functions."0x832156E0"]
+name = "Destruct20Byte_832156E0"
+
+# A refcounted value setter that updates a tree node's value: release the old value,
+# store the new one, and increment the new value's refcount.
+
+# Args: obj (r3, an object; the tree is at obj+12), value wrapper (r4, ->0 = a source,
+# ->4 = the new value). First makes a vcall on *r4->0 (vtable slot 1 / offset 4). Then
+# finds the target node in the tree via Tree_FindNode_82A120B0(obj+12, ...). If the node's
+# ->4 field differs from the new value (r4->4): release the old value via
+# Release_RefCounted_829FF648, set node->0 = r4->0 and node->4 = r4->4, and (if the new
+# value is non-null) increment its refcount (value->0 += 1). So it's a COM-style
+# refcounted set on a tree node: drop the old reference, take a new one. 3 callers
+# (sub_83218630, sub_83219588, sub_83218C10), all in the 0x83218 cluster. The node/tree
+# class isn't resolvable, so the name states the mechanism: update a tree node's
+# refcounted value (release old, store new, inc refcount).
+[entrypoint.functions."0x83218598"]
+name = "UpdateTreeNodeValue_83218598"
+
+# The in-place buffer-range update core for the small-buffer object (0x822F) -- grow if
+# needed, clamp the length, shift the buffer, resize, and null-terminate.
+
+# Args: obj (r3, a small-buffer object: obj->4 = inline buffer / external pointer,
+# obj->20 = current length, obj->24 = size field used for the indirection), pos (r4), len
+# (r5). If obj->20 < pos, grow via sub_82CD12C8 (the grow helper). Clamp len to
+# (obj->20 - pos). If len == 0, do nothing. Otherwise resolve the buffer base via the
+# small-buffer indirection (obj->24 >= 16 ? *obj->4 : &obj->4), then shift the buffer via
+# CheckedCopy_82CA3808, decrease obj->20 by len (obj->20 -= len), and null-terminate at
+# the new end. The observable effect (shift + shrink + null-terminate) is consistent with
+# an in-place range erase / truncate. 3 callers (sub_82BED0C8, ProcessObject_82C669C0,
+# RangeUpdate_8218EA38) -- it is the in-place core behind WriteRange_AtPos / RangeUpdate.
+# The exact semantics (erase vs truncate vs replace) aren't fully resolvable, so the name
+# states the mechanism: update the buffer in place over a range.
+[entrypoint.functions."0x822F1F60"]
+name = "UpdateBufferRange_822F1F60"
+
+# A byte-append to a growable buffer (SDK region): decrement the remaining capacity,
+# write the byte at the current position, and advance.
+
+# Args: byte (r3), buffer obj (r4, ->0 = current write pointer, ->4 = remaining capacity,
+# ->8 = a secondary pointer, ->12 = a flags word with a bit-5 flag), plus r5. Checks a
+# flag bit (bit 5 of obj->12) that selects an alternate path (obj->8). In the main path it
+# decrements obj->4 (remaining capacity); if capacity remains (obj->4 >= 0), writes the
+# byte to *obj->0 and advances the write pointer (obj->0 += 1). Returns void. So it's a
+# push/append of a single byte into the buffer with a capacity guard. 3 callers (sub_
+# 8223F990, sub_82CAE4A8, sub_82CAE410 -- the last two are sibling SDK buffer functions). 
+# The exact buffer class isn't resolvable, so the name states the mechanism: append a
+# byte to the buffer (decrement capacity, store, advance).
+[entrypoint.functions."0x82CAE378"]
+name = "Buffer_PushByte_82CAE378"
+
+# A build-object-from-array: derive a size from an array range, construct the object,
+# and (if the range is non-empty) copy the array data in.
+
+# Args: obj (r3, the object to build), arr (r4, a range: arr->4 = start, arr->8 = end). 
+# Computes the element count (arr->8 - arr->4) >> 2 (i.e. the range's byte count / 4 --
+# a count of 4-byte elements; 0 if arr->4 == 0). Calls Construct_FromValue_82B4CB58(obj,
+# count) to construct obj with that size. If the construction reports a non-zero low byte
+# (obj was built), validates the range (arr->4 <= arr->8, else `trap 22`) and copies the
+# array data into obj via CheckedCopy_82CA3808. So it's a "populate obj from the arr
+# range": derive the count, construct, then copy the bytes in. 5 callers (sub_82B4B9A8,
+# sub_82B4C1C0, sub_82B4C7A0, sub_82B4B2B8, sub_82B4BF70), all in the 0x82B4B data-
+# processing cluster. The object/array class isn't resolvable, so the name states the
+# mechanism: construct the object from an array range (derive count, construct, copy).
+[entrypoint.functions."0x82B4BFD8"]
+name = "ConstructFromArray_82B4BFD8"
+
+# A 28-byte-stride array push (sibling of Array_Push12_82C66E00): if there is room,
+# initialize a new 28-byte element at the array's current position and advance.
+
+# Args: obj (r3, the array: obj->4 = start, obj->8 = current, obj->12 = end, 28-byte
+# stride). Computes the current element count (obj->8 - obj->4)/28 and the capacity
+# (obj->12 - obj->4)/28. If there is no room (count >= capacity), return. Otherwise, at
+# obj->8, initialize a new 28-byte element (zeroes some fields, sets a few constants --
+# e.g. element->20 = 0) and sets up the element's data via RangeUpdate_8218EA38 and
+# sub_82C643F0, then advances obj->8 by 28. Returns void. 2 callers (sub_82C83378,
+# sub_82C67878). The element class (a 28-byte struct) isn't resolvable, so the name
+# states the mechanism: push a 28-byte element into the array (room check, init, advance).
+[entrypoint.functions."0x82C644D0"]
+name = "Array_Push28_82C644D0"
+
+# A ctype predicate: look up a character in the u16 ctype table and return a specific
+# bit (bit 2 / 0x4) -- a member of the 0x82CA6AB0-0x82CA6BB0 ctype cluster.
+
+# Arg: code (r3, a character/code). Loads the table base from a global (~0x82CA70C8),
+# then loads the u16 entry table[code] (lhzx at base + code*2), and returns bit 2 of it
+# (r3 = entry & 0x4). So it's a "is this char [property]" test where the property is
+# bit 2 of the ctype table. Sibling sub_82CA6AF0 returns a different bit (the cluster
+# has one function per ctype bit, e.g. bit 0 = _UPPER). 48 callers (sub_82A256D0,
+# sub_82A17518, sub_82F6DF40, ...), each loading a byte from a string and testing it. The
+# exact property bit 2 denotes isn't resolvable without the table definition, so the name
+# states the mechanism: a ctype predicate returning bit 2 of the table entry.
+[entrypoint.functions."0x82CA6B10"]
+name = "Ctype_Pred_Bit2_82CA6B10"
+
+# A self-contained tree find (12 callers, no external callees -- all processing inline)
+# with the same node layout and walk as Tree_FindNode_82A120B0 and Tree_Insert_82A00620
+# (->8 right, ->0 parent, ->12 key, ->25 state byte).
+
+# Args: (r3), obj (r4, ->4 = first node), key wrapper (r5, *r5 = the key). Walks the tree
+# -- if node->12 < key step right (node->8), else step up to the parent (*node) -- until a
+# node with a nonzero ->25 state byte (the target). Then it processes the located node
+# entirely inline (no external sub-calls): compares it to the key and rewrites the
+# surrounding node pointers. Returns the located/adjusted node. 12 callers (sub_828D9110,
+# sub_828D9FE8, sub_828DA098, sub_823385D0, sub_83234418, ...). The node class and the
+# exact find-vs-rebalance semantics aren't resolvable, so the name states the mechanism:
+# a self-contained tree find (walk to the insertion point, process inline) -- a sibling
+# of Tree_FindNode_82A120B0.
+[entrypoint.functions."0x82A12230"]
+name = "Tree_FindNode2_82A12230"
+
+# A chain-root finder: validate, then walk up a chain (via node->0) to the topmost node
+# (the one whose byte-17 flag is set) and store it in obj->4.
+
+# Arg: obj (r3, obj->0 = a base, obj->4 = a starting node). Validates (obj->0 != 0, else
+# `trap 22`; the head node's byte-17 == 0, else `trap 22`). Then walks up the chain via
+# node->0 (the parent link) until it reaches a node whose byte-17 flag is nonzero (the
+# root/top of the chain), and stores that node in obj->4. There are two entry paths
+# (depending on an intermediate node->17 check), but both converge on the same walk-up. 
+# Returns void. 62 callers (sub_82B6A088, sub_83233B40, sub_825D3100, sub_82C7DC58, ...). 
+# The node/chain class and the exact meaning of the byte-17 flag aren't resolvable, so
+# the name states the mechanism: walk up the chain to find the root node and store it.
+[entrypoint.functions."0x82A596F0"]
+name = "FindChainRoot_82A596F0"
+
+# A refcounted copy-assignment (operator=) -- a second variant, a sibling of
+# CopyAssign_RefCounted_821F0108 (the primary, 2524 callers). This one's refcount lives
+# at value->12 and is incremented atomically under the global lock.
+
+# Args: dst (r3, dst->0 = the stored value), src (r4, src->0 = the stored value). If
+# dst == src (self-assign), do nothing. Otherwise: if dst->0 != 0, release it via
+# Release_RefCounted_821C67D8. Then if src->0 != 0: set dst->0 = src->0 and atomically
+# increment src->0's refcount at (src->0 + 12) (lwarx/stwcx under REX_ENTER_GLOBAL_LOCK). 
+# So it's a COM-style refcounted operator=: drop the old reference, take a new one. 593
+# callers (sub_82B46E78, sub_8230DFF0, sub_825A20A8, ...). The wrapper class isn't
+# resolvable, so the name states the mechanism: a refcounted copy-assign (release old,
+# copy, inc refcount) -- the "2" distinguishes it from CopyAssign_RefCounted_821F0108.
+[entrypoint.functions."0x82265160"]
+name = "CopyAssign_RefCounted2_82265160"
+
+# A refcounted object DESTRUCTOR (one of the hottest functions in the game, 5636
+# callers): release the object's value and atomically decrement a global live-object
+# counter.
+
+# Arg: obj (r3). Releases obj->0 via Release_RefCounted_821C67D8 (drops the reference to
+# the stored value). Then atomically decrements a global counter at a fixed address
+# (~0x82C489E0) via lwarx/stwcx under REX_ENTER_GLOBAL_LOCK -- a global live-object /
+# allocation count. Returns void. 5636 callers (sub_832A62A0, sub_82492428, 
+# sub_82663CA0, ...). The object class and the exact meaning of the global counter aren't
+# resolvable, so the name states the mechanism: destruct a refcounted object (release its
+# value, decrement the global count).
+[entrypoint.functions."0x82214F08"]
+name = "DestructRefCounted_82214F08"
+
+# A single-character tolower (ASCII): lowercase a u16 char if it is A-Z.
+
+# Arg: char (r3, a u16 code). If the char == 0xFFFF, return it unchanged. If it is in the
+# range A-Z (65-90), add 32 (A-Z -> a-z) and return. Otherwise return the char unchanged.
+# So it's a basic ASCII tolower for one character (no table lookup). A simpler sibling of
+# ToLower_SdkRuntime_82CA4288 (which uses the ctype table). 10 callers (sub_82F70138,
+# sub_82F701F8, sub_8238E1E8, sub_82F705E8, ...), mostly in the 0x82F7 region. Named
+# ToLower_Ascii to distinguish the table-less single-char version from the SDK table-
+# based one.
+[entrypoint.functions."0x8217A980"]
+name = "ToLower_Ascii_8217A980"
+
+# A hash-table lookup (linear probing / open addressing): find a key in a flat hash
+# table.
+
+# Args: table (r3, ->0 = the bucket array base, ->4 = bucket count), key (r4). Computes
+# the starting bucket as (key & (count - 1)) * 8 (8-byte slots), then linearly probes
+# (wrapping around the table) comparing each stored entry to the key; stops on a match
+# (entry == key) or an empty slot (entry == 0). Returns the found slot/index (or a
+# not-found marker). So it's a find-in-hash-table with open addressing. 1 caller:
+# sub_829FAC30 (a sibling, plausibly the insert / get-or-create counterpart). The table
+# key type isn't resolvable, so the name states the mechanism: a linear-probing hash
+# table lookup.
+[entrypoint.functions."0x829FAD30"]
+name = "HashTable_Find_829FAD30"
+
+# A RECURSIVE structure processor: walk a linked structure of nodes (node->4 = a type
+# byte, node+84 = a sub-node), looping over a count and recursing on sub-nodes.
+
+# Args: obj (r3, ->16 = a context with a ->20 flag byte), node (r4, the current node),
+# count (r5). Reads the context flag (obj->16->20, xored with 3). Loops over `count`
+# elements: for each, if the node's type byte (node->4) == 8, recurse on the sub-node
+# (sub_82BCB610(obj, node+84, -3)) -- processing nested structure; otherwise handle it
+# inline (sub_82BCB480). Returns void. 119 lines. 2 external callers (sub_82BC7D80,
+# StateDispatch_82BCBB40 -- a state dispatch) plus its own recursion. The node/structure
+# class and the meaning of the type byte (8 = has-sub-node) aren't resolvable, so the
+# name states the mechanism: a recursive processor over a linked structure of nodes.
+[entrypoint.functions."0x82BCB610"]
+name = "ProcessStructure_Recursive_82BCB610"
+
+# A trivial field getter: return obj->4 (a 2-insn function: lwz r3, 4(r3); blr).
+
+# Arg: obj (r3). Returns the u32 at obj->4. 23 callers (sub_82C80EB8, sub_824D4190,
+# sub_82397348, sub_82C81578, ...). It's a plain accessor for the object's field at
+# offset 4; the field's meaning needs the object class. Named for what it does: get the
+# field at offset 4.
+[entrypoint.functions."0x82A46DE8"]
+name = "GetField4_82A46DE8"
+
+# A vtable-slot-3 call on the sub-object obj->0 (offset 12 / slot 3) with a flag of 4
+# (r5 = 4) -- a member of the recurring slot-3 interface, a sibling of
+# VcallSlot3_ReturnBit_82372268 (which uses r5 = 1).
+
+# Args: obj (r3, ->0 = the sub-object, ->4 = a gate byte, ->5 = a flag byte), value
+# (r4). If obj->4 == 0, take an alternate path. Otherwise a bit test on obj->5 (via
+# clz/rotate/xor) selects which stack slot holds the value pointer (a 2-element struct
+# {value, 0}), then vcall `(*obj->0)->vtable[3](obj->0, &{value, 0}, 4)` (vtable slot at
+# offset 12, with the 3rd arg = 4 instead of the sibling's 1). 2 callers (sub_82372108,
+# sub_823715E8). The slot-3 method isn't resolvable without the vtable, so the name
+# states the mechanism: a slot-3 vcall on the sub-object with a flag of 4.
+[entrypoint.functions."0x82372070"]
+name = "VcallSlot3_Flag4_82372070"
+
+# A constructor/copy for a struct holding three floats plus an optional 40-byte
+# payload: copy the three floats and (if the source has a payload) allocate + copy a new
+# one.
+
+# Args: dst (r3, ->0 = a payload pointer, ->4/->8/->12 = three floats), src (r4, same
+# layout). Sets dst->0 = 0. Copies the three floats (src->4/8/12 -> dst->4/8/12). If
+# src->0 (the payload pointer) is non-null: allocate 40 bytes via
+# Allocate_OrDbgBreak_8221F388(40) and copy the source payload into it (dst->0 = the new
+# payload). Returns void. 179 lines. 4 callers (sub_82A0BAA0, sub_82A0B5C8, sub_82A0B300
+# -- all in the 0x82A0B cluster -- plus sub_8321F968). The struct's purpose (the three
+# floats -- plausibly a vector/position -- and the 40-byte payload) aren't resolvable, so
+# the name states the mechanism: construct the struct from a source (copy 3 floats, plus
+# an optional 40-byte payload).
+[entrypoint.functions."0x82A0C0A0"]
+name = "Construct3FloatPayload_82A0C0A0"
+
 # Existing Functions
 [entrypoint.functions."0x8222B3C8"]
 name = "SwitchDispatch_8222B3C8"
