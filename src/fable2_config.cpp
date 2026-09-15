@@ -77,6 +77,15 @@ mouse_look = true
 # (1..4096; larger = more sensitive).
 # Default: 256
 mouse_look_scale = 256
+
+[patches]
+# Toggles for the recomp-level (mid-asm hook) patches, consulted at runtime
+# by the hook bodies (src/fable2_hooks.cpp) - no rebuild needed. Guest-image
+# DATA patches are a different file: fable2_patches.toml next to the exe.
+# 60 FPS (mid-asm hook fable2_hook_60fps; Xenia "60 FPS" by Margen67):
+# lifts the guest main loop from 30/s to ~60/s. false = 30/s (original).
+# Default: true
+fps_60 = true
 )TOML_EOF";
 
 std::string_view TypeName(toml::node_type t) {
@@ -134,8 +143,8 @@ bool Load(const std::filesystem::path& path) {
 
   // Warn about unknown top-level sections (usually a typo or a file written
   // for a newer build).
-  static constexpr std::array<std::string_view, 2> kKnownSections = {
-      "general", "input"};
+  static constexpr std::array<std::string_view, 3> kKnownSections = {
+      "general", "input", "patches"};
   for (const auto& [key, value] : root) {
     const bool known =
         std::ranges::find(kKnownSections, key.str()) != kKnownSections.end();
@@ -165,6 +174,13 @@ bool Load(const std::filesystem::path& path) {
     values.mouse_look_scale = static_cast<int32_t>(Read<int64_t>(
         input_table, "input", "mouse_look_scale", "integer",
         values.mouse_look_scale));
+  }
+  const toml::path patches_path{"patches"};
+  const auto patches = root[patches_path];
+  if (patches.is_table()) {
+    const toml::table& patches_table = *patches.as_table();
+    values.fps_60 = Read<bool>(patches_table, "patches", "fps_60", "boolean",
+                               values.fps_60);
   }
 
   g_values = values;

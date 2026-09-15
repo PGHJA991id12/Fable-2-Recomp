@@ -37,6 +37,7 @@ fable_2_manifest.toml.bak
 build_*.log
 rebuild.log
 rebuild2.log
+__pycache__/
 
 # --- Fetched/external toolchain deps (created by tools/setup_sdk*.cmd). -------
 # The tracked files in thirdparty/ (rexglue-sdk-local.patch,
@@ -47,3 +48,4 @@ thirdparty/android-ndk/
 
 # --- Historical reference (pre-ReXGlue XenonRecomp configs) -------------------
 XenonRecomp
+TODO.md

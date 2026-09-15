@@ -28,6 +28,7 @@
 
 #include "alloc_watch.h"
 #include "fable2_config.h"
+#include "fable2_patches.h"
 // 30fps-cap instrumentation (writes fps_probe.log next to the exe). Disabled
 // now that the cap is lifted via REX_VSYNC=0 (see tools/fable2-uncapped.cmd).
 // Re-enable to re-measure the frame pacing:
@@ -230,8 +231,17 @@ class Fable2App : public rex::ReXApp {
     seed_cvar("mouse_look", cfg.mouse_look ? "true" : "false");
     seed_cvar("mouse_look_scale", std::to_string(cfg.mouse_look_scale));
   }
-  // void OnLoadXexImage(std::string& xex_image) override {}
-  // void OnPostLoadXexImage() override {}
+  // Apply the game patches (see src/fable2_patches.h) once the SDK has
+  // decrypted default.xex into the guest arena, before the module launches.
+  // The patch table is data-driven: fable2_patches.toml next to the exe
+  // (created with built-in defaults on first launch; a broken file falls
+  // back to the built-ins, so a hand edit can never wedge the launch).
+  void OnPostLoadXexImage() override {
+    const std::filesystem::path exe_dir =
+        rex::filesystem::GetExecutableFolder();
+    fable2::patches::Load(exe_dir / "fable2_patches.toml");
+    fable2::patches::ApplyAll(runtime()->memory(), PPCImageConfig);
+  }
 
   // Startup integrity check: this build was recompiled against a specific
   // default.xex, so verify its SHA-256 before the runtime loads it (see

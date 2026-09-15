@@ -22,7 +22,7 @@
 namespace fable2::fpsprobe {
 
 // Always-original entry points (strong symbols in the generated code).
-extern "C" void __imp__sub_82B9CD68(PPCContext& ctx, uint8_t* base);  // main loop (calls VdSwap)
+extern "C" void __imp__MainRenderLoop_82B9CD68(PPCContext& ctx, uint8_t* base);  // main loop (calls VdSwap); renamed from sub_82B9CD68
 extern "C" void __imp__sub_82CC2028(PPCContext& ctx, uint8_t* base);  // KeDelayExecutionThread wrapper
 extern "C" void __imp__sub_82CBD098(PPCContext& ctx, uint8_t* base);  // NtYieldExecution wrapper
 extern "C" void __imp__sub_83004C20(PPCContext& ctx, uint8_t* base);  // NtSetTimerEx wrapper
@@ -162,9 +162,9 @@ inline void note_exit(Probe& p) {
 }  // namespace fable2::fpsprobe
 
 // Strong overrides: every generated call site of sub_X now lands here.
-extern "C" void sub_82B9CD68(PPCContext& ctx, uint8_t* base) {
+extern "C" void MainRenderLoop_82B9CD68(PPCContext& ctx, uint8_t* base) {
   fable2::fpsprobe::note(fable2::fpsprobe::probe_main_loop, ctx);
-  __imp__sub_82B9CD68(ctx, base);
+  __imp__MainRenderLoop_82B9CD68(ctx, base);
 }
 extern "C" void sub_82CC2028(PPCContext& ctx, uint8_t* base) {
   fable2::fpsprobe::note(fable2::fpsprobe::probe_ke_delay, ctx);

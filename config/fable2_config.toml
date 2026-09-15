@@ -46,3 +46,12 @@ mouse_look = true
 # (1..4096; larger = more sensitive).
 # Default: 256
 mouse_look_scale = 256
+
+[patches]
+# Toggles for the recomp-level (mid-asm hook) patches, consulted at runtime
+# by the hook bodies (src/fable2_hooks.cpp) - no rebuild needed. Guest-image
+# DATA patches are a different file: fable2_patches.toml next to the exe.
+# 60 FPS (mid-asm hook fable2_hook_60fps; Xenia "60 FPS" by Margen67):
+# lifts the guest main loop from 30/s to ~60/s. false = 30/s (original).
+# Default: true
+fps_60 = true

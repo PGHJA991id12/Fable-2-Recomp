@@ -8,12 +8,17 @@ project(fable_2 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Needed by the recomp-level patch step below (tools/apply_recomp_patches.py).
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+
 include(generated/rexglue.cmake)
 
 # Sources
 set(FABLE2_SOURCES
     src/main.cpp
     src/fable2_config.cpp
+    src/fable2_patches.cpp
+    src/fable2_hooks.cpp
 )
 
 if(WIN32)
@@ -26,6 +31,32 @@ endif()
 # per-configuration variant: rexgpu-xenosd.dll for Debug, rexgpu-xenos.dll
 # for Release). Without it the game runs with no GPU emulation.
 rexglue_setup_target(fable_2 GPU_PLUGINS xenos)
+
+# --- Recomp-level patches (Xenia code-region patches, made effective) ------
+# This is a RECOMP: guest .text is never executed, so Xenia code patches
+# (byte writes to .text) are inert at runtime. tools/apply_recomp_patches.py
+# mirrors those patches into codegen's emitted C++ instead, and runs between
+# codegen and compiling fable_2_recomp (keyed on the codegen stamp), so the
+# patches survive codegen re-runs. Missing anchors fail the build. Skip all
+# with FABLE2_RECOMP_PATCHES=0 in the build environment (A/B runs).
+if(TARGET fable_2_recomp)
+    add_custom_command(
+        OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/generated/default/recomp_patches.stamp"
+        COMMAND ${Python3_EXECUTABLE}
+                ${CMAKE_CURRENT_SOURCE_DIR}/tools/apply_recomp_patches.py
+                ${CMAKE_CURRENT_SOURCE_DIR}/generated/default
+        COMMAND ${CMAKE_COMMAND} -E touch
+                "${CMAKE_CURRENT_SOURCE_DIR}/generated/default/recomp_patches.stamp"
+        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/generated/default/codegen.build.stamp"
+                ${CMAKE_CURRENT_SOURCE_DIR}/tools/apply_recomp_patches.py
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        COMMENT "Applying recomp-level patches to generated code"
+        VERBATIM
+    )
+    add_custom_target(fable_2_recomp_patches
+        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/generated/default/recomp_patches.stamp")
+    add_dependencies(fable_2_recomp fable_2_recomp_patches)
+endif()
 
 # --- Guest function-call tracing (fable2_func_trace.log) -------------------
 # Rexglue codegen emits REX_FUNC_PROLOGUE() at the top of every recompiled
@@ -79,6 +110,15 @@ target_include_directories(fable_2 SYSTEM PRIVATE
 # in sync - see src/fable2_config.cpp).
 if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/fable2_config.toml")
     file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/config/fable2_config.toml
+         DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+endif()
+
+# Same treatment for the guest-image patch table (fable2_patches.toml, parsed
+# by src/fable2_patches.cpp): user data, copy-if-not-exists so edits survive
+# rebuilds; the code also recreates it if it is ever deleted (keep that
+# embedded copy in sync - see src/fable2_patches.cpp).
+if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/fable2_patches.toml")
+    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/config/fable2_patches.toml
          DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 endif()
 

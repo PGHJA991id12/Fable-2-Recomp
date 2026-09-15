@@ -60,7 +60,7 @@ CMake). It sets `REX_VSYNC=0` and calls `fable2.cmd`. To run capped (native
 
 | Addr | Role |
 |---|---|
-| `sub_82B9CD68` (recomp.246:20628) | Main render loop; ~33 ms period |
+| `MainRenderLoop_82B9CD68` (was `sub_82B9CD68`; recomp.246:20628) | Main render loop; ~33 ms period at 30 fps |
 | `sub_82242628` | **Frame limiter / GPU-progress wait** (h4; 30–53 ms per call) |
 | `sub_82B9BF90` (h5) | GPU "has it progressed ≥ 5000 ticks?" check, called in the limiter's spin loop |
 | `sub_82B9BA58` (recomp.289:19146) | "Begin frame"; only writer of the limiter struct field +10908 |

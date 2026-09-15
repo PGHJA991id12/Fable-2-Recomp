@@ -3,6 +3,7 @@
 #include "generated/default/fable_2_init.h"
 
 #include "fable_2_app.h"
+#include "fps_meter.h"
 #include "keyboard_gamepad.h"
 
 #include <rex/cvar.h>

@@ -12,6 +12,8 @@ The executable looks for its content in **its own directory only** (no ancestor 
 - `logs/`, `fable_2.toml` — game logs and cvar config (SDK defaults)
 - `fable2_config.toml` — the recomp's own user config (created/staged at build
   time; recreated with defaults on first launch if missing, see below)
+- `fable2_patches.toml` — the guest-image (data) patch table, Xenia
+  game-patches format with per-patch `enabled` toggles (see below)
 
 The build produces only the exe + runtime plugins — it does **not** copy the
 ~6.5 GB game content into the build directory. To run in place, either stage
@@ -41,6 +43,7 @@ out/build/win-amd64-debug/
 ├── cache/                        <- runtime caches (created at runtime)
 ├── logs/ + fable_2.toml          <- logs + cvar config (created at runtime)
 ├── fable2_config.toml            <- recomp user config (staged at build; created at runtime if missing)
+├── fable2_patches.toml           <- guest-image (data) patch table (staged at build; created at runtime if missing)
 ├── README.md                     <- how to run this (staged by the build)
 └── rexruntime.dll, rexgpu-xenos*.dll, ... <- staged runtime + GPU plugins (by the build)
 
@@ -149,6 +152,26 @@ game recreates it with defaults on launch if it is ever missing. Loaded in
   source set it: `fable_2.toml` (cvar config), `REX_*` env vars, and the
   command line (e.g. `--keyboard_gamepad_map`) still win, and the F3 console
   can still change the value live.
+- The `[patches]` section holds runtime toggles for the recomp-level
+  (mid-asm hook) patches, consulted by the hook bodies on every call
+  (`src/fable2_hooks.cpp`) — flip one and relaunch to A/B a patch with no
+  rebuild. Currently: `fps_60` (60 FPS hook; `true` = main loop ~60/s,
+  `false` = original 30/s). Guest-image data patches are a different file:
+  `fable2_patches.toml` (see above).
+
+## Guest-image patches (fable2_patches.toml)
+
+Data patches for the loaded `default.xex` guest image (Xenia game-patches
+format), applied before the guest module launches: `Fable2App::OnPostLoadXexImage()`
+→ `fable2::patches::Load()` + `ApplyAll()` (code in `src/fable2_patches.{h,cpp}`).
+Same lifecycle as the user config: staged by the build, recreated with the
+built-in defaults if missing, and a broken file falls back to the built-ins
+(dialog + log) so it never blocks launch. Each `[[patch]]` has an `enabled`
+toggle (default true) — flip it in the file and relaunch to A/B a patch with
+no rebuild. **Scope: data patches only** — code-region ops are inert in this
+recomp (guest `.text` is never executed); code patches are mid-asm hooks
+instead. Full details, the current patch list, and how code patches work:
+`docs/patches.md`.
 
 ## Frame rate — 30 fps cap, and how to lift it
 
@@ -205,7 +228,7 @@ of one.)
 total count:
 
 ```
-18422331 x sub_82B9CD68
+18422331 x MainRenderLoop_82B9CD68
 9711204 x __restgprlr_28
 54 x Story_FirstChildCombat
 ```
