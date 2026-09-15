@@ -10,6 +10,8 @@ The executable looks for its content in **its own directory only** (no ancestor 
 - `saves/` — save files, settings, profiles (created at startup)
 - `cache/` — runtime caches (shader cache, etc.; created at startup)
 - `logs/`, `fable_2.toml` — game logs and cvar config (SDK defaults)
+- `fable2_config.toml` — the recomp's own user config (created/staged at build
+  time; recreated with defaults on first launch if missing, see below)
 
 The build produces only the exe + runtime plugins — it does **not** copy the
 ~6.5 GB game content into the build directory. To run in place, either stage
@@ -38,6 +40,7 @@ out/build/win-amd64-debug/
 ├── saves/                        <- save files / settings / profiles (created at runtime)
 ├── cache/                        <- runtime caches (created at runtime)
 ├── logs/ + fable_2.toml          <- logs + cvar config (created at runtime)
+├── fable2_config.toml            <- recomp user config (staged at build; created at runtime if missing)
 ├── README.md                     <- how to run this (staged by the build)
 └── rexruntime.dll, rexgpu-xenos*.dll, ... <- staged runtime + GPU plugins (by the build)
 
@@ -124,6 +127,28 @@ Optional command-line overrides (all normal `--cvar value` args):
 | `--update_data_root <path>` | Optional update content root |
 | `--window_width` / `--window_height` / `--fullscreen` | Presentation options |
 | `--keyboard_gamepad_map <map>` | Host keyboard -> guest gamepad button map (see below) |
+
+## User config (fable2_config.toml)
+
+The recomp has its own human-readable user config, `fable2_config.toml`, next
+to the exe — separate from `fable_2.toml`, which is the ReXGlue SDK's cvar
+config. It is staged by the build (once; user edits survive rebuilds) and the
+game recreates it with defaults on launch if it is ever missing. Loaded in
+`Fable2App::OnPostInitLogging()`; code in `src/fable2_config.{h,cpp}`.
+
+- Missing keys -> built-in defaults; wrong types / unknown sections -> logged
+  warnings, defaults used; a syntax error -> dialog + defaults (never blocks
+  launch).
+- To add a setting: add a member to `fable2::config::Values` (with default),
+  read it in `Load()`, and document the key in `config/fable2_config.toml`
+  **and** the embedded template in `src/fable2_config.cpp` (keep both in
+  sync).
+- Settings that back an SDK cvar (currently the `[input]` section:
+  `keyboard_gamepad_map`, `mouse_look`, `mouse_look_scale`) are seeded into
+  the cvar at startup — but only when no higher-priority
+  source set it: `fable_2.toml` (cvar config), `REX_*` env vars, and the
+  command line (e.g. `--keyboard_gamepad_map`) still win, and the F3 console
+  can still change the value live.
 
 ## Frame rate — 30 fps cap, and how to lift it
 
@@ -240,7 +265,7 @@ top of (OR-merged with) whatever a real gamepad reports. The physical pad
 keeps working; the keyboard just adds buttons. It is wired up in
 `Fable2App::OnPreSetup` via `config.input_factory`.
 
-The mapping is the `keyboard_gamepad_map` cvar, format `Key:Button,Key:Button,...`:
+The mapping is the `keyboard_gamepad_map` cvar, format `Key:Button,Key:Button,...`. Its default is no longer hardcoded in the binary: it comes from `[input] keyboard_gamepad_map` in `fable2_config.toml` (see User config above), which you can edit to remap permanently. The command line and the F3 console still override it per-launch / live.
 
 - **Key** — a host key name understood by `rex::ui::ParseVirtualKey`
   (`E`, `Space`, `LeftShift`, `F1`, ...).
@@ -260,7 +285,7 @@ The default layout is:
 | `Q` / `Tab` | Left / Right trigger |
 | `F1` `F2` `F3` `F4` | Dpad up / down / left / right |
 
-Extend or remap at launch without recompiling, e.g.
+Remap at launch without recompiling, e.g.
 
 ```
 fable_2.exe --keyboard_gamepad_map "E:A,B:B,Space:L3,Enter:Start"
@@ -277,9 +302,11 @@ movement since the previous poll is converted into stick deflection, so you
 | `--mouse_look <bool>` | Enable/disable mouse look (default `true`) |
 | `--mouse_look_scale <n>` | Sensitivity: right-stick units per pixel of mouse movement (default `256`; larger = more sensitive) |
 
-Example: `fable_2.exe --mouse_look_scale 512` for a more sensitive camera.
-Both cvars are hot-reloadable from the in-game console, so you can dial in the
-sensitivity live.
+The defaults come from `[input] mouse_look` / `[input] mouse_look_scale` in
+`fable2_config.toml` (edit there to change them permanently), the command
+line overrides per launch, and both cvars are hot-reloadable from the in-game
+console, so you can dial in the sensitivity live. Example: `fable_2.exe
+--mouse_look_scale 512` for a more sensitive camera.
 
 All cvars above are hot-reloadable, so they can also be changed from the in-game console.
 

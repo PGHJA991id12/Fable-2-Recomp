@@ -1,0 +1,48 @@
+# =============================================================================
+# fable2_config.toml - Fable 2 recomp user configuration
+# =============================================================================
+#
+# Loaded by fable_2.exe on every launch, from the directory the exe lives in.
+# If the file is missing, the game recreates it at startup with these
+# defaults (the embedded template in src/fable2_config.cpp must stay in sync
+# with this file).
+#
+# - Human-readable TOML: # starts a comment, sections are [bracketed].
+# - Missing keys are fine: the game falls back to its built-in defaults.
+# - Unknown sections/keys are ignored (a warning is logged for unknown
+#   sections), so the file can grow over time without breaking the game.
+# - A syntax error does not stop the game: it is logged to logs/, a dialog
+#   is shown, and the built-in defaults are used instead.
+#
+# NOTE: this is the recomp's own config. fable_2.toml (also next to the exe)
+# is the ReXGlue SDK cvar config - a different file.
+# =============================================================================
+
+[general]
+# Bumped when this file's format gains new required structure. The game
+# tolerates any version it does not know about.
+# Default: 1
+config_version = 1
+
+[input]
+# Host keyboard -> guest gamepad map: "Key:Button,Key:Button,..." (one line;
+# do not add spaces or newlines inside the string). Key = Windows virtual-key
+# name (see README.md, Keyboard controls); Button = A/B/X/Y, LB/RB, LT/RT,
+# Up/Down/Left/Right, Pause, Select, L3/R3, StickUp/StickDown/StickLeft/
+# StickRight. Empty string disables the keyboard gamepad.
+# --keyboard_gamepad_map, REX_* environment variables and fable_2.toml still
+# take priority over this value; the F3 console can change it live.
+# Default: the built-in layout
+#   E:A,2:B,1:X,3:Y,W:StickUp,S:StickDown,A:StickLeft,D:StickRight,
+#   Escape:Pause,M:Select,Q:LT,Tab:RT,F1:Up,F2:Down,F3:Left,F4:Right
+keyboard_gamepad_map = "E:A,2:B,1:X,3:Y,W:StickUp,S:StickDown,A:StickLeft,D:StickRight,Escape:Pause,M:Select,Q:LT,Tab:RT,F1:Up,F2:Down,F3:Left,F4:Right"
+
+# Map mouse movement to the guest right stick (camera look): sweep to look,
+# stop to stop. false disables mouse look entirely.
+# Default: true
+mouse_look = true
+
+# Mouse-look sensitivity: right-stick units per pixel of mouse movement
+# (1..4096; larger = more sensitive).
+# Default: 256
+mouse_look_scale = 256

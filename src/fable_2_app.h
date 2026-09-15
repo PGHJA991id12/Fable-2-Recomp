@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <rex/cvar.h>
 #include <rex/filesystem.h>
 
 #include <rex/perf/counter.h>
@@ -26,6 +27,7 @@
 #endif
 
 #include "alloc_watch.h"
+#include "fable2_config.h"
 // 30fps-cap instrumentation (writes fps_probe.log next to the exe). Disabled
 // now that the cap is lifted via REX_VSYNC=0 (see tools/fable2-uncapped.cmd).
 // Re-enable to re-measure the frame pacing:
@@ -195,8 +197,39 @@ class Fable2App : public rex::ReXApp {
     });
   }
 
-  // Override virtual hooks for customization:
-  // void OnPostInitLogging() override {}
+  // Load the recomp's own user config (fable2_config.toml) next to the exe,
+  // creating it with defaults on first launch. Runs after the SDK's logging
+  // init so load/create/parse problems land in logs/ (see src/fable2_config.h).
+  // Plain settings are read via fable2::config::Get(); settings that back a
+  // cvar are seeded into it below so the console/overlay keep working.
+  void OnPostInitLogging() override {
+    const std::filesystem::path exe_dir =
+        rex::filesystem::GetExecutableFolder();
+    fable2::config::Load(exe_dir / "fable2_config.toml");
+
+    // Seed cvars from the config. Only when the cvar is still at its
+    // compiled default (source kDefault), so higher-priority sources --
+    // fable_2.toml (kConfig), REX_* env vars (kEnvironment), and the command
+    // line (kCommandLine) -- keep winning over the recomp config. The F3
+    // console can still change the value live afterwards (the driver
+    // hot-reloads on text change, see src/keyboard_gamepad.h).
+    const auto seed_cvar = [](std::string_view cvar, std::string_view value) {
+      if (rex::cvar::GetFlagSource(cvar) != rex::cvar::Source::kDefault) return;
+      if (!rex::cvar::SetFlagByName(cvar, value)) {
+        REXSYS_WARN(
+            "[fable2-config] cvar {} rejected config value '{}'; keeping "
+            "built-in default",
+            cvar, value);
+        return;
+      }
+      REXSYS_INFO("[fable2-config] seeded cvar {} from fable2_config.toml",
+                  cvar);
+    };
+    const fable2::config::Values& cfg = fable2::config::Get();
+    seed_cvar("keyboard_gamepad_map", cfg.keyboard_gamepad_map);
+    seed_cvar("mouse_look", cfg.mouse_look ? "true" : "false");
+    seed_cvar("mouse_look_scale", std::to_string(cfg.mouse_look_scale));
+  }
   // void OnLoadXexImage(std::string& xex_image) override {}
   // void OnPostLoadXexImage() override {}
 

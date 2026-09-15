@@ -1,0 +1,180 @@
+// fable_2 - ReXGlue Recompiled Project
+//
+// fable2_config.toml: the recomp's own user config (separate from the ReXGlue
+// SDK cvar config fable_2.toml). Look for it next to the exe, create it with
+// defaults if missing, parse it, and expose the values via Get().
+//
+// Growth model: add a member to Values (with its default), read it in Load()
+// with one of the Read* helpers, and document the key in the template below.
+// Missing keys -> built-in default. Wrong type -> warning + default. Unknown
+// sections -> warning. A broken file -> error + dialog + defaults (the game
+// still runs), so a hand edit can never wedge the launch.
+
+#include "fable2_config.h"
+
+#include <array>
+#include <format>
+#include <fstream>
+
+#include <rex/logging/macros.h>
+#include <rex/system.h>
+
+#include <toml++/toml.hpp>
+
+namespace fable2::config {
+namespace {
+
+Values g_values;
+
+// Kept in sync with config/fable2_config.toml (staged next to the exe by the
+// build); this copy is what a first launch writes out.
+const char kTemplate[] =
+R"TOML_EOF(# =============================================================================
+# fable2_config.toml - Fable 2 recomp user configuration
+# =============================================================================
+#
+# Loaded by fable_2.exe on every launch, from the directory the exe lives in.
+# If the file is missing, the game recreates it at startup with these
+# defaults (the embedded template in src/fable2_config.cpp must stay in sync
+# with this file).
+#
+# - Human-readable TOML: # starts a comment, sections are [bracketed].
+# - Missing keys are fine: the game falls back to its built-in defaults.
+# - Unknown sections/keys are ignored (a warning is logged for unknown
+#   sections), so the file can grow over time without breaking the game.
+# - A syntax error does not stop the game: it is logged to logs/, a dialog
+#   is shown, and the built-in defaults are used instead.
+#
+# NOTE: this is the recomp's own config. fable_2.toml (also next to the exe)
+# is the ReXGlue SDK cvar config - a different file.
+# =============================================================================
+
+[general]
+# Bumped when this file's format gains new required structure. The game
+# tolerates any version it does not know about.
+# Default: 1
+config_version = 1
+
+[input]
+# Host keyboard -> guest gamepad map: "Key:Button,Key:Button,..." (one line;
+# do not add spaces or newlines inside the string). Key = Windows virtual-key
+# name (see README.md, Keyboard controls); Button = A/B/X/Y, LB/RB, LT/RT,
+# Up/Down/Left/Right, Pause, Select, L3/R3, StickUp/StickDown/StickLeft/
+# StickRight. Empty string disables the keyboard gamepad.
+# --keyboard_gamepad_map, REX_* environment variables and fable_2.toml still
+# take priority over this value; the F3 console can change it live.
+# Default: the built-in layout
+#   E:A,2:B,1:X,3:Y,W:StickUp,S:StickDown,A:StickLeft,D:StickRight,
+#   Escape:Pause,M:Select,Q:LT,Tab:RT,F1:Up,F2:Down,F3:Left,F4:Right
+keyboard_gamepad_map = "E:A,2:B,1:X,3:Y,W:StickUp,S:StickDown,A:StickLeft,D:StickRight,Escape:Pause,M:Select,Q:LT,Tab:RT,F1:Up,F2:Down,F3:Left,F4:Right"
+
+# Map mouse movement to the guest right stick (camera look): sweep to look,
+# stop to stop. false disables mouse look entirely.
+# Default: true
+mouse_look = true
+
+# Mouse-look sensitivity: right-stick units per pixel of mouse movement
+# (1..4096; larger = more sensitive).
+# Default: 256
+mouse_look_scale = 256
+)TOML_EOF";
+
+std::string_view TypeName(toml::node_type t) {
+  return toml::impl::node_type_friendly_names[static_cast<std::size_t>(t)];
+}
+
+// Read a typed key from a section. Missing key -> default (silent); the key
+// exists but is the wrong kind -> warning + default.
+template <typename T>
+T Read(const toml::table& section, std::string_view section_name,
+       std::string_view key, std::string_view type_name, T default_value) {
+  const toml::path key_path{key};
+  const auto view = section[key_path];
+  if (!view) return default_value;
+  if (auto v = view.value_exact<T>()) return static_cast<T>(*v);
+  REXSYS_WARN(
+      "[fable2-config] [{}] {}: expected {}, got {}; using built-in default",
+      section_name, key, type_name, TypeName(view.type()));
+  return default_value;
+}
+
+}  // namespace
+
+bool Load(const std::filesystem::path& path) {
+  if (!std::filesystem::exists(path)) {
+    std::ofstream out(path, std::ios::binary | std::ios::trunc);
+    if (!out) {
+      REXSYS_ERROR("[fable2-config] could not create {}", path.string());
+      return false;
+    }
+    out << kTemplate;
+    REXSYS_INFO("[fable2-config] {} not found; created with defaults",
+                path.string());
+  }
+
+  // toml++ (v3, exceptions on) returns the table directly and throws a
+  // toml::parse_error on a broken file.
+  toml::table root;
+  try {
+    root = toml::parse_file(path.native());
+  } catch (const toml::parse_error& err) {
+    REXSYS_ERROR("[fable2-config] {} failed to parse at line {}, column {}: {}",
+                 path.string(), err.source().begin.line, err.source().begin.column,
+                 err.description());
+    const std::string msg = std::format(
+        "fable2_config.toml could not be parsed\n\n"
+        "{}\n\n"
+        "File: {}\n"
+        "The game will continue with built-in defaults. Fix the file (or "
+        "delete it to recreate the defaults) and start again.",
+        err.description(), path.string());
+    rex::ShowSimpleMessageBox(rex::SimpleMessageBoxType::Error, msg);
+    return false;
+  }
+
+  // Warn about unknown top-level sections (usually a typo or a file written
+  // for a newer build).
+  static constexpr std::array<std::string_view, 2> kKnownSections = {
+      "general", "input"};
+  for (const auto& [key, value] : root) {
+    const bool known =
+        std::ranges::find(kKnownSections, key.str()) != kKnownSections.end();
+    if (!known && value.is_table())
+      REXSYS_WARN("[fable2-config] unknown section [{}] ignored", key.str());
+  }
+
+  Values values;
+  const toml::path general_path{"general"};
+  const auto general = root[general_path];
+  if (general.is_table()) {
+    values.config_version = static_cast<int32_t>(
+        Read<int64_t>(*general.as_table(), "general", "config_version",
+                      "integer", 1));
+  }
+  const toml::path input_path{"input"};
+  const auto input = root[input_path];
+  if (input.is_table()) {
+    const toml::table& input_table = *input.as_table();
+    values.keyboard_gamepad_map = Read<std::string>(
+        input_table, "input", "keyboard_gamepad_map", "string",
+        std::string{kDefaultKeyboardGamepadMap});
+    // Defaults come from Values itself (single source of truth).
+    values.mouse_look =
+        Read<bool>(input_table, "input", "mouse_look", "boolean",
+                   values.mouse_look);
+    values.mouse_look_scale = static_cast<int32_t>(Read<int64_t>(
+        input_table, "input", "mouse_look_scale", "integer",
+        values.mouse_look_scale));
+  }
+
+  g_values = values;
+  REXSYS_INFO("[fable2-config] loaded {} (config_version={})", path.string(),
+              values.config_version);
+  return true;
+}
+
+const Values& Get() { return g_values; }
+
+const char* DefaultTemplate() { return kTemplate; }
+
+}  // namespace fable2::config

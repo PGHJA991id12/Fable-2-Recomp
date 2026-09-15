@@ -17,9 +17,13 @@
 // name understood by rex::ui::ParseVirtualKey ("E", "Space", "LeftShift", ...)
 // and Button is a guest gamepad button name (A/B/X/Y/LB/RB/LT/RT/Up/Down/
 // Left/Right/Start/Back/L3/R3/StickUp/StickDown/StickLeft/StickRight).
+// The cvar's default is seeded from fable2_config.toml [input] at startup
+// (src/fable2_config.{h,cpp} + Fable2App::OnPostInitLogging), so remapping
+// can be done in the config file without a rebuild or CLI arg.
 //
 // The mouse is mapped to the right stick (camera look) via the `mouse_look`
-// and `mouse_look_scale` cvars. The cursor is recentered to the window center
+// and `mouse_look_scale` cvars (defaults seeded from fable2_config.toml
+// [input] at startup, same as the keyboard map above). The cursor is recentered to the window center
 // every poll and that frame's movement is consumed, so the camera rotates
 // continuously and the cursor never wanders or hits the screen edge.
 

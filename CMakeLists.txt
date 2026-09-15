@@ -13,6 +13,7 @@ include(generated/rexglue.cmake)
 # Sources
 set(FABLE2_SOURCES
     src/main.cpp
+    src/fable2_config.cpp
 )
 
 if(WIN32)
@@ -64,6 +65,22 @@ add_custom_command(TARGET fable_2 POST_BUILD
           $<TARGET_FILE_DIR:fable_2>/fable2-functrace.cmd
   COMMENT "Staging README.md + fable2-functrace.cmd next to fable_2.exe"
 )
+
+# --- Recomp user config (fable2_config.toml) -------------------------------
+# Header-only toml++ parser, vendored from the same version the ReXGlue SDK
+# uses (thirdparty/rexglue-sdk-src/thirdparty/tomlplusplus), so the app's
+# config loader does not depend on the SDK source tree being present.
+target_include_directories(fable_2 SYSTEM PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/tomlplusplus/include)
+
+# Stage the human-readable template next to the exe ONCE (configure time,
+# copy-if-not-exists): it is user data, so user edits must survive rebuilds.
+# The code also recreates it if it is ever deleted (keep that embedded copy
+# in sync - see src/fable2_config.cpp).
+if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/fable2_config.toml")
+    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/config/fable2_config.toml
+         DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+endif()
 
 # --- PDB for the Release build (crash debugging) --------------------------
 # The recompiled guest functions are named sub_<guest_address>, so a PDB lets

@@ -8,28 +8,35 @@
 #include <rex/cvar.h>
 
 // Host keyboard -> guest gamepad map (see src/keyboard_gamepad.h).
-// Format: "Key:Button,Key:Button,...". Default layout:
-//   E=A  2=B  1=X  3=Y   WASD=left stick   Escape=pause(Start)  M=select(Back)
-//   Q=left trigger  Tab=right trigger  F1/F2/F3/F4 = dpad Up/Down/Left/Right
-// Override at runtime with --keyboard_gamepad_map "..." or in the console.
+// Format: "Key:Button,Key:Button,...".
+// The default layout is NOT baked in here: it lives in the config layer
+// (fable2::config::kDefaultKeyboardGamepadMap) and is editable in
+// fable2_config.toml under [input]. Fable2App::OnPostInitLogging seeds this
+// cvar from the config at startup (only when no higher-priority source set
+// it). Override at runtime with --keyboard_gamepad_map "..." or in the
+// console; empty string disables the keyboard gamepad.
 REXCVAR_DEFINE_STRING(
     keyboard_gamepad_map,
-    "E:A,2:B,1:X,3:Y,"
-    "W:StickUp,S:StickDown,A:StickLeft,D:StickRight,"
-    "Escape:Pause,M:Select,Q:LT,Tab:RT,"
-    "F1:Up,F2:Down,F3:Left,F4:Right",
+    "",
     "Input",
     "Map host keyboard keys to guest gamepad input "
     "(Key:Button,...; targets: A/B/X/Y, LB/RB, LT/RT, Up/Down/Left/Right, "
-    "Pause, Select, L3/R3, StickUp/StickDown/StickLeft/StickRight)");
+    "Pause, Select, L3/R3, StickUp/StickDown/StickLeft/StickRight). "
+    "Default comes from fable2_config.toml [input] keyboard_gamepad_map.");
 
 // Mouse -> right stick (camera look). See src/keyboard_gamepad.h.
+// The defaults below are a fallback only: Fable2App::OnPostInitLogging
+// seeds these cvars from fable2_config.toml [input] at startup (when no
+// higher-priority source set them). Keep the values in sync with the
+// defaults in fable2::config::Values (src/fable2_config.h).
 REXCVAR_DEFINE_BOOL(mouse_look, true, "Input",
                     "Map mouse movement to the guest right stick (camera "
-                    "look): sweep to look, stop to stop.");
+                    "look): sweep to look, stop to stop. Default comes from "
+                    "fable2_config.toml [input] mouse_look.");
 REXCVAR_DEFINE_INT32(mouse_look_scale, 256, "Input",
                      "Mouse-look sensitivity: right-stick units per pixel of "
-                     "mouse movement (larger = more sensitive).")
+                     "mouse movement (larger = more sensitive). Default comes "
+                     "from fable2_config.toml [input] mouse_look_scale.")
     .range(1, 4096);
 
 // Key that toggles the debug menu (F4). While the menu is open the mouse lock
