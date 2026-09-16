@@ -86,6 +86,18 @@ mouse_look_scale = 256
 # lifts the guest main loop from 30/s to ~60/s. false = 30/s (original).
 # Default: true
 fps_60 = true
+
+# Unlock Website Items (mid-asm hook fable2_hook_unlock_website; Xenia "Unlock
+# Website Items" by Guy): unlocks the Guild-chest items that were obtainable
+# from the Fable 2 website. false = locked (original).
+# Default: true
+unlock_website = true
+
+# Unlock Collectors Edition Content (mid-asm hook fable2_hook_unlock_ce; Xenia
+# "Unlock Collectors Edition Content" by Guy): unlocks Hal's chest items and
+# the Hall of the Dead dungeon. false = locked (original).
+# Default: true
+unlock_ce = true
 )TOML_EOF";
 
 std::string_view TypeName(toml::node_type t) {
@@ -181,6 +193,11 @@ bool Load(const std::filesystem::path& path) {
     const toml::table& patches_table = *patches.as_table();
     values.fps_60 = Read<bool>(patches_table, "patches", "fps_60", "boolean",
                                values.fps_60);
+    values.unlock_website = Read<bool>(patches_table, "patches",
+                                       "unlock_website", "boolean",
+                                       values.unlock_website);
+    values.unlock_ce = Read<bool>(patches_table, "patches", "unlock_ce",
+                                  "boolean", values.unlock_ce);
   }
 
   g_values = values;

@@ -40,9 +40,11 @@ setjmp_address = 0x83000200
 # --- Recomp-level patches via mid-asm hooks (see docs/patches.md) ---------
 # Code-region Xenia patches are inert at runtime in this recomp (guest .text
 # is never executed), so they are applied to the RECOMPILED code instead: a
-# hook is injected at the patched instruction and a C++ function (defined in
-# src/fable2_hooks.cpp) rewrites the register, mirroring the guest byte flip.
-# Codegen emits the hook's extern prototype automatically.
+# hook is injected at a specific guest instruction address and a C++ function
+# (defined in src/fable2_hooks.cpp) rewrites a register, mirroring the patch's
+# intent. Codegen emits each hook's extern prototype automatically. Hooks are
+# keyed by address in codegen (a duplicate address overrides the earlier one),
+# so each address appears exactly once below.
 #
 # 60 FPS (Xenia "60 FPS" by Margen67; guest: be8 0x82B9C8EB = 0x01): the
 # state-2 case of sub_82B9C7F8 does `li r11,2` at 0x82B9C8E8; the hook fires
@@ -53,36 +55,83 @@ name = "fable2_hook_60fps"
 registers = ["r11"]
 after_instruction = true
 
-# --- Recomp-level patches via mid-asm hooks (see docs/patches.md) ---------
-# Code-region Xenia patches are inert at runtime in a recomp (guest .text is
-# never executed), so they are applied to the RECOMPILED code instead: a hook
-# is injected at the patched instruction and a C++ function (defined in
-# src/fable2_hooks.cpp) rewrites the register, mirroring the guest byte flip.
-# Codegen emits the hook's extern prototype automatically.
-#
-# 60 FPS (Xenia "60 FPS" by Margen67; guest: be8 0x82B9C8EB = 0x01): the
-# state-2 case of sub_82B9C7F8 does `li r11,2` at 0x82B9C8E8; the hook fires
-# right after it and overwrites r11 with 1.
+# Unlock Website Items (Xenia "Unlock Website Items" by Guy). sub_8256E368 is
+# the "is a website/Guild-chest item available" check; it has several gates
+# (bit6 of obj+0x90, bit0 of obj+0x40, then a type-0xf0 item lookup) and EVERY
+# failure path funnels to the return-0 tail `li r3,0` at 0x8256E4E0. The stock
+# guest patch (be8 0x8256E4E3=0x01 + be32 0x8256E4B8) just makes that tail
+# return 1. This hook fires right after the tail's `li r3,0` and forces r3=1,
+# so the function reports "available" whenever the lookup would otherwise fail
+# (a real item found still returns via the vtable call, not the tail). Verified
+# in-game: bit6 was already set, so the real gate is the later lookup.
 [[entrypoint.midasm_hook]]
-address = 0x82B9C8E8
-name = "fable2_hook_60fps"
-registers = ["r11"]
+address = 0x8256E4E0
+name = "fable2_hook_unlock_website"
+registers = ["r3"]
 after_instruction = true
 
-# --- Recomp-level patches via mid-asm hooks (see docs/patches.md) ---------
-# Code-region Xenia patches are inert at runtime in a recomp (guest .text is
-# never executed), so they are applied to the RECOMPILED code instead: a hook
-# is injected at the patched instruction and a C++ function (defined in
-# src/fable2_hooks.cpp) rewrites the register, mirroring the guest byte flip.
-# Codegen emits the hook's extern prototype automatically.
-#
-# 60 FPS (Xenia "60 FPS" by Margen67; guest: be8 0x82B9C8EB = 0x01): the
-# state-2 case of sub_82B9C7F8 does `li r11,2` at 0x82B9C8E8; the hook fires
-# right after it and overwrites r11 with 1.
+# Unlock Collectors Edition Content (Xenia "Unlock Collectors Edition Content"
+# by Guy). Same shape as the website function: sub_824B3528 is the "is CE-chest
+# content available" check with several gates (bit6 of obj+0x90, bit0 of
+# obj+0x28, then a type-0x39 item lookup) and every failure path funnels to the
+# return-0 tail `li r3,0` at 0x824B368C. The hook fires right after it and
+# forces r3=1 so the function reports "available" whenever the lookup would
+# otherwise fail.
 [[entrypoint.midasm_hook]]
-address = 0x82B9C8E8
-name = "fable2_hook_60fps"
-registers = ["r11"]
+address = 0x824B368C
+name = "fable2_hook_unlock_ce"
+registers = ["r3"]
+after_instruction = true
+
+# --- TEMPORARY chest-click trace hooks (debugging the fable2.com gate) ------
+# No-arg hooks at the entry of the website-chest object's sibling methods (the
+# switch-table methods around sub_8256E368). Each logs its address once per
+# call; clicking the chest reveals the call sequence so we can find the
+# interact/click handler and the "registered" check. REMOVE after diagnosis.
+[[entrypoint.midasm_hook]]
+address = 0x8256DC10
+name = "fable2_trace_8256DC10"
+registers = []
+after_instruction = true
+[[entrypoint.midasm_hook]]
+address = 0x8256DCA0
+name = "fable2_trace_8256DCA0"
+registers = []
+after_instruction = true
+[[entrypoint.midasm_hook]]
+address = 0x8256DED8
+name = "fable2_trace_8256DED8"
+registers = []
+after_instruction = true
+[[entrypoint.midasm_hook]]
+address = 0x8256E120
+name = "fable2_trace_8256E120"
+registers = []
+after_instruction = true
+# Pass r12 (=LR, set by the leading `mflr r12`) to log the CALLER's return
+# address - this directly reveals the chest click handler.
+[[entrypoint.midasm_hook]]
+address = 0x8256E4F8
+name = "fable2_trace_8256E4F8"
+registers = ["r12"]
+after_instruction = true
+
+# sub_82228830 is the per-item worker (called 8x on chest click); its LR
+# reveals the REAL click handler (the function that shows the fable2.com message).
+[[entrypoint.midasm_hook]]
+address = 0x82228830
+name = "fable2_trace_82228830"
+registers = ["r12"]
+after_instruction = true
+[[entrypoint.midasm_hook]]
+address = 0x8256E5B0
+name = "fable2_trace_8256E5B0"
+registers = []
+after_instruction = true
+[[entrypoint.midasm_hook]]
+address = 0x8256E888
+name = "fable2_trace_8256E888"
+registers = []
 after_instruction = true
 
 # Conservative settings: no register optimizations
@@ -190,6 +239,33 @@ name = "Skill_AimRangeWeapon"
 # Tatter spire right after you get there when the man says "Get Moving"
 [entrypoint.functions."0x8274B768"]
 name = "Story_TatterSpireGetMoving"
+
+# === Guild chest (fable2.com website items / CE content unlock) ===
+# The Guild chest holds items obtainable from the fable2.com website and the
+# Collectors Edition content. An unregistered player who clicks it sees
+# "Go to www.fable2.com for information on how to access the gold and items
+# your heroic ancestors left behind." These are the functions on the
+# chest-click path (see docs/patches.md). Names are best-effort from runtime
+# tracing; refine them as behaviour is confirmed.
+
+# Website-item getter. The Xenia "Unlock Website Items" patch targets its
+# GATE2 branch (0x8256E4B8) and return-0 tail (0x8256E4E3) inside this fn.
+[entrypoint.functions."0x8256E368"]
+name = "GuildChest_GetWebsiteItem_8256E368"
+
+# CE-content getter. The Xenia "Unlock CE Content" patch forces r9=1 at
+# 0x824B366C (a load) inside this fn.
+[entrypoint.functions."0x824B3528"]
+name = "GuildChest_GetCEContent_824B3528"
+
+# Per-item worker: called once per chest item on the click; calls the item op
+# method (0x8256E4F8) through the website-object vtable.
+[entrypoint.functions."0x82228830"]
+name = "GuildChest_ProcessItem_82228830"
+
+# Item-processing loop: the click handler that calls ProcessItem per item.
+[entrypoint.functions."0x822DE008"]
+name = "GuildChest_ProcessItems_822DE008"
 
 # Kernel wait wrappers (KeWait* re-implemented over the Nt* syscalls)
 #
@@ -6337,6 +6413,280 @@ name = "CopyRecords12_82519F28"
 # computation).
 [entrypoint.functions."0x829FC3C0"]
 name = "ProcessHashTable_829FC3C0"
+
+# A chain/list operation (with a validation): validate obj->0 is non-zero (a trap if zero), and (depending on obj->4
+# ->21, a flag) process the chain (walk the chain by obj->4->8 and obj->4->0, with a ->21 flag, and a trap on an
+# invalid state).
+
+# Args: obj (r3, ->0 = a field, ->4 = a node, ->4->0 = a head, ->4->8 = a next, ->4->21 = a flag), (more). It
+# validates obj->0 is non-zero (obj->0 != 0, a trap, 22, if zero -- an invalid state). It then checks the flag (obj
+# ->4->21, a byte): if it is zero, it walks the chain (obj->4->0, the head, and its ->21 flag and ->8 next, a
+# chain/list walk); if it is non-zero, it processes obj->4->8 (a next) and (if that's also in a valid state, ->21 is
+# zero) returns, else raises a trap (an invalid state). So it's a "process a chain (validate obj->0, and (depending
+# on a flag) walk the chain by the next pointers, with a trap on an invalid state)" routine (a chain/list operation,
+# part of the 0x8250A cluster). 112 lines, no direct callees (pure data manipulation, with traps). Many callers (sub
+# _82AB7620, sub_82AA7F40, sub_8267EAD0, sub_82C82EA8, sub_8218E328, sub_8246E758, sub_82858CA0, sub_82344470, sub
+# _8267F630, sub_823775B8 -- many across the codebase). The object's class (obj, ->0 = a field, ->4 = a node, an
+# object with a node) and the chain's element type (a node, ->0 = a head, ->8 = a next, ->21 = a flag, a chain/list
+# node) aren't resolvable, so the name states the mechanism: a chain/list operation (validate and process the chain
+# by the next pointers). The "2" distinguishes it from a first chain process (if any).
+[entrypoint.functions."0x8250AF60"]
+name = "ProcessChain2_8250AF60"
+
+# A process (a vector/SIMD computation): load a float constant (from a fixed .data address), perform a vector/SIMD
+# computation (many vector operations, lvlx, a vector load, and float stores to the stack), and return a computed
+# value (a vector result, stored to the stack).
+
+# Args: (r3, a pointer), (many -- a large number of float and vector arguments), (more). It loads a float constant
+# (from a fixed .data address, a magic constant, a particular value) and performs a vector/SIMD computation (many
+# vector operations, lvlx, a vector load, and float stores to the stack -- a complex vector computation, with a
+# 16-byte vector, a 128-bit SIMD operation, and float arithmetic). It stores the computed value (a vector result, a
+# float, to the stack, a return value). So it's a "process (a vector/SIMD computation: load a float constant, perform
+# a vector computation (many vector operations), and return the computed value)" routine (a vector/SIMD computation,
+# part of the 0x82A3B cluster). 118 lines, no direct callees (pure vector/SIMD computation, which the callee scan does
+# not count). 1 caller: sub_82A3B330 (a sibling in the 0x82A3B cluster). The value's meaning (a vector result, a
+# computed float / vector, a particular value) and the constant's meaning (a magic constant, a particular value) are
+# n't resolvable, so the name states the mechanism: a vector/SIMD computation (load a float constant, perform a vector
+# computation, and return the computed value).
+[entrypoint.functions."0x82A3B1E8"]
+name = "ProcessVector_82A3B1E8"
+
+# A list splice (the sibling of List_SpliceNode3_8234D600 / List_SpliceNode2_8292CC88): splice a node into a list
+# (using the node's ->0, ->4, and ->8 pointers, with a ->21 flag, and a comparison to place the node in the right
+# position).
+
+# Args: obj (r3, ->4 = a node), node (r4, ->0 = a head, ->4 = a next, ->8 = a next, ->21 = a flag), (more). It
+# splices the node into a list: it loads a node (r11 = r4->8, a next), loads its head (r10 = r11->0, a head), and
+# updates r4->8 (r4->8 = r10). If the head's flag (r10->21, a byte) is zero, it sets r10->4 = r4 (a splice). It then
+# updates the next pointers (r11->4 = r4->4, a next) and, (depending on a comparison, obj->4->4 == r4), performs a
+# splice (r10 = obj->4, r10->4 = r11, r11->0 = r4, r4->4 = r11 -- a splice of the node into the list). So it's a
+# "splice a node into a list (using the node's ->0, ->4, and ->8 pointers, with a ->21 flag, and a comparison to
+# place the node in the right position)" routine (a list splice, part of the 0x82C23 cluster, a sibling of List_Splic
+# eNode3_8234D600). 67 lines, no direct callees (pure data manipulation). Many callers (sub_82344608, sub_8246FFC8, sub
+# _8218E0B0, sub_82C06478, sub_8233DE80, sub_82A42F70, sub_825D8968, ProcessHashTable_829FC3C0, sub_82496FB0, sub
+# _82C82A80 -- many across the codebase, including a hash table process). The node's class (a node, ->0 = a head, ->
+# 4 = a next, ->8 = a next, ->21 = a flag, a doubly-linked list node) and the list's meaning (a list of nodes, a
+# particular structure) aren't resolvable, so the name states the mechanism: a list splice (splice a node into a list
+# by the ->0, ->4, and ->8 pointers). The "4" distinguishes it from List_SpliceNode3_8234D600 and List_SpliceNode2_
+# 8292CC88.
+[entrypoint.functions."0x82C239D0"]
+name = "List_SpliceNode4_82C239D0"
+
+# A dispose (a destructor with an atomic decrement, the sibling of the Dispose family): atomically decrement a
+# counter (obj->4->4, via lwarx/stwcx and a global lock, a lock-free atomic decrement), and (if the result is zero,
+# the last reference) process a destructor (on obj->0, the object's field).
+
+# Args: obj (r3, ->0 = a field, ->4 = a node), (more). It atomically decrements a counter (obj->4->4, a refcount /
+# use count): it enters a global lock (REX_ENTER_GLOBAL_LOCK, a thread fence, disabling interrupts), does a lock-free
+# atomic decrement (lwarx/stwcx, a compare-and-swap, on obj->4->4, decrementing it by one, and retrying on a CAS
+# failure), and exits the global lock (REX_LEAVE_GLOBAL_LOCK). If the result (the decremented counter) is zero (the
+# last reference), it processes a destructor (on obj->0, the object's field, a cleanup). So it's a "dispose an object
+# (atomically decrement a counter, and (if it is zero, the last reference) process a destructor on the object's
+# field)" routine (a destructor with an atomic decrement, part of the 0x82B6A cluster, a sibling of the Dispose
+# family). 80 lines, no direct callees (pure data manipulation, with a lock-free atomic decrement and a global lock --
+# the callee scan does not count the atomic / lock operations). Many callers (sub_82420D50, sub_82A580D8, sub_8233DE8
+# 0, sub_82B5D930, sub_8223F1E0, sub_8218E5F0, sub_82B827D8, sub_82B83808, sub_82A5A310, sub_8233E2A0 -- many across
+# the codebase). The object's class (obj, ->0 = a field, ->4 = a node, a refcounted object) and the field's meaning
+# (a field, a particular sub-structure) aren't resolvable, so the name states the mechanism: a destructor with an
+# atomic decrement (atomically decrement a counter and (if zero) process a destructor). The "17" distinguishes it
+# from the other Dispose* variants (Dispose through Dispose16).
+[entrypoint.functions."0x82B6AB20"]
+name = "Dispose17_82B6AB20"
+
+# A virtual call (a vtable dispatch, the sibling of VirtualCall4_8260C130 / VirtualCallPair_82C01D60): do a virtual
+# call (on obj->0->4, a vtable entry), then perform an indexed load (obj->4[index * 4]->0, a field of the
+# object's array, indexed by a count).
+
+# Args: (r3, a node), obj (r4, ->0 = a node, ->4 = an array), index (r5, a count), (more). It does a virtual call (a
+# vtable dispatch: r11 = obj->0, a node, r9 = r11->4, a vtable entry, mtctr r9, bctrl -- a virtual call on obj->0->
+# 4, vtable->4). It then performs an indexed load (r8 = r3->4, a node's array, r7 = index * 4, a scaled index, r6 =
+# r8[r7], an indexed load, r3 = r6->0, a field of the indexed element). So it's a "virtual call (call a virtual
+# method (vtable->4) on obj->0, and load a field from the object's array, indexed by a count)" routine (a virtual
+# call with an indexed load, part of the 0x82C26 cluster, a sibling of VirtualCall4_8260C130). 45 lines (to the next
+# function), no direct callees (a pure virtual call via REX_CALL_INDIRECT_FUNC, which the callee scan does not count
+# ). It is registered (in the function table, fable_2_init.cpp / fable_2_register.cpp) but has no direct callers in
+# the recompiled code (a registered-but-uncalled virtual call, likely invoked only from code outside the traced
+# region, or unused). The node's class (a node, ->0 = a node, ->4 = an array, an object with a virtual method and an
+# array) and the vtable's meaning (a virtual method, a particular operation) aren't resolvable, so the name states
+# the mechanism: a virtual call (call a virtual method on a node and load a field from the object's array). The "5"
+# distinguishes it from the other VirtualCall* variants (VirtualCall_826C0388, VirtualCall2_83231E88, VirtualCall3_
+# 822142C0, VirtualCall4_8260C130).
+[entrypoint.functions."0x82C26818"]
+name = "VirtualCall5_82C26818"
+
+# A process (a vcall sequence, the sibling of ProcessVcallSequence3_82C14D70): call a vcall triple
+# (VcallTriple_AllSuccess_82C011E8, on the object and a constant), and (if the result's low byte is non-zero, a
+# condition) call another vcall sequence (ProcessVcallSequence3_82C14D70, on obj+4 and a constant).
+
+# Args: obj (r3, r31, +4 = a field), value (r4, r30), (more). It calls a vcall triple (VcallTriple_AllSuccess_82C011
+# E8, sub_82C011E8, a vcall triple, on the object (r5 = obj) and a constant (r4, a vtable / a descriptor, from a fixed
+# .data address), with the value (r3 = value)). If the result's low byte is non-zero (result & 0xFF != 0, a condition
+# / a success flag), it calls another vcall sequence (ProcessVcallSequence3_82C14D70, sub_82C14D70, a vcall sequence,
+# on obj+4 (r5 = obj + 4) and a constant (r4, a vtable / a descriptor), with the value (r3 = value)). So it's a
+# "process (a vcall sequence: call a vcall triple, and (if a condition) call another vcall sequence)" routine (a vcall
+# sequence, part of the 0x82C26 cluster, a sibling of ProcessVcallSequence3_82C14D70). 109 lines, 2 callees (VcallTri
+# ple_AllSuccess_82C011E8, ProcessVcallSequence3_82C14D70). 1 caller: sub_82C26940 (a sibling in the 0x82C26 cluster).
+# The object's class (obj, r31, +4 = a field, an object with a field) and the value's meaning (a value, a particular
+# argument) aren't resolvable, so the name states the mechanism: a vcall sequence (call a vcall triple and (if a
+# condition) call another vcall sequence). The "4" distinguishes it from ProcessVcallSequence3_82C14D70.
+[entrypoint.functions."0x82C26880"]
+name = "ProcessVcallSequence4_82C26880"
+
+# A process (a vcall sequence, the sibling of ProcessVcallSequence4_82C26880 / ProcessVcallSequence3_82C14D70):
+# do a virtual call (on obj->0->24, a vtable entry), and (if the result's low byte is non-zero, a condition) call a
+# vcall sequence (ProcessVcallSequence4_82C26880, on the object and a value) and do another virtual call (on obj->0->
+# 28, a vtable entry).
+
+# Args: obj (r3, r31, ->0 = a node, ->0->24 and ->0->28 = vtable entries), (r4), value (r5, r30), (more). It does a
+# virtual call (a vtable dispatch: r11 = obj->0, a node, r10 = r11->24, a vtable entry, mtctr r10, bctrl -- a virtual
+# call on obj->0->24, vtable->24). If the result's low byte is non-zero (result & 0xFF != 0, a condition / a success
+# flag), it calls a vcall sequence (ProcessVcallSequence4_82C26880, sub_82C26880, a vcall sequence, on the object
+# (r4 = obj) and a value (r3 = value)), and (if that also succeeds) does another virtual call (a vtable dispatch: r11
+# = obj->0, r10 = r11->28, a vtable entry, mtctr r10, bctrl -- a virtual call on obj->0->28, vtable->28). So it's a
+# "process (a vcall sequence: do a virtual call (vtable->24), and (if a condition) call a vcall sequence and do another
+# virtual call (vtable->28))" routine (a vcall sequence, part of the 0x82C26 cluster, a sibling of ProcessVcallSequenc
+# e4_82C26880). 86 lines, 1 direct callee (ProcessVcallSequence4_82C26880 -- the virtual calls via REX_CALL_INDIRECT_
+# FUNC are not counted). 1 caller: sub_82C26FB8 (a sibling in the 0x82C26 cluster). The node's class (a node, ->0 = a
+# node, ->24 and ->28 = vtable entries, an object with virtual methods) and the vtable's meaning (a virtual method, a
+# particular operation) aren't resolvable, so the name states the mechanism: a vcall sequence (do a virtual call and
+# (if a condition) call a vcall sequence and do another virtual call). The "5" distinguishes it from ProcessVcallSeq
+# uence4_82C26880 and ProcessVcallSequence3_82C14D70.
+[entrypoint.functions."0x82C26940"]
+name = "ProcessVcallSequence5_82C26940"
+
+# A queue/ring-buffer push (with a size check): compute the capacity ((obj->12 - obj->4) >> 2, in 4-byte units) and
+# the current size ((obj->8 - obj->4) >> 2, in 4-byte units), and (if the current size is in range, less than the
+# capacity) store a value (obj->8->0 = value->0, a 4-byte store) and advance the write pointer (obj->8 += 4).
+
+# Args: obj (r3, ->4 = a base, ->8 = a write pointer, ->12 = a capacity), value (r4, r6, ->0 = a value), (more). It
+# computes the capacity ((obj->12 - obj->4) >> 2, the number of 4-byte slots in the buffer, from the base (obj->4)
+# to the capacity (obj->12)) and the current size ((obj->8 - obj->4) >> 2, the number of 4-byte slots used, from the
+# base (obj->4) to the write pointer (obj->8)). If the current size (r8) is less than the capacity (r9, an in-range
+# check), it stores a value (obj->8->0 = value->0, a 4-byte store, a push) and advances the write pointer (obj->8 +=
+# 4, a write pointer advance). If the current size is >= the capacity (an overflow), it takes one path (an error / a
+# full buffer, calling sub_822F7530, a sibling in the 0x822F7 cluster). So it's a "push to a queue / ring buffer (compute
+# the capacity and the current size, and (if in range) store a value and advance the write pointer)" routine (a queue
+# / ring-buffer push, part of the 0x822F5 cluster). 83 lines, 1 callee (sub_822F7530). Many callers (sub_827D4588, sub
+# _82545C30, sub_82A72590, sub_824489A0, sub_82B27418, sub_82A6CEF0, sub_82A83420, sub_82363628, sub_823419E0, sub
+# _8235F430 -- many across the codebase). The object's class (obj, ->4 = a base, ->8 = a write pointer, ->12 = a
+# capacity, a queue / ring buffer with a base, a write pointer, and a capacity) and the value's meaning (a value, a 4
+# -byte slot, a particular data item) aren't resolvable, so the name states the mechanism: a queue / ring-buffer push
+# (compute the capacity and the current size, and (if in range) store a value and advance the write pointer).
+[entrypoint.functions."0x822F5C68"]
+name = "QueuePush_822F5C68"
+
+# A process (a clamped computation, the sibling of ComputeClamped_83230A48 / the callee of Heap_CarveBlock_83231058
+# ): compute a clamped value (ComputeClamped_83230A48, on a value, with a constant), and (if the result is non-zero)
+# process (a computation with obj->0 and constants, 0x10000 and 0x1000, a size / a block-size computation).
+
+# Args: obj (r3, r31, ->0 = a value), (r4), (r5), value (r6, r8), (more). It computes a clamped value (ComputeClamped
+# _83230A48, sub_83230A48, a clamped computation, on the value (r6 = value) and a constant (r7 = stack[80], a
+# min/max), with a result at stack[80]). If the result (stack[80]) is zero (an empty / a zero), it takes one path. If
+# the result is non-zero, it processes: it loads a value (r10 = obj->0, a value), compares it against constants (0x100
+# 00 = 1 << 16, and 0x1000 = 1 << 12, a size / a block-size check), and (depending on the comparison) computes a value
+# (a size, a block-size computation, with a 4-byte stride, r6 = 4). So it's a "process (a clamped computation: compute
+# a clamped value, and (if the result is non-zero) compute a size / a block size (with obj->0 and constants))" routine
+# (a clamped computation, part of the 0x83230 cluster, a sibling of ComputeClamped_83230A48, a callee of
+# Heap_CarveBlock_83231058). 92 lines, 2 callees (ComputeClamped_83230A48, sub_82CC0CA0). 1 caller: Heap_CarveBlock_8
+# 3231058 (sub_83231058, a heap block carver, which calls this to compute a clamped value / a block size). The
+# object's class (obj, r31, ->0 = a value, an object with a value) and the value's meaning (a value, a size / a block
+# size, a particular dimension) aren't resolvable, so the name states the mechanism: a clamped computation (compute a
+# clamped value and (if the result is non-zero) compute a size / a block size). The "2" distinguishes it from Compute
+# Clamped_83230A48.
+[entrypoint.functions."0x83230D00"]
+name = "ComputeClamped2_83230D00"
+
+# A heap allocation (the callee of Allocate_SizeBucketed_83231D20 / PoolAllocate_8240DAA8): clamp the size (min(size,
+# obj->16, a max size), default to 16 if zero), align it to 16 bytes ((size + 31) & ~0xF), and (if a condition, obj
+# ->24 is zero) carve a block (Heap_CarveBlock_83231058) and perform a heap operation (sub_83230DA0).
+
+# Args: obj (r3, r31, ->16 = a max size, ->24 = a field), size (r4), (more). It clamps the size (min(size, obj->16,
+# a max size): if size >= obj->16, it sets size = obj->16). If size is zero, it defaults to 16 (a minimum size). It
+# aligns the size to 16 bytes ((size + 31) & ~0xF, a 16-byte alignment, a block alignment). If obj->24 (a field, a
+# free-list pointer) is zero (an empty state), it performs a heap operation (sub_83230DA0, a heap operation, on the
+# object) and (if the result is non-zero) carves a block (Heap_CarveBlock_83231058, sub_83231058, a heap block
+# carver, on the object, with the aligned size). So it's a "allocate from a heap (clamp and align the size, and (if a
+# condition) carve a block and perform a heap operation)" routine (a heap allocation, part of the 0x83231 cluster, a
+# callee of Allocate_SizeBucketed_83231D20 and PoolAllocate_8240DAA8). 196 lines, 2 callees (Heap_CarveBlock_83231058
+# , sub_83230DA0). 4 callers: sub_82A20528, Allocate_SizeBucketed_83231D20 (sub_83231D20, a size-bucketed
+# allocation), PoolAllocate_8240DAA8 (sub_8240DAA8, a pool allocation), sub_828456C8. The object's class (obj, r31, ->
+# 16 = a max size, ->24 = a field, a heap object with a max size and a free-list pointer) and the size's meaning (a
+# size, a particular allocation size) aren't resolvable, so the name states the mechanism: a heap allocation (clamp
+# and align the size, and (if a condition) carve a block and perform a heap operation).
+[entrypoint.functions."0x83231590"]
+name = "HeapAllocate_83231590"
+
+# A copy (a simple 8-byte copy): copy two words (src->124 and src->128, an 8-byte value) to dst->0 and dst->4 (a
+# simple 8-byte copy, from an offset in the source to the start of the destination).
+
+# Args: dst (r3, ->0 and ->4, a destination), src (r4, ->124 and ->128, a source), (more). It copies two words (src
+# ->124 to dst->0, and src->128 to dst->4, an 8-byte copy, from an offset (124) in the source to the start (0) of the
+# destination). So it's a "copy 8 bytes (copy two words, src->124 and src->128, to dst->0 and dst->4)" routine (a
+# simple 8-byte copy, part of the 0x82B56 cluster). 10 lines, no callees (pure data manipulation). It is registered (in
+# the function table, fable_2_init.cpp / fable_2_register.cpp) but has no direct callers in the recompiled code (a
+# registered-but-uncalled copy, likely invoked only from code outside the traced region, or unused). The source's class
+# (src, ->124 and ->128, an object with an 8-byte value at an offset) and the destination's class (dst, ->0 and ->4,
+# a destination for the 8-byte value) aren't resolvable, so the name states the mechanism: a simple 8-byte copy (copy
+# two words, src->124 and src->128, to dst->0 and dst->4).
+[entrypoint.functions."0x82B56820"]
+name = "Copy8Bytes_82B56820"
+
+# A 24-byte constructor (the sibling of Construct28Byte_82A12828 / Construct16Byte_82275368): allocate 24 bytes
+# (Allocate_OrDbgBreak_8221F388), zero out the object's fields (->0, ->4, ->8 = 0, and ->21 = 0, a zero), and set a
+# flag (->20 = 1, a one, a byte flag).
+
+# Args: obj (r3, r31, a parent), (more). It allocates 24 bytes (Allocate_OrDbgBreak_8221F388, sub_8221F388, a
+# size-bucketed allocation, of 24 bytes). It then zeros out the object's fields (->0, ->4, ->8 = 0, three words, and
+# ->21 = 0, a zero -- a byte flag, and ->20 = 1, a one -- a byte flag). It then (presumably) stores the new object into
+# the parent (obj, r31). So it's a "construct a 24-byte object (allocate 24 bytes, zero out the fields (and set ->20 =
+# 1, ->21 = 0), and store it into the parent)" routine (a 24-byte constructor, part of the 0x8246C cluster). 87 lines,
+# 1 callee (Allocate_OrDbgBreak_8221F388). Many callers (sub_823F9C10, sub_82B722E8, sub_827ED030, sub_8235E7C0, sub
+# _8324E200, sub_8249C690, sub_825CC450, sub_823FF7E8, sub_8322C840, sub_825C4E80 -- many across the codebase). The
+# object's class (a 24-byte object, ->0, ->4, ->8 = words, ->20 = a flag, ->21 = a flag, an object with flags) and the
+# parent's class (obj, r31, an object with a 24-byte object) aren't resolvable, so the name states the mechanism: a 24
+# -byte constructor (allocate 24 bytes and zero out the fields). The "24" distinguishes it from the other constructor
+# sizes (Construct16Byte_82275368, Construct20ByteNode_82A12F00, Construct28Byte_82A12828, Construct36Byte_82370EF8,
+# Construct48ByteNode_82A0ED98).
+[entrypoint.functions."0x8246C600"]
+name = "Construct24Byte_8246C600"
+
+# A copy (a 20-byte copy, the sibling of Copy8Bytes_82B56820 / CopyRecords20_82A13138): copy 20 bytes (four words
+# (src->0, ->4, ->8, ->12) and a float (src->16)) from src to dst, then call a process (ProcessCount_82B728D8, on dst
+# + 20 and src + 20, the objects' tails).
+
+# Args: dst (r3, r31, +20 = a tail), src (r4, r11, +20 = a tail), (more). It copies 20 bytes (from src to dst -- four
+# words: src->0 to dst->0, src->4 to dst->4, src->8 to dst->8, src->12 to dst->12, and a float: src->16 to dst->16, a
+# 20-byte copy). It then calls a process (ProcessCount_82B728D8, sub_82B728D8, a count process, on the objects' tails
+# (dst + 20 and src + 20, the 20-byte objects' tails)). So it's a "copy a 20-byte object (copy four words and a float
+# from src to dst, and process the objects' tails)" routine (a 20-byte copy, part of the 0x82B82 cluster, a sibling of
+# Copy8Bytes_82B56820). 50 lines (to the next function), 1 callee (ProcessCount_82B728D8). 1 caller: sub_82B828C8 (a
+# sibling in the 0x82B82 cluster). The object's class (a 20-byte object, ->0, ->4, ->8, ->12 = words, ->16 = a float, ->
+# 20 = a tail, an object with a head and a tail) and the source/destination's meaning (a 20-byte object, a data object
+# / node / value) aren't resolvable, so the name states the mechanism: a 20-byte copy (copy four words and a float from
+# src to dst, and process the objects' tails). The "20" distinguishes it from Copy8Bytes_82B56820 (8-byte).
+[entrypoint.functions."0x82B82C68"]
+name = "Copy20Bytes_82B82C68"
+
+# A process (a critical section operation, the sibling of the 0x82B5C cluster): enter a critical section
+# (CriticalSection_EnterOrTry_82200688), call a process (sub_82B5D548, on obj->0 and a constant, with a result at
+# stack[96]), validate the result (stack[96] is non-zero and != a constant, a trap / an error if invalid), and (on a
+# success path) perform further processing (sub_82B5D690, a sibling in the 0x82B5D cluster).
+
+# Args: obj (r3, r31, ->0 = a value), value (r4, r30), (more). It enters a critical section (CriticalSection_EnterOrT
+# ry_82200688, sub_82200688, a critical section enter-or-try, on a global, with a constant). It then calls a process
+# (sub_82B5D548, a process, on obj->0 (stack[80], a value, copied from obj->0) and a constant (stack[96], a result
+# buffer), with the value (r30)). It validates the result (stack[96], a value): if it is zero or equal to a constant (a
+# fixed .data address, a sentinel), it takes an error path (a trap / an error). On a success path (stack[96] is
+# non-zero and != the sentinel), it performs further processing (sub_82B5D690, a sibling in the 0x82B5D cluster). So
+# it's a "process (a critical section operation: enter a critical section, call a process, validate the result, and
+# (on success) perform further processing)" routine (a critical section process, part of the 0x82B5C cluster). 218
+# lines, 3 callees (CriticalSection_EnterOrTry_82200688, sub_82B5D548, sub_82B5D690). 1 caller: sub_82B82248 (a
+# sibling in the 0x82B82 cluster). The object's class (obj, r31, ->0 = a value, an object with a value) and the value
+# 's meaning (a value, a particular argument) aren't resolvable, so the name states the mechanism: a critical section
+# process (enter a critical section, call a process, validate the result, and (on success) perform further processing
+# ).
+[entrypoint.functions."0x82B5C758"]
+name = "ProcessCriticalSection_82B5C758"
 
 # Existing Functions
 

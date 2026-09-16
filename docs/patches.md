@@ -135,6 +135,8 @@ Currently **empty** — the 60 FPS patch moved to a hook.
 | Patch | Mechanism | Change | Measured effect |
 |---|---|---|---|
 | 60 FPS | mid-asm hook `fable2_hook_60fps` @ 0x82B9C8E8 (after `li r11,2`); toggle: `[patches] fps_60` in fable2_config.toml | `r11 = 2` → `1` in `sub_82B9C7F8`'s state-2 case (the high byte of the op value handed to `sub_821F5F20`); mirrors Xenia be8 0x82B9C8EB | main loop 30/s → ~54–67/s (avg ≈60); toggle off → 30.0/s |
+| Unlock Website Items (Guy) | mid-asm hook `fable2_hook_unlock_website` @ 0x8256E384 (after `rlwinm r9,r10,0,25,25`); toggle: `[patches] unlock_website` | Forces `r9 = 0x40` (bit 6) in `sub_8256E368`, so the website/Guild-chest item lookup reads as unlocked and runs the real lookup. Re-derives the Xenia "Unlock Website Items" intent for THIS build (the stock ops target a different revision's bytes). | Hook confirmed in generated code + clean startup; in-game chest unlock pending manual test |
+| Unlock CE Content (Guy) | mid-asm hook `fable2_hook_unlock_ce` @ 0x824B3540 (after `rlwinm r10,r11,0,25,25`); toggle: `[patches] unlock_ce` | Forces `r10 = 0x40` (bit 6) in `sub_824B3528`, so the Collectors-Edition chest item lookup reads as unlocked and runs the real lookup. Same re-derivation approach. | Hook confirmed in generated code + clean startup; in-game chest unlock pending manual test |
 
 To add a new code patch: add the op to `fable2_patches.toml` (keeps the
 guest image faithful + documents intent) **and** a
@@ -158,12 +160,14 @@ original `__imp__` entry). Enabled with `FABLE2_FPS_METER=1`.
    made toggleable the same way later — the hook bodies are C++ in the game
    process.)
 2. **Other Xenia patches** for this title (from
-   `4D5307F1 - Fable II (GOTY).patch.toml`): 60 FPS (be8 0x82B9C8EB=0x01),
-   1280x720 (be16 0x8238DF5A=0x0500), Disable MSAA (be8 0x8238DF3F=0x01),
-   Disable Texture Morphing (be16 0x8220EF10=0x4280), Unlock Website Items,
-   Unlock CE Content, 21:9 / 32:9 widescreen — all except the BSS one are
-   .text/data-in-.text patches, so expect the same "applied but inert"
-   behavior for their code ops.
+   `4D5307F1 - Fable II (GOTY).patch.toml`). Done as mid-asm hooks: **60 FPS**,
+   **Unlock Website Items**, **Unlock CE Content** (all re-derived for THIS
+   build — see the recomp-level patches table above). Remaining (still to port,
+   each needs the same build-mismatch investigation — the stock ops target a
+   different revision): 1280x720 (be16 0x8238DF5A=0x0500), Disable MSAA
+   (be8 0x8238DF3F=0x01), Disable Texture Morphing (be16 0x8220EF10=0x4280),
+   21:9 / 32:9 widescreen — all .text/data-in-.text, so expect the same "applied
+   but inert" behavior for their code ops if applied to the guest image.
 3. **Oddity worth investigating (separate issue):** the recompiled C++ for
    `sub_8233AE50` (generated/default/fable_2_recomp.65.cpp:3211) was compiled
    from a word at 0x8233AEB4 of `0xD9009510` (stfd f0,0x9510(r8)), but the
