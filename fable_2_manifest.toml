@@ -56,31 +56,84 @@ registers = ["r11"]
 after_instruction = true
 
 # Unlock Website Items (Xenia "Unlock Website Items" by Guy). sub_8256E368 is
-# the "is a website/Guild-chest item available" check; it has several gates
-# (bit6 of obj+0x90, bit0 of obj+0x40, then a type-0xf0 item lookup) and EVERY
-# failure path funnels to the return-0 tail `li r3,0` at 0x8256E4E0. The stock
-# guest patch (be8 0x8256E4E3=0x01 + be32 0x8256E4B8) just makes that tail
-# return 1. This hook fires right after the tail's `li r3,0` and forces r3=1,
-# so the function reports "available" whenever the lookup would otherwise fail
-# (a real item found still returns via the vtable call, not the tail). Verified
-# in-game: bit6 was already set, so the real gate is the later lookup.
+# the "is a website/Guild-chest item available" check. It is gated by the
+# player's website-registration flags on the chest object (r4): GATE 1 = bit6
+# of *(r4+0x90), GATE 1b = bit0 of *(r4+0x40). Only when BOTH pass does the
+# type-0xf0 item lookup run and the item get GRANTED via a vtable call
+# (bctrl at 0x8256E4CC); every other path funnels to the return-0 tail at
+# 0x8256E4E0. We force each gate's bit-extract result to 1 (r9 after the
+# GATE-1 rlwinm, r8 after the GATE-1b clrlwi) so the function always treats the
+# player as registered and performs the real grant. The getters run at save
+# load, so this populates the chest inventory on load.
 [[entrypoint.midasm_hook]]
-address = 0x8256E4E0
-name = "fable2_hook_unlock_website"
-registers = ["r3"]
+address = 0x8256E384
+name = "fable2_hook_website_g1"
+registers = ["r9"]
+after_instruction = true
+[[entrypoint.midasm_hook]]
+address = 0x8256E3AC
+name = "fable2_hook_website_g1b"
+registers = ["r8"]
 after_instruction = true
 
 # Unlock Collectors Edition Content (Xenia "Unlock Collectors Edition Content"
-# by Guy). Same shape as the website function: sub_824B3528 is the "is CE-chest
-# content available" check with several gates (bit6 of obj+0x90, bit0 of
-# obj+0x28, then a type-0x39 item lookup) and every failure path funnels to the
-# return-0 tail `li r3,0` at 0x824B368C. The hook fires right after it and
-# forces r3=1 so the function reports "available" whenever the lookup would
-# otherwise fail.
+# by Guy). Same shape: sub_824B3528 is the "is CE-chest content available"
+# check, gated by GATE 1 = bit6 of *(r4+0x90) and GATE 1b = a bit of
+# *(r4+0x28); only when both pass does the type-0x39 item lookup run and the
+# content get GRANTED via a vtable call (bctrl at 0x824B3678). We force each
+# gate's bit-extract result to 1 (r10 after the GATE-1 rlwinm, r9 after the
+# GATE-1b rlwinm) so the function always treats the player as registered.
 [[entrypoint.midasm_hook]]
-address = 0x824B368C
-name = "fable2_hook_unlock_ce"
+address = 0x824B3540
+name = "fable2_hook_ce_g1"
+registers = ["r10"]
+after_instruction = true
+[[entrypoint.midasm_hook]]
+address = 0x824B3568
+name = "fable2_hook_ce_g1b"
+registers = ["r9"]
+after_instruction = true
+
+# --- TEMPORARY grant/tail diagnostic traces (website getter) ----------------
+# 0x8256E3B8 = item-lookup entry (lwz r10, 0x8c(r11)). r10 is the item-list
+# pointer; if it is NULL the lookup path can misbehave. This confirms the flow
+# gets PAST both forced gates into the lookup.
+[[entrypoint.midasm_hook]]
+address = 0x8256E3B8
+name = "fable2_trace_website_lookup"
+registers = ["r10"]
+after_instruction = true
+# 0x8256D9E4 = xori r3, r9, 1 — the final result of the grant/dedup method
+# sub_8256D940 (the website-chest vtable[1] "is this item new?" check). It
+# returns 0 when the item hash is already in the grant list. Force r3 = 1 so
+# the getter reports the item as newly granted (chest openable).
+[[entrypoint.midasm_hook]]
+address = 0x8256D9E4
+name = "fable2_hook_website_grantnew"
 registers = ["r3"]
+after_instruction = true
+# 0x8256E4C8 = mtctr r11 right before the grant bctrl (0x8256E4CC). r11 is the
+# grant method's address (vtable[1] = *(r3+8)); r3 here is the item. Capturing
+# both names the grant method so we can see why it returns 0.
+[[entrypoint.midasm_hook]]
+address = 0x8256E4C8
+name = "fable2_trace_website_grantcall"
+registers = ["r11", "r3"]
+after_instruction = true
+# 0x8256E4D0 = the epilogue reached ONLY via the grant path (the bctrl vtable
+# call at 0x8256E4CC returned). If this fires, the item was actually GRANTED.
+# We pass r3 (the grant's return value) to see what the grant reported.
+[[entrypoint.midasm_hook]]
+address = 0x8256E4D0
+name = "fable2_trace_website_grant"
+registers = ["r3"]
+after_instruction = true
+# 0x8256E4E0 = the return-0 tail (li r3,0). If this fires, a gate still FAILED
+# (the forcing did not take effect) and the item was NOT granted.
+[[entrypoint.midasm_hook]]
+address = 0x8256E4E0
+name = "fable2_trace_website_tail"
+registers = []
 after_instruction = true
 
 # --- TEMPORARY chest-click trace hooks (debugging the fable2.com gate) ------
@@ -121,6 +174,21 @@ after_instruction = true
 [[entrypoint.midasm_hook]]
 address = 0x82228830
 name = "fable2_trace_82228830"
+registers = ["r12"]
+after_instruction = true
+
+# Entry hooks on the two item getters: confirm whether they are on the click
+# path at all, and capture the caller LR (r12 after the leading mflr r12) so we
+# can walk up to the chest's "locked"/registration gate.
+[[entrypoint.midasm_hook]]
+address = 0x8256E368
+name = "fable2_trace_GetWebsiteItem"
+registers = ["r12"]
+after_instruction = true
+
+[[entrypoint.midasm_hook]]
+address = 0x824B3528
+name = "fable2_trace_GetCEContent"
 registers = ["r12"]
 after_instruction = true
 [[entrypoint.midasm_hook]]

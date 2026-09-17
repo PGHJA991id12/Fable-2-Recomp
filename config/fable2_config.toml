@@ -56,14 +56,16 @@ mouse_look_scale = 256
 # Default: true
 fps_60 = true
 
-# Unlock Website Items (mid-asm hook fable2_hook_unlock_website; Xenia "Unlock
-# Website Items" by Guy): unlocks the Guild-chest items that were obtainable
-# from the Fable 2 website. false = locked (original).
+# Unlock Website Items (mid-asm hooks fable2_hook_website_g1/g1b; Xenia
+# "Unlock Website Items" by Guy): forces the website-registration gates in the
+# Guild-chest item getter so the website items are granted at save load. false
+# = locked (original).
 # Default: true
 unlock_website = true
 
-# Unlock Collectors Edition Content (mid-asm hook fable2_hook_unlock_ce; Xenia
-# "Unlock Collectors Edition Content" by Guy): unlocks Hal's chest items and
-# the Hall of the Dead dungeon. false = locked (original).
+# Unlock Collectors Edition Content (mid-asm hooks fable2_hook_ce_g1/g1b; Xenia
+# "Unlock Collectors Edition Content" by Guy): forces the CE-registration gates
+# in the CE-content getter so the CE items are granted at save load. false =
+# locked (original).
 # Default: true
 unlock_ce = true
