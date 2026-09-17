@@ -25207,6 +25207,1334 @@ name = "StringCopyN_822CD828"
 [entrypoint.functions."0x82BAD8A8"]
 name = "ProcessObject_82BAD8A8"
 
+# A return address (a return address, with a constant, the sibling of ReturnPointer4_82C2AA48 / ReturnPointer3
+# _82C21F28): return a pointer (a return address, a particular return / a
+# particular pointer, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result, from a fixed .data address + 19848, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result).
+
+# Args: (more). It returns a pointer (a
+# return address, a
+# particular return / a
+# particular pointer, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result, from a fixed .data address + 19848, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result). So it's a "return address (a
+# return address, with a
+# constant: return a pointer (a return address, a
+# particular return / a
+# particular pointer, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result, from a fixed .data address + 19848, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result))" routine (a return address routine, part of the 0x82C2A cluster, a sibling of
+# ReturnPointer4_82C2AA48 and ReturnPointer3_82C21F28). 5
+# lines, 0 callees. No
+# direct callers (it's called via a vtable / it is registered-but-uncalled, part of the game's subsystems). The
+# pointer's meaning (r3, a pointer, a
+# particular value, a
+# particular size / a
+# particular allocation, from a fixed .data address + 19848, a
+# particular value) isn't resolvable, so the name states the mechanism: a return address (with a
+# constant) (return a pointer (a return address, a
+# particular return / a
+# particular pointer, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result, from a fixed .data address + 19848, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result)). The "4" distinguishes it from ReturnPointer3_82C21F28.
+[entrypoint.functions."0x82C2AA48"]
+name = "ReturnPointer4_82C2AA48"
+
+# A process (a process, with a check and a call, the sibling of ProcessRangeCheck_82A0F120 / ReturnPointer4
+# _82C2AA48, the caller of RaiseIfOutOfRange_82461DA0): do a process (a process, a particular process, a particular
+# size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and (in a check) check a value (a value, a
+# particular value, a
+# particular size / a
+# particular allocation, a, a
+# particular value, a
+# particular state / a
+# particular result), and (in a call) call a process (RaiseIfOutOfRange_82461DA0, on a
+# value (a, a value, a
+# particular value, a
+# particular size / a
+# particular allocation, c, a
+# particular value, a
+# particular size / a
+# particular allocation), a particular call / a
+# particular process, a
+# particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and (in a store) store a value (a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, obj->8 = r11 - c, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result).
+
+# Args: a (r3, a value, a
+# particular value, a
+# particular size / a
+# particular allocation), b (r4, a value, a
+# particular value, a
+# particular size / a
+# particular allocation), obj (r5, r31, ->8 = a field, a value, a
+# particular object), c (r8, r30, a value, a
+# particular value, a
+# particular size / a
+# particular allocation), (more). It does a process (a
+# process, a
+# particular process, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result). In the check, it checks a value (a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a, a
+# particular value, a
+# particular state / a
+# particular result). In the call, it calls a process (RaiseIfOutOfRange_82461DA0, on a
+# value (a, a value, a
+# particular value, a
+# particular size / a
+# particular allocation, c, a
+# particular value, a
+# particular size / a
+# particular allocation), a particular call / a
+# particular process, a
+# particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result). In the store, it stores a value (a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, obj->8 = r11 - c, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result). So it's a "process (a
+# process, with a
+# check and a
+# call: do a process (a process, a
+# particular process, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and (in a check) check a value (a value, a
+# particular value, a
+# particular size / a
+# particular allocation, a, a
+# particular value, a
+# particular state / a
+# particular result), and (in a call) call a process (RaiseIfOutOfRange_82461DA0, on a
+# value (a, a value, a
+# particular value, a
+# particular size / a
+# particular allocation, c, a
+# particular value, a
+# particular size / a
+# particular allocation), a particular call / a
+# particular process, a
+# particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and (in a store) store a value (a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, obj->8 = r11 - c, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result))" routine (a process routine, part of the 0x82A0F cluster, a sibling of
+# ProcessRangeCheck_82A0F120 and ReturnPointer4_82C2AA48, a caller of RaiseIfOutOfRange_82461DA0). 85
+# lines, 1 callee (RaiseIfOutOfRange_82461DA0). 6 callers: sub_82A0F120, sub_82874358, sub_827D90C0, Build
+# Structure_82A118B0, sub_828740A8, sub_827D7F00 (processes, which
+# call this to do the process, a
+# particular size / a
+# particular allocation, a
+# particular operation). The object's class (obj, r31, ->8 = a field, a value, a
+# particular object, a
+# particular value /
+# a particular state) and the value's meaning (a, r3, a value, a
+# particular value, a
+# particular size / a
+# particular allocation; b, r4, a value, a
+# particular value, a
+# particular size / a
+# particular allocation; c, r30, a value, a
+# particular value, a
+# particular size / a
+# particular allocation) aren't resolvable, so the name states the mechanism: a process (with a
+# check and a
+# call) (do a process (a process, a
+# particular process, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and (in a check) check a value (a value, a
+# particular value, a
+# particular size / a
+# particular allocation, a, a
+# particular value, a
+# particular state / a
+# particular result), and (in a call) call a process (RaiseIfOutOfRange_82461DA0, on a
+# value (a, a value, a
+# particular value, a
+# particular size / a
+# particular allocation, c, a
+# particular value, a
+# particular size / a
+# particular allocation), a particular call / a
+# particular process, a
+# particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and (in a store) store a value (a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, obj->8 = r11 - c, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result)). The "82A0F290" refers to the address (a
+# particular address, a
+# particular size / a
+# particular allocation).
+[entrypoint.functions."0x82A0F290"]
+name = "ProcessRangeCheck_82A0F290"
+
+# A process (a process, with a loop and a check, the sibling of ProcessField_82B44360 / ProcessRangeCheck
+# _82A0F290, the caller of sub_82B44360): do a process (a process, a particular process, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and (in a loop) loop over a range (a loop, a particular loop / a
+# particular range, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result, over a value (obj->28, a value, a
+# particular value, a
+# particular size / a
+# particular allocation), a particular loop / a
+# particular range, a
+# particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and (in a check) check a value (a value, a
+# particular value, a
+# particular size / a
+# particular allocation, obj->40, a
+# particular value, a
+# particular state / a
+# particular result), and (in a call) call a process (sub_82B44360, on a
+# value (r3, a value, a
+# particular value, a
+# particular size / a
+# particular allocation, obj->20, a
+# particular value, a
+# particular size / a
+# particular allocation), a particular call / a
+# particular process, a
+# particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result).
+
+# Args: obj (r3, r31, ->20 = a field, a value, ->28 = a field, a value, ->40 = a field, a
+# value, a
+# particular object), (more). It does a process (a
+# process, a
+# particular process, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result). In the loop, it loops over a range (a
+# loop, a
+# particular loop / a
+# particular range, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result, over a value (obj->28, a value, a
+# particular value, a
+# particular size / a
+# particular allocation), a particular loop / a
+# particular range, a
+# particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result). In the check, it checks a value (a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, obj->40, a
+# particular value, a
+# particular state / a
+# particular result). In the call, it calls a process (sub_82B44360, on a
+# value (r3, a value, a
+# particular value, a
+# particular size / a
+# particular allocation, obj->20, a
+# particular value, a
+# particular size / a
+# particular allocation), a particular call / a
+# particular process, a
+# particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result). So it's a "process (a
+# process, with a
+# loop and a
+# check: do a process (a process, a
+# particular process, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and (in a loop) loop over a range (a loop, a
+# particular loop / a
+# particular range, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result, over a value (obj->28, a value, a
+# particular value, a
+# particular size / a
+# particular allocation), a particular loop / a
+# particular range, a
+# particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and (in a check) check a value (a value, a
+# particular value, a
+# particular size / a
+# particular allocation, obj->40, a
+# particular value, a
+# particular state / a
+# particular result), and (in a call) call a process (sub_82B44360, on a
+# value (r3, a value, a
+# particular value, a
+# particular size / a
+# particular allocation, obj->20, a
+# particular value, a
+# particular size / a
+# particular allocation), a particular call / a
+# particular process, a
+# particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result))" routine (a process routine, part of the 0x82B51 cluster, a sibling of
+# ProcessField_82B44360 and ProcessRangeCheck_82A0F290, a caller of sub_82B44360). 135
+# lines, 1 callee (sub_82B44360). 3 callers: sub_82B50E70, sub_82B51188, sub_82B51080 (processes, which
+# call this to do the process, a
+# particular size / a
+# particular allocation, a
+# particular operation). The object's class (obj, r31, ->20 = a field, a value, ->28 = a field, a value, ->40 = a
+# field, a value, a
+# particular object, a
+# particular value /
+# a particular state) isn't resolvable, so the name states the mechanism: a process (with a
+# loop and a
+# check) (do a process (a process, a
+# particular process, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and (in a loop) loop over a range (a loop, a
+# particular loop / a
+# particular range, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result, over a value (obj->28, a value, a
+# particular value, a
+# particular size / a
+# particular allocation), a particular loop / a
+# particular range, a
+# particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and (in a check) check a value (a value, a
+# particular value, a
+# particular size / a
+# particular allocation, obj->40, a
+# particular value, a
+# particular state / a
+# particular result), and (in a call) call a process (sub_82B44360, on a
+# value (r3, a value, a
+# particular value, a
+# particular size / a
+# particular allocation, obj->20, a
+# particular value, a
+# particular size / a
+# particular allocation), a particular call / a
+# particular process, a
+# particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result)). The "82B51380" refers to the address (a
+# particular address, a
+# particular size / a
+# particular allocation).
+[entrypoint.functions."0x82B51380"]
+name = "ProcessField_82B51380"
+
+# A process (a process, with a check and a call, the sibling of ProcessVirtual_821E51D0 / ProcessField_82B51380, the
+# caller of sub_821E51D0): do a process (a process, a particular process, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and (in a check) check a value (a value, a
+# particular value, a
+# particular size / a
+# particular allocation, r3, a
+# particular value, a
+# particular state / a
+# particular result), and (in a call) call a function (a
+# call, a
+# particular call / a
+# particular function, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result, via an indirect call, bctrl, on a
+# value (r11, a value, a
+# particular value, a
+# particular size / a
+# particular allocation), a particular call / a
+# particular function, a
+# particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and (in a store) store a value (a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, r31->68 = r10, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result).
+
+# Args: a (r3, r28, ->16 = a field, a value, a
+# particular object), b (r5, r29, a value, a
+# particular value, a
+# particular size / a
+# particular allocation), c (r6, r30, a value, a
+# particular value, a
+# particular size / a
+# particular allocation), (more). It does a process (a
+# process, a
+# particular process, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result). In the check, it checks a value (a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, r3, a
+# particular value, a
+# particular state / a
+# particular result). In the call, it calls a function (a
+# call, a
+# particular call / a
+# particular function, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result, via an indirect call, bctrl, on a
+# value (r11, a value, a
+# particular value, a
+# particular size / a
+# particular allocation), a particular call / a
+# particular function, a
+# particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result). In the store, it stores a value (a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, r31->68 = r10, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result). So it's a "process (a
+# process, with a
+# check and a
+# call: do a process (a process, a
+# particular process, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and (in a check) check a value (a value, a
+# particular value, a
+# particular size / a
+# particular allocation, r3, a
+# particular value, a
+# particular state / a
+# particular result), and (in a call) call a function (a
+# call, a
+# particular call / a
+# particular function, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result, via an indirect call, bctrl, on a
+# value (r11, a value, a
+# particular value, a
+# particular size / a
+# particular allocation), a particular call / a
+# particular function, a
+# particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and (in a store) store a value (a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, r31->68 = r10, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result))" routine (a process routine, part of the 0x82227 cluster, a sibling of
+# ProcessVirtual_821E51D0 and ProcessField_82B51380, a caller of sub_821E51D0). 60
+# lines, 1 callee (sub_821E51D0). 10 callers: sub_82A2DEA8, sub_821EC538, sub_822A0F58, sub_82A30568, sub_82BF51D8,
+# sub_82A36648, sub_82A2D408, sub_82A2C600, sub_8222B4C0, sub_82A2F750 (processes, which
+# call this to do the process, a
+# particular size / a
+# particular allocation, a
+# particular operation). The object's class (a, r28, ->16 = a field, a value, a
+# particular object, a
+# particular value /
+# a particular state) and the value's meaning (b, r29, a value, a
+# particular value, a
+# particular size / a
+# particular allocation; c, r30, a value, a
+# particular value, a
+# particular size / a
+# particular allocation) aren't resolvable, so the name states the mechanism: a process (with a
+# check and a
+# call) (do a process (a process, a
+# particular process, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and (in a check) check a value (a value, a
+# particular value, a
+# particular size / a
+# particular allocation, r3, a
+# particular value, a
+# particular state / a
+# particular result), and (in a call) call a function (a
+# call, a
+# particular call / a
+# particular function, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result, via an indirect call, bctrl, on a
+# value (r11, a value, a
+# particular value, a
+# particular size / a
+# particular allocation), a particular call / a
+# particular function, a
+# particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and (in a store) store a value (a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, r31->68 = r10, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result)). The "82227940" refers to the address (a
+# particular address, a
+# particular size / a
+# particular allocation).
+[entrypoint.functions."0x82227940"]
+name = "ProcessVirtual_82227940"
+
+# A process (a process, with a check and a call, the sibling of ProcessError_822F2020 / ProcessVirtual_82227940, the
+# caller of SetString_822F2020 / sub_826C3EF0 / sub_822F1F00): do a process (a process, a particular process, a
+# particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and (in a check) check a value (a value, a
+# particular value, a
+# particular size / a
+# particular allocation, n, a
+# particular value, a
+# particular state / a
+# particular result), and (in a call) call a process (SetString_822F2020, on a
+# value (r3, a value, a
+# particular value, a
+# particular size / a
+# particular allocation, r4, a
+# particular value, a
+# particular size / a
+# particular allocation), a particular call / a
+# particular process, a
+# particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and (in a store) store a value (a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, r1->112 = r29, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result).
+
+# Args: obj (r3, r31, ->8 = a field, a value, a
+# particular object), n (r4, r30, a value, a
+# particular value, a
+# particular size / a
+# particular allocation), (more). It does a process (a
+# process, a
+# particular process, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result). In the check, it checks a value (a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, n, a
+# particular value, a
+# particular state / a
+# particular result). In the call, it calls a process (SetString_822F2020, on a
+# value (r3, a value, a
+# particular value, a
+# particular size / a
+# particular allocation, r4, a
+# particular value, a
+# particular size / a
+# particular allocation), a particular call / a
+# particular process, a
+# particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result). In the store, it stores a value (a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, r1->112 = r29, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result). So it's a "process (a
+# process, with a
+# check and a
+# call: do a process (a process, a
+# particular process, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and (in a check) check a value (a value, a
+# particular value, a
+# particular size / a
+# particular allocation, n, a
+# particular value, a
+# particular state / a
+# particular result), and (in a call) call a process (SetString_822F2020, on a
+# value (r3, a value, a
+# particular value, a
+# particular size / a
+# particular allocation, r4, a
+# particular value, a
+# particular size / a
+# particular allocation), a particular call / a
+# particular process, a
+# particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and (in a store) store a value (a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, r1->112 = r29, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result))" routine (a process routine, part of the 0x82A0F cluster, a sibling of
+# ProcessError_822F2020 and ProcessVirtual_82227940, a caller of SetString_822F2020, sub_826C3EF0, and sub_822F1F00).
+# 81 lines, 5
+# callees (SetString_822F2020, sub_82171810, sub_822F1F00, sub_826C3EF0, sub_826C3FA8). 2 callers: sub_82A0F528,
+# sub_82A0F328 (processes, which call this to do the process, a
+# particular size / a
+# particular allocation, a
+# particular operation). The object's class (obj, r31, ->8 = a field, a value, a
+# particular object, a
+# particular value /
+# a particular state) and the value's meaning (n, r30, a value, a
+# particular value, a
+# particular size / a
+# particular allocation) aren't resolvable, so the name states the mechanism: a process (with a
+# check and a
+# call) (do a process (a process, a
+# particular process, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and (in a check) check a value (a value, a
+# particular value, a
+# particular size / a
+# particular allocation, n, a
+# particular value, a
+# particular state / a
+# particular result), and (in a call) call a process (SetString_822F2020, on a
+# value (r3, a value, a
+# particular value, a
+# particular size / a
+# particular allocation, r4, a
+# particular value, a
+# particular size / a
+# particular allocation), a particular call / a
+# particular process, a
+# particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and (in a store) store a value (a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, r1->112 = r29, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result)). The "82A0F630" refers to the address (a
+# particular address, a
+# particular size / a
+# particular allocation).
+[entrypoint.functions."0x82A0F630"]
+name = "ProcessError_82A0F630"
+
+# A destruct (a destruct, with a loop and a check, the sibling of Destruct5_82B41570 / Destruct4_8264EDF8, the caller
+# of Free_SizeBucketed_Thunk_8221BE68): destruct an object (a destruct, a
+# particular destruct / a
+# particular release, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and (in a loop) loop over a range (a loop, a particular loop / a
+# particular range, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result, over obj->0, a value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result), and (in a check) check a value (a value, a
+# particular value, a
+# particular size / a
+# particular allocation, obj->28, a
+# particular value, a
+# particular state / a
+# particular result), and (in a free) free a value (Free_SizeBucketed_Thunk_8221BE68, on a
+# value (r31->4, a value, a
+# particular value, a
+# particular size / a
+# particular allocation), a particular free / a
+# particular size, a
+# particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and store values (r31->20 = 0, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result, r31->24 = 7, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result, r31->4 = 0, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result).
+
+# Args: obj (r3, r30, ->0 = a field, a value, ->4 = a field, a value, ->20 = a field, a value, ->24 = a field, a
+# value, ->28 = a field, a value, a
+# particular object), (more). It destructs an object (a
+# destruct, a
+# particular destruct / a
+# particular release, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result). In the loop, it loops over a range (a
+# loop, a
+# particular loop / a
+# particular range, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result, over obj->0, a value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result). In the check, it checks a value (a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, obj->28, a
+# particular value, a
+# particular state / a
+# particular result). In the free, it frees a value (Free_SizeBucketed_Thunk_8221BE68, on a
+# value (r31->4, a value, a
+# particular value, a
+# particular size / a
+# particular allocation), a particular free / a
+# particular size, a
+# particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result). It stores values (r31->20 = 0, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result, r31->24 = 7, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result, r31->4 = 0, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result). So it's a "destruct an object (a
+# destruct, with a
+# loop and a
+# check: destruct an object (a destruct, a
+# particular destruct / a
+# particular release, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and (in a loop) loop over a range (a loop, a
+# particular loop / a
+# particular range, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result, over obj->0, a value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result), and (in a check) check a value (a value, a
+# particular value, a
+# particular size / a
+# particular allocation, obj->28, a
+# particular value, a
+# particular state / a
+# particular result), and (in a free) free a value (Free_SizeBucketed_Thunk_8221BE68, on a
+# value (r31->4, a value, a
+# particular value, a
+# particular size / a
+# particular allocation), a particular free / a
+# particular size, a
+# particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and store values (r31->20 = 0, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result, r31->24 = 7, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result, r31->4 = 0, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result))" routine (a destruct routine, part of the 0x82B41 cluster, a sibling of
+# Destruct5_82B41570 and Destruct4_8264EDF8, a caller of Free_SizeBucketed_Thunk_8221BE68). 71
+# lines, 1 callee (Free_SizeBucketed_Thunk_8221BE68). 4 callers: sub_82B42080, sub_82B412B8, sub_82B42518,
+# sub_82B41570 (processes, which call this to destruct the object, a
+# particular size / a
+# particular allocation, a
+# particular operation). The object's class (obj, r30, ->0 = a field, a value, ->4 = a field, a value, ->20 = a
+# field, a value, ->24 = a field, a value, ->28 = a field, a value, a
+# particular object, a
+# particular value /
+# a particular state) isn't resolvable, so the name states the mechanism: a destruct (with a
+# loop and a
+# check) (destruct an object (a destruct, a
+# particular destruct / a
+# particular release, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and (in a loop) loop over a range (a loop, a
+# particular loop / a
+# particular range, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result, over obj->0, a value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result), and (in a check) check a value (a value, a
+# particular value, a
+# particular size / a
+# particular allocation, obj->28, a
+# particular value, a
+# particular state / a
+# particular result), and (in a free) free a value (Free_SizeBucketed_Thunk_8221BE68, on a
+# value (r31->4, a value, a
+# particular value, a
+# particular size / a
+# particular allocation), a particular free / a
+# particular size, a
+# particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and store values (r31->20 = 0, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result, r31->24 = 7, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result, r31->4 = 0, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result)). The "5" distinguishes it from Destruct4_8264EDF8.
+[entrypoint.functions."0x82B414F8"]
+name = "Destruct5_82B414F8"
+
+# A construct (a construct, with a check and a store, the sibling of Construct10_82B42518 / Destruct5_82B414F8, the
+# caller of ClampAndUpdate_822F6380): construct an object (a construct, a
+# particular construct, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and (in a check) check a value (a value, a
+# particular value, a
+# particular size / a
+# particular allocation, src->0, a
+# particular value, a
+# particular state / a
+# particular result), and (in a store) store a value (a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, obj->0 = src->0, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result, obj->24 = 0, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result, obj->28 = 7, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result, obj->8 = 0, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result).
+
+# Args: obj (r3, r31, ->0 = a field, a value, ->8 = a field, a value, ->24 = a field, a value, ->28 = a field, a
+# value, a
+# particular object), src (r4, r30, ->0 = a field, a value, ->4 = a field, a
+# value, a
+# particular object), (more). It constructs an object (a
+# construct, a
+# particular construct, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result). In the check, it checks a value (a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, src->0, a
+# particular value, a
+# particular state / a
+# particular result). In the store, it stores a value (a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, obj->0 = src->0, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result, obj->24 = 0, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result, obj->28 = 7, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result, obj->8 = 0, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result). So it's a "construct an object (a
+# construct, with a
+# check and a
+# store: construct an object (a construct, a
+# particular construct, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and (in a check) check a value (a value, a
+# particular value, a
+# particular size / a
+# particular allocation, src->0, a
+# particular value, a
+# particular state / a
+# particular result), and (in a store) store a value (a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, obj->0 = src->0, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result, obj->24 = 0, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result, obj->28 = 7, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result, obj->8 = 0, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result))" routine (a construct routine, part of the 0x82B42 cluster, a sibling of
+# Construct10_82B42518 and Destruct5_82B414F8, a caller of ClampAndUpdate_822F6380). 78
+# lines, 1 callee (ClampAndUpdate_822F6380). 3 callers: sub_82B42390, sub_82B42518, sub_82B412B8 (processes,
+# which call this to construct the object, a
+# particular size / a
+# particular allocation, a
+# particular operation). The object's class (obj, r31, ->0 = a field, a value, ->8 = a field, a value, ->24 = a
+# field, a value, ->28 = a field, a value, a
+# particular object, a
+# particular value /
+# a particular state; src, r30, ->0 = a field, a value, ->4 = a field, a value, a
+# particular object) isn't resolvable, so the name states the mechanism: a construct (with a
+# check and a
+# store) (construct an object (a construct, a
+# particular construct, a particular size / a
+# particular allocation, a
+# particular operation, a
+# particular state / a
+# particular result), and (in a check) check a value (a value, a
+# particular value, a
+# particular size / a
+# particular allocation, src->0, a
+# particular value, a
+# particular state / a
+# particular result), and (in a store) store a value (a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, obj->0 = src->0, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result, obj->24 = 0, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result, obj->28 = 7, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result, obj->8 = 0, a store, a
+# value, a
+# particular value, a
+# particular size / a
+# particular allocation, a
+# particular state / a
+# particular result)). The "10" distinguishes it from Construct9_82A3B330.
+[entrypoint.functions."0x82B42918"]
+name = "Construct10_82B42918"
+
+# Returns the constant 2048 (0x800). Tiny leaf function: `r3 = 2048; return;`.
+# Part of the 0x82323 cluster (sibling of the 0x82323E38 allocation helper below it).
+# No direct callers found in the recompiled code (likely reached via a vtable or the
+# function-pointer table). Sibling of ReturnConstant_16384_82A145F0 / ReturnConstant_4096_82A11F28.
+[entrypoint.functions."0x82323C60"]
+name = "ReturnConstant_2048_82323C60"
+
+# Processes a small value buffer (e.g. an RGB/ARGB or 4-field struct): reads the element size
+# flag at obj->24, picks the base pointer (obj->4 when size==8, else obj+4), bounds-checks the
+# index, and computes the element address from obj->20 (stride, shifted left by 1) + offset.
+# On the slow/error paths it calls Buffer_CopyOrZero_Error_82CA3730 and
+# ProcessValue_FlagNonZero_8217A5E0, then dispatches to sub_822F7E28 / sub_82CD11D0.
+# Part of the 0x822F6 cluster (sibling of ProcessValue_FlagNonZero_8217A5E0's family).
+# 210 lines, 4 callees. 2 callers: sub_822F5258, LoadString_FastOrSlow_823725E8.
+[entrypoint.functions."0x822F6CB0"]
+name = "ProcessBuffer_822F6CB0"
+
+# Allocates virtual memory by calling the kernel's NtAllocateVirtualMemory. Takes the size in
+# r3 and a (pre-zeroed) address-out pointer in r4; on success returns the new base address,
+# and on failure (status < 0) reports the error via sub_82CC1C38 and returns 0.
+# Part of the 0x82CC0 memory/kernel cluster. 50 lines, callees: __imp__NtAllocateVirtualMemory,
+# sub_82CC1C38 (error path). 10 callers, incl. ProcessAllocate_8322FB30 and ComputeClamped2_83230D00
+# (the 0x8322F/0x83230 pool/heap cluster that sits on top of this allocator).
+[entrypoint.functions."0x82CC0CA0"]
+name = "VirtualAllocate_82CC0CA0"
+
+# Destructor for an object that owns a 20-byte member at offset 0. It re-points the member's
+# vtable/first field to the default 0x82A11E68 target, calls Destruct20Byte_832156E0 on it, and
+# then frees the owning object (Free_SizeBucketed_Thunk_8221BE68) only when the low bit of the
+# `flag` argument (r4) is set.
+# Part of the 0x82A11 cluster (sibling of ReturnConstant_1024_82A11E60). 55 lines, 2 callees
+# (Destruct20Byte_832156E0, Free_SizeBucketed_Thunk_8221BE68). No direct callers found in the
+# recompiled code (likely invoked via a vtable / function-pointer table).
+[entrypoint.functions."0x82A11E68"]
+name = "Destruct6_82A11E68"
+
+# Reads a 4-byte element from a buffered stream object. Checks that the remaining count at b->20
+# is at least 4; if so, it copies the 4 bytes at b->12 out to a local scratch area (r1+84),
+# advances the read pointer (b->12) and the base (b->4) past those bytes, then dispatches the
+# decoded element to sub_82A1B480 / sub_83211D48 based on further state.
+# Part of the 0x83213 cluster. 128 lines, 2 callees (sub_82A1B480, sub_83211D48). No direct
+# callers found in the recompiled code (likely reached via a vtable / function-pointer table).
+[entrypoint.functions."0x83213650"]
+name = "ProcessRead_83213650"
+
+# Constructor for an object that contains a 20-byte member. It calls Construct20Byte_83215640 to
+# initialize the 20-byte part, then sets obj->0 to a fixed target pointer (0x83215A28 region) and
+# obj->16 to a constant float loaded from a .data table. The pair (obj->0, obj->16) is the same
+# layout the destructor Destruct6_82A11E68 tears down.
+# Part of the 0x83215 cluster (sibling of Construct20Byte_83215640 / Destruct20Byte_832156E0).
+# 55 lines, 1 callee (Construct20Byte_83215640). 3 callers: sub_83219588, ProcessTreeNode_83218C10,
+# sub_83218630.
+[entrypoint.functions."0x83215A28"]
+name = "Construct11_83215A28"
+
+# Grows a growable buffer of 4-byte elements. obj->4 holds the current capacity; if it is already
+# >= n (r4) it just returns. Otherwise it computes the new byte size as (n << 2) clamped to 65535,
+# allocates a fresh block (Allocate_OrDbgBreak_8221F388), copies the existing obj->8 bytes over with
+# MemCpy_SdkRuntime_82CA2C60, frees the old block (Free_Thunk_824FE010), and updates the pointer.
+# Part of the 0x82C21 cluster (sibling of ProcessVcall_82C21F38 / ReturnPointer3_82C21F28).
+# 84 lines, 3 callees. 10 callers (the 0x82C1x/0x82C2x/0x82C3x container cluster).
+[entrypoint.functions."0x82C21C90"]
+name = "ProcessGrow_82C21C90"
+
+# Compacts a growable array of pointers in place. obj->4 is the array base and obj->12 the element
+# count; it walks the array and copies every non-zero element to the front (in order), then writes
+# back the new (reduced) count into obj->12. This is the "defragment / remove nulls" step that
+# container code runs before shrinking. Pure loop, no calls.
+# Part of the 0x82C23 cluster (sibling of ProcessGrow_82C21C90). 50 lines, 0 callees. 10 callers
+# (the 0x82C1x/0x82C2x/0x82C3x container cluster).
+[entrypoint.functions."0x82C23DD0"]
+name = "ArrayCompact_82C23DD0"
+
+# Bounds-checked element accessor for an 8-byte-element array. obj->28 is the element count and
+# obj->12 the array base; for a valid index (r4 - 1 < obj->28) it returns the pointer to that
+# element (obj->12 + (r4 << 3) - 8). For an out-of-range / sentinel index it falls through to a
+# fallback path that computes a small value from obj->7 / obj->16 and a constant float.
+# Part of the 0x821E1 cluster (sibling of ProcessAtomicIncrement_821E3950 / ConstructString_8217AB58's
+# element-access family). ~100 lines, 0 callees. 10 callers (incl. DispatchValue_821CF230 and the
+# 0x82BBx/0x82BCx container cluster).
+[entrypoint.functions."0x821E1498"]
+name = "ElementAccess_821E1498"
+
+# Removes / erases an entry from a ref-counted chain. It looks the entry up with
+# WalkChainFind_83239FA8; on a hit (low byte of the result non-zero) it zeroes the found node
+# (obj->0 / obj->4), releases the held reference (Release_RefCounted_829FF648), and on the
+# rebuild path re-allocates (Allocate_OrDbgBreak_8221F388) and reconstructs the 32-byte vector
+# (Construct32ByteVector2_8323C7F0), adjusting ref counts via ProcessRefCount_83225538.
+# Part of the 0x82A0C cluster (sibling of Construct32ByteCopy_82A0C1B8). 239 lines, 5 callees.
+# 1 caller: StateDispatch4_83220888.
+[entrypoint.functions."0x82A0C2E0"]
+name = "ProcessErase_82A0C2E0"
+
+# Reads / decodes a 4-byte element from a buffered stream. It first invokes a vtable method
+# (b->0->8, called through the method pointer), then checks that the remaining count (b->20) is
+# at least 4 and copies the 4 bytes at b->12 out to a local scratch area, advancing the read and
+# base pointers past the element. The decoded element is then dispatched to
+# ProcessFloatDataDispatch_8323EB40 / sub_82A1B480 (the same sub_82A1B480 used by
+# ProcessRead_83213650).
+# Part of the 0x82A0C cluster (sibling of ProcessErase_82A0C2E0 / Construct32ByteCopy_82A0C1B8).
+# 244 lines, 2 callees. No direct callers found in the recompiled code (likely reached via a
+# vtable / function-pointer table).
+[entrypoint.functions."0x82A0C528"]
+name = "ProcessRead2_82A0C528"
+
+# Allocates and initializes a heap array of 20-byte elements. Given an element count n (r4), it
+# computes the byte size as n * 20 (the (n<<2)+n = n*5, then <<2 = n*20 sequence); for small non-zero
+# n it first seeds a header (sub_822F1F00 with a default 0x8273FA80-region value), then requests
+# the block from Allocate_OrDbgBreak_8221F388. Returns the allocated base (or 0 for n == 0).
+# Part of the 0x8273F cluster. 70 lines, 2 callees (sub_822F1F00, Allocate_OrDbgBreak_8221F388).
+# 10 callers (spread across the 0x821x/0x823x/0x824x/0x825x/0x826x/0x829x/0x82Ax containers).
+[entrypoint.functions."0x8273FA80"]
+name = "Allocate20ByteArray_8273FA80"
+
+# Grows a 20-byte-element buffer to fit n elements. It computes the current element count from
+# the stored byte span ((obj->8 - obj->4) / 20); if n (r4) exceeds that count it allocates extra
+# space and shifts the payload, then updates the read/write pointers (obj->4 / obj->8) via the
+# sibling helpers sub_82A10D50, sub_82A10E80, and sub_82A11248. This is the "reserve capacity"
+# counterpart of Allocate20ByteArray_8273FA80.
+# Part of the 0x82A10 cluster. 106 lines, 3 callees (sub_82A10D50, sub_82A10E80, sub_82A11248).
+# 2 callers: sub_83238090, sub_83238600 (the 0x83238 container cluster).
+[entrypoint.functions."0x82A10C90"]
+name = "ProcessGrow2_82A10C90"
+
 # Existing Functions
 
 # The main per-frame render/present loop (one call per frame: ~30/s at the
