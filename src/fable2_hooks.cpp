@@ -98,6 +98,25 @@ void fable2_trace_website_lookup(PPCRegister& r10) {
     REXSYS_INFO("[fable2-trace] website LOOKUP entry, item-list ptr r10=0x{:x}",
                 static_cast<unsigned long long>(r10.u64));
 }
+// 0x824ACAE0 = lbz r3, 993(r3) — the whole body of the CE grant method
+// sub_824ACAE0 (CE-chest vtable slot called from GetCEContent). It returns the
+// byte at item+0x3E1 (the "CE content available" flag). Force r3 = 1 so the
+// getter reports the CE content as available.
+void fable2_hook_ce_grantavail(PPCRegister& r3) {
+  if (!fable2::config::Get().unlock_ce) return;
+  r3.u32 = 1;
+  LogTrace("ce GRANT-AVAIL forced r3=1");
+}
+// 0x824B3674 = right before the CE grant bctrl; r9 = CE grant method address
+// (vtable slot at *(r3+16)), r3 = the item. Names the CE grant method so we
+// can inspect why it returns 0.
+void fable2_trace_ce_grantcall(PPCRegister& r9, PPCRegister& r3) {
+  static std::atomic<int> n{0};
+  if (n.fetch_add(1) < 40)
+    REXSYS_INFO("[fable2-trace] ce GRANT-CALL method=0x{:x} item=0x{:x}",
+                static_cast<unsigned long long>(r9.u64),
+                static_cast<unsigned long long>(r3.u64));
+}
 // 0x8256D9E4 = final result of the grant/dedup method sub_8256D940
 // (website-chest vtable[1] "is this item new?" check). Force it to report the
 // item as newly granted so the getter (GetWebsiteItem) returns non-zero.

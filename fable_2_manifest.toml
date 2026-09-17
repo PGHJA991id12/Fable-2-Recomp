@@ -112,6 +112,23 @@ address = 0x8256D9E4
 name = "fable2_hook_website_grantnew"
 registers = ["r3"]
 after_instruction = true
+# 0x824ACAE0 = lbz r3, 993(r3) — the entire body of the CE grant method
+# sub_824ACAE0 (the CE-chest vtable slot called from GetCEContent). It just
+# returns the byte at item+0x3E1 (the "CE content available" flag). Force
+# r3 = 1 so the getter reports the CE content as available.
+[[entrypoint.midasm_hook]]
+address = 0x824ACAE0
+name = "fable2_hook_ce_grantavail"
+registers = ["r3"]
+after_instruction = true
+# 0x824B3674 = mtctr r9 right before the CE grant bctrl (0x824B3678) in
+# GetCEContent. r9 = the CE grant method (vtable slot at *(r3+16)); r3 = the
+# item. Captures the CE grant method so we can see why it returns 0.
+[[entrypoint.midasm_hook]]
+address = 0x824B3674
+name = "fable2_trace_ce_grantcall"
+registers = ["r9", "r3"]
+after_instruction = true
 # 0x8256E4C8 = mtctr r11 right before the grant bctrl (0x8256E4CC). r11 is the
 # grant method's address (vtable[1] = *(r3+8)); r3 here is the item. Capturing
 # both names the grant method so we can see why it returns 0.
