@@ -46,13 +46,15 @@ struct Values {
   // can be A/B'd with no rebuild. Guest-image data patches live in
   // fable2_patches.toml instead (see src/fable2_patches.h).
   bool fps_60 = true;
-  // Unlock the Guild chest items that were obtainable from the (now-dead) Fable
-  // 2 website. Force the "unlocked" flag bit in sub_8256E368 (see
-  // fable2_hook_unlock_website).
+  // Unlock the Guild-chest items that were obtainable from the (now-dead)
+  // Fable 2 website. Forces both the registration gates and the grant-method
+  // result in GuildChest_GetWebsiteItem_8256E368 (hooks
+  // fable2_hook_website_g1/g1b/grantnew in src/fable2_hooks.cpp).
   bool unlock_website = true;
-  // Unlock the Collectors Edition content (Hal's chest items, Hall of the Dead)
-  // by forcing the "unlocked" flag bit in sub_824B3528 (see
-  // fable2_hook_unlock_ce).
+  // Unlock the Collectors Edition chest content. Forces both the
+  // registration gates and the grant-method result in
+  // GuildChest_GetCEContent_824B3528 (hooks fable2_hook_ce_g1/g1b/grantavail
+  // in src/fable2_hooks.cpp).
   bool unlock_ce = true;
 };
 
