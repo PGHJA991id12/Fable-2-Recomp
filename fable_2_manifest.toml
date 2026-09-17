@@ -94,129 +94,30 @@ name = "fable2_hook_ce_g1b"
 registers = ["r9"]
 after_instruction = true
 
-# --- TEMPORARY grant/tail diagnostic traces (website getter) ----------------
-# 0x8256E3B8 = item-lookup entry (lwz r10, 0x8c(r11)). r10 is the item-list
-# pointer; if it is NULL the lookup path can misbehave. This confirms the flow
-# gets PAST both forced gates into the lookup.
-[[entrypoint.midasm_hook]]
-address = 0x8256E3B8
-name = "fable2_trace_website_lookup"
-registers = ["r10"]
-after_instruction = true
-# 0x8256D9E4 = xori r3, r9, 1 — the final result of the grant/dedup method
-# sub_8256D940 (the website-chest vtable[1] "is this item new?" check). It
-# returns 0 when the item hash is already in the grant list. Force r3 = 1 so
-# the getter reports the item as newly granted (chest openable).
+# --- Unlock grant methods (make the getter report each item as granted) -----
+# Forcing the two registration gates alone is not enough: after the gates the
+# getter finds the item and calls a per-object GRANT vtable method, and the
+# getter returns THAT method's result. For an unregistered player the grant
+# method returns 0 (item not granted), so the getter reports "not available"
+# and the chest stays locked. We force each grant method's return to 1.
+#
+# Website: sub_8256D940 is the website-chest vtable[1] "is this item new?"
+# check. Its final instruction is `xori r3, r9, 1` at 0x8256D9E4; hook right
+# after it and set r3 = 1 so the getter reports the item as granted.
 [[entrypoint.midasm_hook]]
 address = 0x8256D9E4
 name = "fable2_hook_website_grantnew"
 registers = ["r3"]
 after_instruction = true
-# 0x824ACAE0 = lbz r3, 993(r3) — the entire body of the CE grant method
-# sub_824ACAE0 (the CE-chest vtable slot called from GetCEContent). It just
-# returns the byte at item+0x3E1 (the "CE content available" flag). Force
+#
+# CE: sub_824ACAE0 is the CE-chest grant vtable slot called from
+# GetCEContent. Its entire body is `lbz r3, 993(r3)` (returns the byte at
+# item+0x3E1, the "CE content available" flag). Hook right after it and set
 # r3 = 1 so the getter reports the CE content as available.
 [[entrypoint.midasm_hook]]
 address = 0x824ACAE0
 name = "fable2_hook_ce_grantavail"
 registers = ["r3"]
-after_instruction = true
-# 0x824B3674 = mtctr r9 right before the CE grant bctrl (0x824B3678) in
-# GetCEContent. r9 = the CE grant method (vtable slot at *(r3+16)); r3 = the
-# item. Captures the CE grant method so we can see why it returns 0.
-[[entrypoint.midasm_hook]]
-address = 0x824B3674
-name = "fable2_trace_ce_grantcall"
-registers = ["r9", "r3"]
-after_instruction = true
-# 0x8256E4C8 = mtctr r11 right before the grant bctrl (0x8256E4CC). r11 is the
-# grant method's address (vtable[1] = *(r3+8)); r3 here is the item. Capturing
-# both names the grant method so we can see why it returns 0.
-[[entrypoint.midasm_hook]]
-address = 0x8256E4C8
-name = "fable2_trace_website_grantcall"
-registers = ["r11", "r3"]
-after_instruction = true
-# 0x8256E4D0 = the epilogue reached ONLY via the grant path (the bctrl vtable
-# call at 0x8256E4CC returned). If this fires, the item was actually GRANTED.
-# We pass r3 (the grant's return value) to see what the grant reported.
-[[entrypoint.midasm_hook]]
-address = 0x8256E4D0
-name = "fable2_trace_website_grant"
-registers = ["r3"]
-after_instruction = true
-# 0x8256E4E0 = the return-0 tail (li r3,0). If this fires, a gate still FAILED
-# (the forcing did not take effect) and the item was NOT granted.
-[[entrypoint.midasm_hook]]
-address = 0x8256E4E0
-name = "fable2_trace_website_tail"
-registers = []
-after_instruction = true
-
-# --- TEMPORARY chest-click trace hooks (debugging the fable2.com gate) ------
-# No-arg hooks at the entry of the website-chest object's sibling methods (the
-# switch-table methods around sub_8256E368). Each logs its address once per
-# call; clicking the chest reveals the call sequence so we can find the
-# interact/click handler and the "registered" check. REMOVE after diagnosis.
-[[entrypoint.midasm_hook]]
-address = 0x8256DC10
-name = "fable2_trace_8256DC10"
-registers = []
-after_instruction = true
-[[entrypoint.midasm_hook]]
-address = 0x8256DCA0
-name = "fable2_trace_8256DCA0"
-registers = []
-after_instruction = true
-[[entrypoint.midasm_hook]]
-address = 0x8256DED8
-name = "fable2_trace_8256DED8"
-registers = []
-after_instruction = true
-[[entrypoint.midasm_hook]]
-address = 0x8256E120
-name = "fable2_trace_8256E120"
-registers = []
-after_instruction = true
-# Pass r12 (=LR, set by the leading `mflr r12`) to log the CALLER's return
-# address - this directly reveals the chest click handler.
-[[entrypoint.midasm_hook]]
-address = 0x8256E4F8
-name = "fable2_trace_8256E4F8"
-registers = ["r12"]
-after_instruction = true
-
-# sub_82228830 is the per-item worker (called 8x on chest click); its LR
-# reveals the REAL click handler (the function that shows the fable2.com message).
-[[entrypoint.midasm_hook]]
-address = 0x82228830
-name = "fable2_trace_82228830"
-registers = ["r12"]
-after_instruction = true
-
-# Entry hooks on the two item getters: confirm whether they are on the click
-# path at all, and capture the caller LR (r12 after the leading mflr r12) so we
-# can walk up to the chest's "locked"/registration gate.
-[[entrypoint.midasm_hook]]
-address = 0x8256E368
-name = "fable2_trace_GetWebsiteItem"
-registers = ["r12"]
-after_instruction = true
-
-[[entrypoint.midasm_hook]]
-address = 0x824B3528
-name = "fable2_trace_GetCEContent"
-registers = ["r12"]
-after_instruction = true
-[[entrypoint.midasm_hook]]
-address = 0x8256E5B0
-name = "fable2_trace_8256E5B0"
-registers = []
-after_instruction = true
-[[entrypoint.midasm_hook]]
-address = 0x8256E888
-name = "fable2_trace_8256E888"
-registers = []
 after_instruction = true
 
 # Conservative settings: no register optimizations
