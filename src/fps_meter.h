@@ -22,6 +22,70 @@
 
 #include <rex/ppc/func.h>
 
+#include "fable2_func_trace.h"
+
+namespace fable2::functrace_window {
+
+// Traces a bounded time window of the (unfiltered) guest call stream, armed
+// from the main loop so it lines up with a known on-screen moment (e.g. the
+// main menu) without running a multi-GB unfiltered trace for the whole boot.
+//
+//   FABLE2_TRACE_WINDOW=1         arm the window
+//   FABLE2_TRACE_DELAY=<sec>      start this many seconds after the first
+//                                 main-loop call (default 0)
+//   FABLE2_TRACE_DUR=<sec>        trace duration in seconds (default 5)
+//   FABLE2_TRACE_FILTER=<substr>  optional name filter while the window is
+//                                 open (default: everything)
+//
+// Writes the usual fable2_func_trace.log (append) + summary files.
+inline bool enabled() {
+#ifdef _WIN32
+  char v[8] = {};
+  size_t n = 0;
+  return ::getenv_s(&n, v, sizeof(v), "FABLE2_TRACE_WINDOW") == 0 && v[0] == '1';
+#else
+  const char* v = std::getenv("FABLE2_TRACE_WINDOW");
+  return v != nullptr && v[0] == '1';
+#endif
+}
+
+inline double delay_seconds() {
+  const char* v = std::getenv("FABLE2_TRACE_DELAY");
+  return v ? std::atof(v) : 0.0;
+}
+
+inline double duration_seconds() {
+  const char* v = std::getenv("FABLE2_TRACE_DUR");
+  return v ? std::atof(v) : 5.0;
+}
+
+inline void run_window(int64_t now_us) {
+  if (!enabled()) return;
+  static const int64_t t0 = now_us;  // first main-loop call
+  const double delay_s = delay_seconds();
+  const double dur_s = duration_seconds();
+  const int64_t start_us = t0 + static_cast<int64_t>(delay_s * 1e6);
+  const int64_t end_us = start_us + static_cast<int64_t>(dur_s * 1e6);
+  if (now_us < start_us) return;
+  if (now_us < end_us) {
+    if (!fable2::functrace::enabled().load()) {
+      const char* f = std::getenv("FABLE2_TRACE_FILTER");
+      if (f) Fable2FuncTraceSetFilter(f);
+      fable2::functrace::set_enabled(true);
+      std::fprintf(stderr,
+                   "[functrace-window] tracing %.1fs starting now\n", dur_s);
+    }
+  } else {
+    if (fable2::functrace::enabled().load()) {
+      fable2::functrace::set_enabled(false);
+      fable2::functrace::flush();
+      std::fprintf(stderr, "[functrace-window] window done, log flushed\n");
+    }
+  }
+}
+
+}  // namespace fable2::functrace_window
+
 namespace fable2::fpsmeter {
 
 inline bool enabled() {
@@ -35,6 +99,11 @@ inline bool enabled() {
 }  // namespace fable2::fpsmeter
 
 extern "C" void MainRenderLoop_82B9CD68(PPCContext& ctx, uint8_t* base) {
+  // Bounded unfiltered trace window (FABLE2_TRACE_WINDOW=1); see above.
+  fable2::functrace_window::run_window(
+      std::chrono::duration_cast<std::chrono::microseconds>(
+          std::chrono::steady_clock::now().time_since_epoch())
+          .count());
   if (fable2::fpsmeter::enabled()) {
     static std::atomic<uint64_t> calls{0};
     static std::atomic<int64_t> window_start_us{0};

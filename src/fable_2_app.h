@@ -29,6 +29,7 @@
 #include "alloc_watch.h"
 #include "fable2_config.h"
 #include "fable2_patches.h"
+// #include "fable2_deadbeef_overlay.h"
 // 30fps-cap instrumentation (writes fps_probe.log next to the exe). Disabled
 // now that the cap is lifted via REX_VSYNC=0 (see tools/fable2-uncapped.cmd).
 // Re-enable to re-measure the frame pacing:
@@ -378,7 +379,9 @@ class Fable2App : public rex::ReXApp {
       }
     }
   }
-  // void OnCreateDialogs(rex::ui::ImGuiDrawer* drawer) override {}
+  void OnCreateDialogs(rex::ui::ImGuiDrawer* drawer) override {
+    // fable2::deadbeef_overlay::register_overlay(drawer);
+  }
   // std::unique_ptr<rex::ui::ImGuiDialog> CreateAchievementsOverlay() override;
   // std::unique_ptr<rex::ui::AchievementNotificationDialog>
   // CreateAchievementNotificationDialog() override;

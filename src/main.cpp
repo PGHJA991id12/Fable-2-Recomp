@@ -4,6 +4,11 @@
 
 #include "fable_2_app.h"
 #include "fps_meter.h"
+#include "fable2_text_probe.h"
+#include "fable2_glyph_probe.h"
+#include "fable2_hotfuncs.h"
+#include "fable2_heap_scan.h"
+#include "fable2_text_append.h"
 #include "keyboard_gamepad.h"
 
 #include <rex/cvar.h>
