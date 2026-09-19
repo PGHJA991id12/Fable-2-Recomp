@@ -107,7 +107,8 @@ inline void scan_strings(FILE* f, const char* label, uint32_t base_addr,
         char buf[192];
         std::snprintf(
             buf, sizeof(buf), "      [%s 0x%08X] \"%.*s\"\n", label,
-            base_addr + i, static_cast<int>(std::min<size_t>(j - i, 96)),
+            static_cast<uint32_t>(base_addr + i),
+            static_cast<int>(std::min<size_t>(j - i, 96)),
             reinterpret_cast<const char*>(p + i));
         std::fputs(buf, f);
       }

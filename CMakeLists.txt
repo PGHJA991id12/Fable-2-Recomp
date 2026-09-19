@@ -32,6 +32,13 @@ endif()
 # for Release). Without it the game runs with no GPU emulation.
 rexglue_setup_target(fable_2 GPU_PLUGINS xenos)
 
+# The app's probe/diagnostic headers (src/fable2_*.h) use the standard CRT
+# functions (fopen, getenv, strcat, strncat, ...), which the MSVC/UCRT headers
+# mark deprecated when compiled with clang (-Wdeprecated-declarations noise).
+# These are safe in this codebase; silence the deprecation on Windows.
+target_compile_definitions(fable_2 PRIVATE
+    $<$<PLATFORM_ID:Windows>:_CRT_SECURE_NO_WARNINGS>)
+
 # --- Recomp-level patches (Xenia code-region patches, made effective) ------
 # This is a RECOMP: guest .text is never executed, so Xenia code patches
 # (byte writes to .text) are inert at runtime. tools/apply_recomp_patches.py
