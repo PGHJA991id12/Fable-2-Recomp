@@ -30,6 +30,7 @@
 #include <rex/ppc/context.h>
 
 #include "fable2_deadbeef.h"
+#include "fable2_ui_render_probe.h"
 
 namespace fable2::textprobe {
 
@@ -252,6 +253,7 @@ extern "C" void sub_822A2948(PPCContext& ctx, uint8_t* base) {
           std::chrono::steady_clock::now().time_since_epoch())
           .count();
   fable2::textprobe::run(base, ctx, now_us);
+  if (fable2::uir::hook("sub_822A2948", ctx, base)) return;
   __imp__sub_822A2948(ctx, base);
 }
 
@@ -269,5 +271,6 @@ extern "C" void UITextItem_Dispatch(PPCContext& ctx, uint8_t* base) {
             .count();
     fable2::textprobe::run(base, ctx, now_us);
   }
+  if (fable2::uir::hook("UITextItem_Dispatch", ctx, base)) return;
   __imp__UITextItem_Dispatch(ctx, base);
 }

@@ -36633,6 +36633,26 @@ name = "UIText_FrameRenderIter"
 [entrypoint.functions."0x82BFDB68"]
 name = "UITextItem_Dispatch"
 
+# The title prompt's slot-4 render method (the bctrl target for the title
+# screen's single text item, object at 0x832D60F0 whose *(item+4) points
+# here). Ignores its argument: sets r31 = 0x83334E20 (UI text manager
+# 0x83330000 + 0x4E20, the prompt's element list) and loops:
+#   elem = sub_82B458C0(0x83334E20);   # fetch/advance element list
+#   while (elem) { UITextPrompt_RenderElement(elem); elem = sub_82B458C0(...); }
+# This is the function that renders the "Press <a_img> to start" prompt.
+[entrypoint.functions."0x82C44CF0"]
+name = "UITextPrompt_Render"
+
+# Per-element draw of the prompt, called in a loop by UITextPrompt_Render.
+# r3 = element (r31). Key element fields: *(elem+0x7C) = drawable pointer
+# (0 => element skipped), elem+0xAC/0xBB/0xBC = cached draw state.
+# Flow: visibility check via sub_82C44688(elem+8) (result & 0x3F), then
+# sub_82BFCB58/sub_82C50A88 bookkeeping, then the actual draw: a vcall into
+# the drawable's vtable[8] (mtctr *( *(elem+0x7C) + 0x20 ); bctrl) with the
+# drawable in r4 and a stack scratch buffer in r3.
+[entrypoint.functions."0x82C44B50"]
+name = "UITextPrompt_RenderElement"
+
 # r3 = *(0x83330000 + 19756 = 0x83334D2C)  [pointer to the "current text"
 # object], then calls UIText_RenderCurrentObject(r3).
 [entrypoint.functions."0x82C0AD60"]

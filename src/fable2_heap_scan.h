@@ -66,8 +66,42 @@ static const uint8_t kN_start_be[] = {0x00,'s',0x00,'t',0x00,'a',0x00,'r',0x00,'
 static const uint8_t kN_to_start_le[] = {'t',0x00,'o',0x00,' ',0x00,'s',0x00,'t',0x00,'a',0x00,'r',0x00,'t',0x00};
 static const uint8_t kN_start_le[] = {'s',0x00,'t',0x00,'a',0x00,'r',0x00,'t',0x00};
 
+// Back-reference scan: FABLE2_HEAP_SCAN_PTR=0xA,0xB - find every RW word
+// that POINTS AT one of these guest addresses (big-endian). Logs the owner
+// location + 8 words of context so the owning object can be identified.
+static const uint32_t* g_ptr_targets = nullptr;
+static int g_ptr_target_count = 0;
+static int g_ptr_hits = 0;
+static const int kMaxPtrHits = 200;
+
+static void ptr_backref_search(uint8_t* hp, size_t len, uint32_t guest_lo) {
+  if (g_ptr_target_count == 0 || len < 4) return;
+  for (size_t i = 0; i + 4 <= len && g_ptr_hits < kMaxPtrHits; i += 4) {
+    const uint32_t v =
+        (uint32_t)((hp[i] << 24) | (hp[i + 1] << 16) | (hp[i + 2] << 8) | hp[i + 3]);
+    for (int t = 0; t < g_ptr_target_count; ++t) {
+      if (v != g_ptr_targets[t]) continue;
+      uint32_t ga = guest_lo + (uint32_t)i;
+      char buf[280];
+      int bsz = 0;
+      bsz += std::snprintf(buf + bsz, sizeof(buf) - bsz,
+                           "  PTRREF 0x%08X -> 0x%08X | ", ga, v);
+      for (int k = 0; k < 8 && i + (size_t)k * 4 + 4 <= len; ++k) {
+        bsz += std::snprintf(buf + bsz, sizeof(buf) - bsz, "%02X%02X%02X%02X ",
+                             hp[i + k * 4], hp[i + k * 4 + 1], hp[i + k * 4 + 2],
+                             hp[i + k * 4 + 3]);
+      }
+      bsz += std::snprintf(buf + bsz, sizeof(buf) - bsz, "\n");
+      std::fputs(buf, g_scan_log);
+      ++g_ptr_hits;
+    }
+  }
+  if (g_scan_log) std::fflush(g_scan_log);
+}
+
 // Targeted needle search (all encodings) across a region.
 static void needle_search(uint8_t* hp, size_t len, uint32_t guest_lo) {
+  ptr_backref_search(hp, len, guest_lo);
   struct N { const char* label; const uint8_t* pat; int plen; int cap; int wide; };
   static const N ns[] = {
       {"to start(a)", kN_to_start_a, 8, 32, 0}, {"Press(a)", kN_press_a, 5, 40, 0},
@@ -110,6 +144,12 @@ static void needle_search(uint8_t* hp, size_t len, uint32_t guest_lo) {
         }
         bsz += std::snprintf(buf + bsz, sizeof(buf) - bsz, "]\n");
         std::fputs(buf, g_scan_log);
+        // Feed the live-string watch: the input probe now tracks these buffers
+        // automatically (they move per run, so hardcoding is not possible).
+        if (n.wide) {
+          fable2::uip::add_runtime_addr(ga);       // match start
+          fable2::uip::add_runtime_addr(ga - 0x20); // likely record base
+        }
         --cap;
       }
       ++p;
@@ -208,6 +248,26 @@ inline void scan_all() {
   g_scan_log = f;
   g_ascii_runs = 0;
   g_u16_runs = 0;
+  g_ptr_hits = 0;
+  // (Re)parse the back-reference targets once.
+  static uint32_t pt[16];
+  static bool pt_init = false;
+  if (!pt_init) {
+    pt_init = true;
+    const char* v = std::getenv("FABLE2_HEAP_SCAN_PTR");
+    if (v) {
+      std::string s(v);
+      size_t start = 0;
+      for (size_t i = 0; i <= s.size() && g_ptr_target_count < 16; ++i) {
+        if (i == s.size() || s[i] == ',') {
+          std::string tok = s.substr(start, i - start);
+          if (!tok.empty()) pt[g_ptr_target_count++] = (uint32_t)std::strtoul(tok.c_str(), nullptr, 0);
+          start = i + 1;
+        }
+      }
+      g_ptr_targets = pt;
+    }
+  }
   char hdr[128];
   std::snprintf(hdr, sizeof(hdr), "\n==== heap scan (start) ====\n");
   std::fputs(hdr, f);
@@ -302,14 +362,15 @@ inline void maybe_request() {
   static std::atomic<int> frame{0};
   if (frame.fetch_add(1) % 30 != 0) return;  // ~once / 0.5s
   double el = now_s() - t0;
-  // Ask for scans across the load->title window (string is loaded once and
-  // stays in the heap, so any scan after load finds it).
-  if (el > 5.0 && el < 35.0) scan_request().store(1);
+  // Ask for scans continuously after load (covers loading -> title ->
+  // menu; FABLE2_HEAP_SCAN_TIMES caps the total number of full scans).
+  if (el > 5.0) scan_request().store(1);
 }
 
 }  // namespace fable2::heapscan
 
 extern "C" void UIText_FrameRender(PPCContext& ctx, uint8_t* base) {
   fable2::heapscan::maybe_request();
+  if (fable2::uir::hook("UIText_FrameRender", ctx, base)) return;
   __imp__UIText_FrameRender(ctx, base);
 }

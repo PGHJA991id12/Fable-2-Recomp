@@ -47,6 +47,8 @@
 
 #include <rex/ppc/context.h>
 
+#include "fable2_ui_render_probe.h"
+
 namespace fable2::textappend {
 
 // ---------------------------------------------------------------------------
@@ -674,6 +676,7 @@ extern "C" void UIFont_LookupGlyph(PPCContext& __restrict ctx, uint8_t* base) {
         fable2::textappend::dump_words("out ", base, s, 32);
     }
   }
+  if (fable2::uir::hook("UIFont_LookupGlyph", ctx, base)) return;
   __imp__UIFont_LookupGlyph(ctx, base);
 }
 
@@ -743,6 +746,7 @@ extern "C" void UIFont_EmitGlyphQuad(PPCContext& __restrict ctx, uint8_t* base) 
     const uint32_t r4 = (uint32_t)ctx.r4.u64;
     if (r4 < 0x40000000u) cap_last_x() = r4;
   }
+  if (fable2::uir::hook("UIFont_EmitGlyphQuad", ctx, base)) return;
   __imp__UIFont_EmitGlyphQuad(ctx, base);
 }
 
@@ -857,6 +861,7 @@ extern "C" void sub_82C09018(PPCContext& __restrict ctx, uint8_t* base) {
     if (n.fetch_add(1) % step == 0 && n.load() < 6000)
       fable2::textappend::probe_element(base, (uint32_t)ctx.r3.u64, (uint32_t)ctx.r4.u64);
   }
+  if (fable2::uir::hook("sub_82C09018", ctx, base)) return;
   __imp__sub_82C09018(ctx, base);
   // Shift the per-glyph vertex x AFTER the state builder built the vertex data
   // (and BEFORE the vertex-emitting calls sub_82C09B50/sub_82C0A230 run), so
@@ -887,6 +892,7 @@ extern "C" void UIText_RenderSegment(PPCContext& __restrict ctx, uint8_t* base) 
     if (n.fetch_add(1) % step == 0 && n.load() < 6000)
       fable2::textappend::probe_segment(base, (uint32_t)ctx.r3.u64, (uint32_t)ctx.r4.u64);
   }
+  if (fable2::uir::hook("UIText_RenderSegment", ctx, base)) return;
   __imp__UIText_RenderSegment(ctx, base);
   // The append is now done by shifting the glyph x in UIFont_EmitGlyphQuad
   // (see below); the element-clone path is disabled.

@@ -26,6 +26,8 @@
 
 #include <rex/ppc/context.h>
 
+#include "fable2_ui_render_probe.h"
+
 namespace fable2::hotfuncs {
 
 enum Idx {
@@ -138,6 +140,7 @@ inline void start_writer() {
       fable2::hotfuncs::tick(fable2::hotfuncs::IDX);                           \
       fable2::hotfuncs::start_writer();                                        \
     }                                                                          \
+    if (fable2::uir::hook(#SYM, ctx, base)) return;                             \
     __imp__##SYM(ctx, base);                                                    \
   }
 

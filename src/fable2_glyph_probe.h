@@ -376,6 +376,7 @@ extern "C" void UIText_RenderElement(PPCContext& ctx, uint8_t* base) {
   }
   // Throttled font/glyph-table scan (no-op unless FABLE2_FONT_PROBE=1).
   fable2::fontprobe::maybe_scan(base);
+  if (fable2::uir::hook("UIText_RenderElement", ctx, base)) return;
   __imp__UIText_RenderElement(ctx, base);
 }
 
@@ -384,5 +385,6 @@ extern "C" void UIText_RenderElement(PPCContext& ctx, uint8_t* base) {
 // is applied in the sub_82C09018 hook instead (right after the state builder).
 extern "C" void __imp__sub_82C09870(PPCContext& ctx, uint8_t* base);
 extern "C" void sub_82C09870(PPCContext& ctx, uint8_t* base) {
+  if (fable2::uir::hook("sub_82C09870", ctx, base)) return;
   __imp__sub_82C09870(ctx, base);
 }

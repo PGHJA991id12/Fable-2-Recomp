@@ -40,6 +40,19 @@ editing data files / localization), and must not freeze the game.
 | `FABLE2_DEADBEEF=1` | **Append " DEADBEEF" to every UI text string (the canary)** |
 | `FABLE2_DEADBEEF_LOG=1` | Log DEADBEEF appends to `fable2_deadbeef.log` |
 | `FABLE2_DEADBEEF_EVERY=1` | Also try the known title-prompt heap addresses |
+| `FABLE2_UIR=1` | UI render probe: per-hook timeline in a window | `fable2_ui_render_probe.h` |
+| `FABLE2_UIR_DELAY` / `FABLE2_UIR_DUR` | Window start/duration (s, from first hook call) |
+| `FABLE2_UIR_SUPPRESS=Fn@t0-t1,...` | **Ablation**: skip the original call for Fn in the slice |
+| `FABLE2_UIR_SKIP=Fn` | Always skip Fn's original call |
+| `FABLE2_UIR_FUNC_TRACE=1` | Auto-enable the RLE func trace inside the window |
+| `FABLE2_UIR_IN=1` | UI input probe: capture inputs of hooked pipeline fns | `fable2_ui_input_probe.h` |
+| `FABLE2_UIR_IN_ANCHOR=proc` | Anchor the window to PROCESS START (load time drifts; use this) |
+| `FABLE2_UIR_IN_DUMP=fn1,fn2` | Full input dump: GPRs r3–r31, FPRs f1–f14, lr, pointed-to mem |
+| `FABLE2_UIR_IN_PTS=r3,r28,...` | Which registers' pointed-to memory to dump (64 B each) |
+| `FABLE2_UIR_IN_STRIDE` / `_PERCAP` | Sample every Nth call / per-function dump cap |
+| `FABLE2_UIR_IN_ADDRS=0xA,0xB` | Watch list: log any GPR landing within ±256 B of an address |
+| `FABLE2_UIR_IN_PATSCAN=1` (+`_PAT`) | Byte-pattern hunt in r3–r10 + 1 indirection (HEAVY, off by default) |
+| `FABLE2_HEAP_SCAN_PTR=0xA,0xB` | Back-reference scan: find all RW words pointing at these addresses |
 
 ---
 
@@ -127,12 +140,22 @@ Do NOT capture `&sub_XXX` (that's your own strong symbol → recursion). Call
   **`UIText_FrameRenderIter`** (0x82190760, `list, -1`).
   - **`UIText_FrameRender`** (0x82C03FA8): `r11 = 0x83330000; r4 = -1;
     r3 = r11 + 19104 (=0x83334AA0); tail-call UIText_FrameRenderIter`.
+    The caller passes the **game time (seconds) in `f1`** (observed
+    `f1≈34.056` at `t≈34.056 s`) — the time source for blink/animation.
+    The pass fires at a constant high rate (tens of thousands of calls/s,
+    NOT once per frame); the prompt blink is data-driven (alpha), not
+    call-gated (session 3, §10.3).
   - **`UIText_FrameRenderIter`** (0x82190760) iterates a list at `0x83334AA0`
     and draws each item via **`UITextItem_Dispatch`** (0x82BFDB68, `bctrl`).
-- **Text render chain (active during title AND loading screens):**
+    Each item's slot-4 field (`item+4`) is a **direct method pointer** that
+    selects the item's render code — the chain below is only ONE item type.
+- **Current-text render chain (one item TYPE, not the title prompt's):**
   **`UIText_RenderCurrent`** (0x82C0AD60) → **`UIText_RenderCurrentObject`**
   (0x82C0ACD0) → **`UIText_RenderSegment`** (0x82C0A8F8, ×3) →
   **`UIText_RenderElement`** (0x82C0A6A0, per-glyph/element draw).
+  Fires sparsely but continuously (≈20/s) during title+loading. The title
+  prompt item does NOT use this chain — its slot-4 method is
+  **`UITextPrompt_Render` (0x82C44CF0)** (session 3, §10.2).
   - **`UIText_RenderCurrent`** (0x82C0AD60): `r3 = *(0x83330000 + 19756 =
     0x83334D2C); UIText_RenderCurrentObject(r3)`. So `*(0x83334D2C)` = pointer
     to the "current text" object.
@@ -149,10 +172,14 @@ Do NOT capture `&sub_XXX` (that's your own strong symbol → recursion). Call
   per-character glyph emission on the hot path.
 
 ### vcall thunks
-- **`UITextItem_Dispatch`** (0x82BFDB68; fires ~3400×/screen):
-  `r11 = *(r3+4); if (r11) bctrl r11`. Dispatches an object's "slot-4 method".
-  During the title the targets seen were **`UIText_RenderCurrent`**
-  (0x82C0AD60) and `sub_82C44CF0`.
+- **`UITextItem_Dispatch`** (0x82BFDB68; fires continuously while the text
+  list is non-empty):
+  `lwz r11, 4(r3); if (r11) { mtctr r11; bctrl }`. Dispatches an object's
+  "slot-4 method" (a direct method pointer at `item+4`).
+  On the title screen the list holds exactly ONE item — the prompt (object
+  `0x832D60F0`, run-dependent) — whose slot-4 target is
+  **`UITextPrompt_Render` (0x82C44CF0)**. `UIText_RenderCurrent` (0x82C0AD60)
+  is the slot-4 target of the current-text item type seen on other screens.
 
 ---
 
@@ -161,8 +188,12 @@ Do NOT capture `&sub_XXX` (that's your own strong symbol → recursion). Call
 The title prompt is a **live UTF-16BE string** in the heap, and the "A" button
 is a **markup tag**, not a literal letter.
 
-### Primary (runtime title prompt) — guest `0x426690F0`
-Raw bytes (UTF-16BE):
+### Primary (runtime title prompt) — guest `0x426690F0` (run-dependent!)
+**The exact address is NOT stable across runs** — a later run placed the same
+string at `0x42668850` (with sibling `to start` copies at `0x4266886C`,
+`0x42668E0C`, `0x42668E6C`, `0x4266922C`). The `0x4266xxxx` heap region is
+stable; the offset moves. Pattern-search each run (or let the heap scanner's
+runtime feed do it — §10.5). Raw bytes (UTF-16BE):
 ```
 00 50 00 72 00 65 00 73 00 73 00 20 00 3C 00 61 00 5F 00 69 00 6D 00 67 00 3E
 00 20 00 74 00 6F 00 20 00 73 00 74 00 61 00 72 00 74 00 00
@@ -210,14 +241,22 @@ contract that binds the A/B button prompts to icons.
 | `fable2_list_dump.h` | `UIText_FrameRender` | Dump current-text object + font (big-endian) | `FABLE2_TEXTOBJ_DUMP=1` |
 | `fable2_func_trace.h` | (PCH macro redefinition) | Log every guest function entry | `FABLE2_TRACE_WINDOW=1` |
 | `fable2_ui_text_dump.h` | `UIText_FrameRender` | UI text list dump (NOT wired into main.cpp) | `FABLE2_UI_TEXT_DUMP=1` |
+| `fable2_ui_render_probe.h` | strong overrides for `sub_82BFD850`, `UITextItem_Render`, `UIText_RenderWithFont`, `sub_82C09B50`, `sub_82C0A230`, `sub_82B4EEE0`; plus **fan-in point** — every other probe's hook calls `fable2::uir::hook(name, ctx, base)` | Per-hook timeline + timed ablation (`SUPPRESS`) | `FABLE2_UIR=1`, `_DELAY`, `_DUR`, `_SUPPRESS`, `_SKIP`, `_FUNC_TRACE` |
+| `fable2_ui_input_probe.h` | (no own override — runs via `uir::hook` from every probe) | Full input capture: all-GPR address watch (runtime-fed by the heap scanner), strided full-register + pointed-to-memory dumps | `FABLE2_UIR_IN=1`, `_ANCHOR=proc`, `_DUMP`, `_PTS`, `_STRIDE`, `_PERCAP`, `_ADDRS`, `_PATSCAN` |
 
 `main.cpp` currently includes: `fable_2_app.h`, `fps_meter.h`,
-`fable2_text_probe.h`, `fable2_heap_scan.h`, `keyboard_gamepad.h`.
+`fable2_text_probe.h`, `fable2_glyph_probe.h`, `fable2_hotfuncs.h`,
+`fable2_heap_scan.h`, `fable2_text_append.h`, `fable2_ui_render_probe.h`
+(which pulls in `fable2_ui_input_probe.h`), `keyboard_gamepad.h`.
+Optional (not currently included): `fable2_list_dump.h`,
+`fable2_ui_text_dump.h`, `fable2_font_probe.h`.
 
 > **Symbol collision note:** `fable2_heap_scan.h`, `fable2_list_dump.h`, and
 > `fable2_ui_text_dump.h` each define a strong `UIText_FrameRender`. Only ONE may
 > be included at a time (or consolidate into a single `UIText_FrameRender` that
-> fans out).
+> fans out). Every pipeline hook must also funnel through
+> `fable2::uir::hook("Name", ctx, base)` (which calls `fable2::uip::scan`)
+> to be visible to the timeline/input probes.
 
 ### Func trace format
 - `fable2_func_trace.log` (exe dir): one function name per line, in call order,
@@ -236,19 +275,28 @@ contract that binds the A/B button prompts to icons.
 | `0x82000000` | Image base (`.text` start) |
 | `0x92000000`+ | Second image mapping (strings mirror `0x82xxxxxx`) |
 | `0x920Cxxxx` | Localized UI strings (UTF-16BE) |
-| `0x426690F0` | **`Press <a_img> to start`** (runtime title prompt, UTF-16BE) |
+| `0x426690F0` / `0x42668850` | **`Press <a_img> to start`** (runtime title prompt, UTF-16BE; exact offset moves per run) |
 | `0x4266xxxx` | Heap region with prompt copies + float params |
 | `0x83330000` | VFS/asset table base (NOT a font registry) |
 | `0x83334AA0` | Per-frame UI text list object |
 | `0x83334D2C` | Slot holding pointer to "current text" object |
 | `0x83334A08` | Slot = `0x40102AF0` (asset/VFS table object, vtable `0x8200CAE8`) |
+| `0x83334E20` | **Prompt element-list object** (manager + 0x4E20), iterated by `UITextPrompt_Render` |
+| `0x832D60F0` | Title prompt item object (run-dependent); vtable `0x8200A114`, slot-4 = `0x82C44CF0` |
+| `0x8200A114` | Prompt item vtable ([0]=`UITextItem_Dispatch`, [1]=`sub_82BFDB80` dtor) |
+| `0x8200AEA0` | Draw-object vtable ([7]=`0x82C12ED8`, **[8]=`0x82C12F18`** = prompt per-element draw leaf, [9]=`0x82C12F78`, [13]=`0x82C12D90`, [14]=`0x82C12EA0`) |
+| `0x8208FB28` | ASCII `"bad allocation"` (debug-heap label string; the repeated pointers in the item object) |
 
 ### Key functions (all named in `fable_2_manifest.toml`)
 | Manifest name | Addr | Role |
 |---------------|------|------|
 | `UIText_FrameRender` | 0x82C03FA8 | Per-frame UI text pass entry (→ `UIText_FrameRenderIter`) |
 | `UIText_FrameRenderIter` | 0x82190760 | Iterates UI text list @ `0x83334AA0`, draws items |
-| `UITextItem_Dispatch` | 0x82BFDB68 | vcall thunk: `bctrl *(item+4)` (item's slot-4 render) |
+| `UITextItem_Dispatch` | 0x82BFDB68 | vcall thunk: `lwz r11, 4(r3); mtctr; bctrl` (item's slot-4 render) |
+| `UITextPrompt_Render` | 0x82C44CF0 | **Title prompt's slot-4 render**: no effective args; loops element list @ `0x83334E20` via `sub_82B458C0`, draws each via `UITextPrompt_RenderElement` |
+| `UITextPrompt_RenderElement` | 0x82C44B50 | Prompt per-element draw: visibility check (`sub_82C44688(elem+8) & 0x3F`), then bctrl to `drawable.vtable[8]` = `0x82C12F18` (drawable = `*(elem+0x7C)`) |
+| `sub_82B458C0` | 0x82B458C0 | Prompt element-list fetch/next (returns element, 0 = done) |
+| `sub_82C12F18` | 0x82C12F18 | Draw-object vtable[8] — **leaf of the prompt's per-element draw** |
 | `UIText_RenderCurrent` | 0x82C0AD60 | Loads `*(0x83334D2C)`, calls `UIText_RenderCurrentObject` |
 | `UIText_RenderCurrentObject` | 0x82C0ACD0 | Renders the "current text" object (font slot `0x83334A08`, visible flag `+152`) |
 | `UIText_RenderSegment` | 0x82C0A8F8 | Iterates a segment's glyph linked-list (called ×3) |
@@ -306,21 +354,12 @@ UIText_RenderElement (0x82C0A6A0)
 ```
 - Element vtable `0x8200AA58`: `[9]=0x82C093F0, [13]=0x82B4EEE0 (draw), [14]=0x82C0A988`.
 - Draw vtable `0x8200AEA0`: `[7]=0x82C12ED8, [9]=0x82C12F78, [13]=0x82C12D90, [14]=0x82C12EA0`.
-- The real per-element draw is **`element.vtable[13]` = 0x82B4EEE0**, invoked
-  via `sub_82C09870`. The per-frame x position is consumed here (via the glyph
-  records / run) — its exact source is still being located.
+- ~~The real per-element draw is `element.vtable[13]` = 0x82B4EEE0~~ —
+  **corrected in 8.3b**: `0x82B4EEE0` (and `draw.vtable[7]`) are only
+  queries; the real vertex write happens in the `sub_82C0A230` dispatch
+  target. The per-frame x position source is still being located.
 
-### 8.4 What was tried (and did NOT move the visible text)
-1. **Shift `UIFont_EmitGlyphQuad` r4 (layout x).** Ineffective — r4 is the
-   *layout-time* x, not the *per-frame draw* x.
-2. **Shift the glyph run's x_offsets** (`draw_obj+0xE4`, words 1,3,…; the
-   ~0x34000–0x37000 integers), applied once per run in the
-   `UIText_RenderElement` hook. **Ineffective** — the visible text did not move.
-3. **Shift the per-glyph vertex x** (first float of `record+0x2C` vertex data,
-   ~0x46xxxxxx / tens-of-thousands). Tried in `sub_82C09870` (too late) AND in
-   `sub_82C09018` (right after the state builder). **Still ineffective.**
-
-### 8.7 Full RenderElement draw chain (decoded, session 2b)
+### 8.3b Full RenderElement draw chain (decoded, session 2b)
 ```
 UIText_RenderElement (0x82C0A6A0)  [r31=element, r30=render ctx]
   1. if el[172]==0 && el[157]!=0:
@@ -349,6 +388,16 @@ UIText_RenderElement (0x82C0A6A0)  [r31=element, r30=render ctx]
   per-glyph screen position is written to the **GPU shared-memory** region
   (`0xF0000000–0xFFFFFFFF`) by the dispatch target, which has not yet been
   instrumented.
+
+### 8.4 What was tried (and did NOT move the visible text)
+1. **Shift `UIFont_EmitGlyphQuad` r4 (layout x).** Ineffective — r4 is the
+   *layout-time* x, not the *per-frame draw* x.
+2. **Shift the glyph run's x_offsets** (`draw_obj+0xE4`, words 1,3,…; the
+   ~0x34000–0x37000 integers), applied once per run in the
+   `UIText_RenderElement` hook. **Ineffective** — the visible text did not move.
+3. **Shift the per-glyph vertex x** (first float of `record+0x2C` vertex data,
+   ~0x46xxxxxx / tens-of-thousands). Tried in `sub_82C09870` (too late) AND in
+   `sub_82C09018` (right after the state builder). **Still ineffective.**
 
 ### 8.5 Current hooks / probe headers (session 2)
 | Header | Hook(s) | Purpose | Env |
@@ -411,7 +460,137 @@ right; then keep the original in place and draw a copy ("DEADBEEF") after it.
 - Is the glyph run (`draw_obj+0xE4`) rebuilt every frame, or persistent? (Its
   x_offsets are stable across frames, but shifting them had no visual effect —
   so either the draw ignores them, or it re-derives x from the records.)
-- Is `0x426690F0` a stable address, or must the code search for the UTF-16BE
-  pattern each time it needs to patch?
+- ~~Is `0x426690F0` a stable address?~~ **Answered (session 3): NO.** The
+  string moved to `0x42668850` in a later run (region `0x4266xxxx` is stable).
+  Pattern-search each run, or use the heap scanner's runtime address feed
+  (`fable2::uip::add_runtime_addr`, §10.5).
 - How does `<a_img>` get expanded to a sprite at draw time (the tag→icon
   mapping at `0x820D7B50`)? This determines how to inject an "E" keycap.
+
+---
+
+## 10. Session 3 — identifying the prompt's actual render function (input capture)
+
+Goal: identify which guest function actually renders the "Press <a_img> to
+start" prompt by hooking candidates and capturing their inputs (registers +
+pointed-to memory) — no screenshots.
+
+### 10.1 The prompt string does NOT flow through the per-frame pipeline
+- Scanning **all GPRs (r3–r31)** at entry to every hooked pipeline function
+  over t=5–55 s, the string pointer (auto-discovered per run by the heap
+  scanner) **never appeared** — not directly, not via one level of
+  pointer indirection.
+- ⇒ The per-frame draw consumes **pre-laid-out glyph/element data**, not the
+  raw string. The string is consumed at layout/load time only, so hunting it
+  in render-window registers can never find the renderer.
+
+### 10.2 The title screen has exactly ONE UI text item — the prompt
+- `UITextItem_Dispatch` is called with a single distinct item throughout the
+  title window: object **`0x832D60F0`** (run-dependent).
+- Item object layout (from pointed-to dump):
+  - `+0x00` = vtable **`0x8200A114`** ([0]=`UITextItem_Dispatch`,
+    [1]=`sub_82BFDB80` dtor)
+  - `+0x04` = **slot-4 render method = `0x82C44CF0`** (the bctrl target)
+  - `+0x08…` = repeated pointers to the ASCII string **`"bad allocation"`**
+    (`0x8208FB28`) — debug-heap allocation labels, not data.
+
+The prompt's render chain (disassembly-verified via `tools/ppc_probe.py`;
+named in `fable_2_manifest.toml`):
+
+```
+UIText_FrameRender (0x82C03FA8)          [per-frame entry; caller passes game
+                                          time in f1 (seconds)]
+  → UIText_FrameRenderIter (0x82190760)  [walks item list @ 0x83334AA0]
+    → UITextItem_Dispatch (0x82BFDB68)   [lwz r11, 4(r3); mtctr; bctrl]
+      → UITextPrompt_Render (0x82C44CF0) [the prompt's slot-4 method]
+          r31 = 0x83334E20  (element-list object = manager + 0x4E20)
+          loop:  elem = sub_82B458C0(r31)
+                 while (elem) { UITextPrompt_RenderElement(elem);
+                                elem = sub_82B458C0(r31); }
+        → UITextPrompt_RenderElement (0x82C44B50)   [r3 = element]
+            drawable = *(elem+0x7C)        (0 ⇒ element skipped)
+            if (sub_82C44688(elem+8) & 0x3F) == 0:  elem+0xBC = 2; return
+            bookkeeping: sub_82BFCB58, sub_82C50A88, sub_82B4D518
+            DRAW:  mtctr *(drawable+0x20)   [drawable.vtable[8]]
+                   bctrl                     (r4=drawable, r3=stack scratch)
+```
+
+- The true per-element draw leaf is **`drawable.vtable[8]` = `0x82C12F18`**
+  (draw-object vtable `0x8200AEA0`).
+- **`UITextPrompt_Render` takes no effective arguments** — it ignores `r3`
+  (and every other input GPR/FPR) and works purely from the global element
+  list at `0x83334E20`. Returns `r3` = 0, ignored by the caller. (Confirmed
+  verbatim in the generated recompile: `fable_2_recomp.77.cpp`.
+  `DEFINE_REX_FUNC(UITextPrompt_Render)`.)
+
+### 10.3 Blink is data-driven; the pipeline rate is constant
+- The text pipeline fires at a constant high rate (tens of thousands of
+  calls/s) in BOTH the blink-ON and blink-OFF phases. The blink is an
+  alpha/visibility value inside the element/drawable data, not call-gating.
+- FrameRender's `f1` = game time in seconds is the animation time source.
+- `UIFont_EmitGlyphQuad` (0x82C0CAF8) / `UIFont_LookupGlyph` fire **0 times**
+  in the prompt window — they are layout-time, not the per-frame draw path.
+
+### 10.4 Two draw chains exist — pixel attribution still pending
+- **Chain A (prompt item):** `UITextPrompt_Render → 0x82C44B50 → 0x82C12F18`
+  (item slot-4; the dispatch fires in bursts, e.g. 3 in 7 ms when the title
+  prompt shows).
+- **Chain B (current-text items):** `UIText_RenderCurrent → … →
+  UIText_RenderElement (0x82C0A6A0) → sub_82C09870/sub_82B4EEE0` (fires
+  sparsely but continuously, ≈20/s across the whole run; the session-2
+  16-element glyph run matches the prompt decomposed into 16 elements:
+  "Press"+space (6) + `<a_img>` (1) + "to start" (9)).
+- Which chain (or both) emits the prompt's visible pixels is NOT yet proven.
+  Decisive test: timed ablation with a visual check (see §10.7).
+
+### 10.5 New tooling (this session)
+- `src/fable2_ui_render_probe.h` (`fable2::uir`): per-hook timeline + timed
+  ablation. `FABLE2_UIR=1`, `_DELAY`, `_DUR`, `_SKIP`,
+  `_SUPPRESS=Name@t0-t1,Name2@…` (suppress = skip the original call — pure
+  ablation), `_FUNC_TRACE=1` (auto-enables the RLE func trace inside the
+  window). Every probe's hook funnels through `uir::hook(name, ctx, base)`.
+- `src/fable2_ui_input_probe.h` (`fable2::uip`): input capture.
+  `FABLE2_UIR_IN=1`; window via `_DELAY`/`_DUR` with `_ANCHOR=proc` (anchor to
+  PROCESS START — the first-hook-call anchor drifts with load time); full
+  input dump via `_DUMP=fn1,fn2` (all GPRs r3–r31, FPRs f1–f14, lr, plus
+  64-byte pointed-to dumps for the `_PTS=r3,r28,…` registers); sampling via
+  `_STRIDE`/`_PERCAP`; address watch via `_ADDRS` or the **runtime feed** —
+  the heap scanner automatically pushes the UTF-16BE prompt-string addresses
+  it finds (`add_runtime_addr`), so nothing is hardcoded per run.
+  `_PATSCAN=1` + `_PAT` is the byte-pattern hunt (too heavy for the render
+  thread by default — see §10.6).
+- `tools/ppc_probe.py`: Capstone PPC32 disassembler over the decrypted image.
+  **`disasm <lo> <hi>` takes an END address, not a size**:
+  `python tools/ppc_probe.py disasm 0x82C44CF0 0x82C44DB0`.
+- `fable2_heap_scan.h`: scan request window extended to cover the title
+  screen; new back-reference mode `FABLE2_HEAP_SCAN_PTR=0xA,0xB` (logs every
+  RW word that points at the given guest addresses — find an object's owners);
+  needle hits are fed into the uip watch list.
+- Guest memory reads from probes: `host = 0x100000000 + guest_addr` (the
+  recompiler's `base` arg is confirmed to BE `0x100000000`); SEH-protect
+  every read (commit-on-fault arena).
+
+### 10.6 Stability caveat
+- Heavy per-call work on the render thread (many SEH guest reads per hooked
+  call) exposes a latent guest AV race: 3/3 runs with the heavy pattern scan
+  enabled crashed ~20 s in with unhandled guest AVs (e.g. read of
+  `0x696D6174`). Keep per-call probe work **register-only** (the address
+  watch is cheap); reserve guest-memory reads for capped/sampled dumps or
+  background threads.
+
+### 10.7 Updated next steps
+1. **Ablation (decisive):** timed `FABLE2_UIR_SUPPRESS` slices —
+   `UITextPrompt_Render@34-39` (chain A) vs `UIText_FrameRender@39-44` (both
+   chains) vs `UIText_RenderElement@44-49` (chain B leaf) — user confirms on
+   screen which slice makes the prompt disappear.
+2. **Capture the leaf's input:** add `0x82C12F18` to the manifest and hook it
+   (or hook `UITextPrompt_RenderElement`, a static `bl` target → interposable)
+   with `FABLE2_UIR_IN_DUMP` to get the exact element/drawable data format
+   for the C++ reimplementation.
+3. **Total control:** to replace the prompt rendering, either swap the item's
+   slot-4 pointer (`*(item+4)` — find the item by walking the list at
+   `0x83334AA0`) or override `UITextPrompt_Render` (named, so a strong-symbol
+   override works — though note it is only reached via data-driven `bctrl`,
+   so verify the recompiler routes the vcall through the named symbol).
+   The function needs no arguments — only the element list at `0x83334E20`
+   (or your own equivalent).
