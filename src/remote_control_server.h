@@ -90,6 +90,14 @@ inline void CloseSock(sock_t s) {
 
 #include "remote_input_state.h"
 
+// Game-state accessors (defined in fable2_state_probe.h); forward-declared here
+// so the "game_state" command can read the classifier without pulling the whole
+// probe into this header.
+namespace fable2::stateprobe {
+int CurrentState();
+const char* CurrentStateName();
+}
+
 namespace fable2::remote {
 
 //=============================================================================
@@ -712,7 +720,7 @@ class ControlServer {
     const InputSnapshot resolved = ResolveTimeline(timeline_, now);
     const InputSnapshot effective =
         pad_enabled_->load(std::memory_order_relaxed) ? resolved : InputSnapshot{};
-    state_->Publish(effective);
+    state_->PublishAndNotify(effective);
   }
 
   // Returns false if the interval queue cap is hit.
@@ -862,12 +870,13 @@ class ControlServer {
     if (cmd == "clear") return HandleClear(v);
     if (cmd == "script") return HandleScript(v);
     if (cmd == "get_state") return HandleGetState(v);
+    if (cmd == "game_state") return HandleGameState(v);
     if (cmd == "cvar") return HandleCvar(v);
 
     return Err(std::format(
         "unknown command '{}'; expected one of: ping, info, auth, press, "
-        "release, stick, state, clear, script, get_state, cvar, enable, "
-        "disable", cmd));
+        "release, stick, state, clear, script, get_state, game_state, cvar, "
+        "enable, disable", cmd));
   }
 
   // "input" name -> slot; value defaults per slot (buttons 1, triggers 255,
@@ -1113,6 +1122,14 @@ class ControlServer {
         R"(}},"sticks":{{"lx":{},"ly":{},"rx":{},"ry":{}}},"pending":{}{}}})",
         enabled, buttons, s.left_trigger, s.right_trigger, s.stk_lx, s.stk_ly,
         s.stk_rx, s.stk_ry, pending, IdEcho(v));
+  }
+
+  // "game_state" -> the current boot/menu state (see fable2_state_probe.h):
+  // PreMainMenu, PressAScreen, MainMenuMovie, MainMenu, or Unknown (?).
+  std::string HandleGameState(const json_min::Value& v) {
+    const int st = fable2::stateprobe::CurrentState();
+    return std::format(R"({{"ok":true,"state":{{"code":{},"name":"{}"}}}})",
+                       st, fable2::stateprobe::CurrentStateName());
   }
 
   std::string HandleCvar(const json_min::Value& v) {

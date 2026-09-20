@@ -46,6 +46,51 @@ Implementation details that settled while building (supersede §4/§5 where they
   build opens no TCP port and exposes no input channel. Rationale: a hidden localhost
   input channel in a player-facing build erodes trust; it's only useful for debugging.
 
+### Game state API (implemented & verified)
+
+A 1-second classifier on a background thread reports which boot/menu screen the game
+is on. It runs independently of the render loop (the iter stops firing during the
+movie, which renders video with no UI text), so the state is tracked through all
+phases. Verified end-to-end via `game_state` + the `FABLE2_STATE_PROBE=1` file log:
+
+- `?` (Unknown) → `PreMainMenu` (splash) → `PressAScreen` ("Press A") →
+  `MainMenuMovie` (idle movie, after ~40 s) → `PressAScreen` (loops), and
+  `PressAScreen →(press A)→ MainMenu`.
+
+Signals (each verified against the live game):
+
+- **`prompt_alloc`** — a heap scan for the UTF-16BE string `"to start"`
+  (0x42640000–0x42700000, 64 KB chunks). Allocated once at the first prompt and never
+  freed, so it marks "past the intro" (`PreMainMenu` = not yet allocated).
+- **`pe_rate`** — the prompt/manager element-list fetch rate. `sub_82B458C0` (the
+  element fetch/next) is hooked; non-zero returns for lists in the 0x8333xxxx manager
+  region are counted per second. High (~15–17/s) when the prompt **or** the menu is
+  drawn, ~0–7 during the movie (video, no elements). This splits {PressAScreen,
+  MainMenu} from {MainMenuMovie}.
+- **the A-press** — the prompt and the menu share the same element lists at the same
+  draw rate, so they are visually indistinguishable. The transition into the menu is
+  therefore driven by the A-press. It is detected from the **final merged pad state**
+  (all drivers OR-merged: remote + keyboard + physical), so it works no matter which
+  input source drives A: the guest's `XamInputGetState` wrapper (`sub_822B2D60`) is
+  hooked, and the A button (`X_INPUT_GAMEPAD_A = 0x1000`) is read from the filled
+  `X_INPUT_STATE` after each call. The rising edge (0 -> 1) latches the exact press
+  timestamp (the press is only ~250 ms, so a 1 s sample would otherwise miss it). On
+  the next sample, if the press landed while elements were being drawn
+  (`prev_showing` true) the state latches to `MainMenu`; if it landed on the movie
+  (`prev_showing` false) it goes back to `PressAScreen`. This is the state machine's
+  input transition, modeled directly. (A remote-store publish callback also latches
+  the remote A as a backup, but the pad-state hook is the primary, source-agnostic
+  detector.)
+
+Rejected signals (documented here so we don't re-try them): the `ConstTrue` menu
+predicate rate (it never exceeded ~2,943/s in the real menu — the 40,000+ spike was
+only the splash loader), the `ToLower` title-text rate (0 in the menu), the main UI
+list descriptor at 0x83334AA0 (its item read returns a file-path fragment, not a
+prompt item), and the 0x83334E20 "prompt list" (the real prompt lists are 0x83334ED8
+/ 0x83334F00). The `game_state` command returns `{"code":N,"name":"..."}`;
+`fable2_control.py game-state` wraps it. State changes are logged via `REXSYS_INFO`
+(transition-only, to avoid spam) and every sample to `fable2_state_probe.log`.
+
 ---
 
 ## 1. Background: how input works today

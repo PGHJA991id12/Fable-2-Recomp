@@ -45,6 +45,8 @@
 namespace fable2::stateprobe {
 void start();
 void stop();
+std::int64_t t_ms();
+void record_a_press(std::int64_t ms);
 }
 #endif  // FABLE2_REMOTE_CONTROL
 #include "xex_verify.h"
@@ -284,6 +286,13 @@ class Fable2App : public rex::ReXApp {
       REXSYS_INFO("[fable2-config] remote control disabled by config");
     }
 
+    // Observe remote A-presses (the state machine's input transition). The
+    // press is brief, so latch its timestamp here (on the server thread) and
+    // compare against it in the 1-second classifier sample.
+    remote_state_->SetOnPublish([](const fable2::remote::InputSnapshot& s) {
+      if ((s.buttons & 0x1000u) != 0)  // X_INPUT_GAMEPAD_A
+        fable2::stateprobe::record_a_press(fable2::stateprobe::t_ms());
+    });
     // Start the 1-second game-state classifier (feeds the remote `state`
     // command + the [state] in-game log). Runs regardless of remote_enabled so
     // the state is always tracked in debug builds.

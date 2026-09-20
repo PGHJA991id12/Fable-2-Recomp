@@ -44,7 +44,6 @@
 namespace fable2::stateprobe {
 
 constexpr uintptr_t kArena = 0x100000000ull;
-constexpr uint32_t kList = 0x83334AA0u;  // UI text list descriptor (per frame)
 
 // State ids (stable values used by the remote API + the snapshot).
 enum State : int {
@@ -123,11 +122,6 @@ inline bool aread(uint32_t ga, void* dst, size_t n) {
   }
   return true;
 }
-inline uint32_t aread32(uint32_t ga) {
-  uint32_t v = 0;
-  if (!aread(ga, &v, 4)) return 0;
-  return __builtin_bswap32(v);
-}
 // The guest address space is mapped linearly to the 0x100000000 arena and
 // spans far more than 0x80000000-0x84000000 (heap scan showed committed
 // regions at 0x42xxxxxx .. 0x92xxxxxx). A pointer is "plausible" if its arena
@@ -137,43 +131,6 @@ inline bool plausible(uint32_t a) {
   return page_ok(reinterpret_cast<const void*>(kArena + a));
 }
 
-// Pull ASCII + UTF-16BE printable runs (>= minlen) out of a buffer.
-inline void extract_strings(const uint8_t* p, size_t n,
-                            std::vector<std::string>& out, int minlen = 3) {
-  size_t i = 0;
-  while (i < n) {
-    if (p[i] >= 0x20 && p[i] < 0x7F) {
-      size_t j = i;
-      while (j < n && p[j] >= 0x20 && p[j] < 0x7F) ++j;
-      if (j - i >= static_cast<size_t>(minlen))
-        out.emplace_back(reinterpret_cast<const char*>(p + i), j - i);
-      i = j;
-    } else {
-      ++i;
-    }
-  }
-  i = 0;
-  while (i + 1 < n) {
-    const uint16_t c = (uint16_t)((p[i] << 8) | p[i + 1]);
-    if (c >= 0x20 && c < 0x7F) {
-      std::string s;
-      size_t j = i;
-      while (j + 1 < n) {
-        const uint16_t cc = (uint16_t)((p[j] << 8) | p[j + 1]);
-        if (cc >= 0x20 && cc < 0x7F) {
-          s.push_back((char)cc);
-          j += 2;
-        } else {
-          break;
-        }
-      }
-      if (s.size() >= static_cast<size_t>(minlen)) out.push_back(std::move(s));
-      i = j;
-    } else {
-      ++i;
-    }
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Latest-sample snapshot (written only by the render thread, read by the
@@ -220,23 +177,6 @@ inline FILE* logf() {
   return f;
 }
 
-// Scan one candidate item object for strings, following heap pointers 1 level.
-inline void scan_item(uint32_t item, std::vector<std::string>& out,
-                      std::atomic<int>& guard) {
-  if (!plausible(item)) return;
-  if (guard.fetch_add(1) > 4000) return;
-  uint8_t buf[256];
-  if (!aread(item, buf, sizeof buf)) return;
-  extract_strings(buf, sizeof buf, out);
-  for (size_t k = 0; k + 4 <= sizeof buf; k += 4) {
-    const uint32_t fld =
-        (uint32_t)((buf[k] << 24) | (buf[k + 1] << 16) | (buf[k + 2] << 8) | buf[k + 3]);
-    if (fld >= 0x80000000u && fld < 0x82000000u) {
-      uint8_t sub[128];
-      if (aread(fld, sub, sizeof sub)) extract_strings(sub, sizeof sub, out);
-    }
-  }
-}
 
 // Time-based throttle (the game can run well past 60fps, so per-frame would
 // flood the log and the arena reads). sample(): keep the snapshot fresh every
@@ -280,18 +220,41 @@ inline void start() {
 }
 inline void stop() { running().store(false); }
 
-// --- Rolling call-rate tracking for the discriminative functions. --------
-// ConstTrue_Predicate_82C43198 is near-idle except in the main menu, where it
-// runs at hundreds of thousands of calls/s (verified via the func trace).
-// UITextPrompt_Render renders the "Press A" prompt.
-inline std::atomic<uint64_t>& menu_total() { static std::atomic<uint64_t> c{0}; return c; }
-inline std::atomic<uint64_t>& prompt_total() { static std::atomic<uint64_t> c{0}; return c; }
-inline std::atomic<uint64_t>& title_total() { static std::atomic<uint64_t> c{0}; return c; }
+// --- Rolling call-rate tracking. ------------------------------------------
+// prompt_elem_total counts the prompt/manager element-list fetches (sub_82B458C0
+// non-zero returns). A non-negligible rate means the prompt OR the main menu is
+// being drawn; ~0 means the movie (video, no UI elements).
 inline std::atomic<uint64_t>& prompt_elem_total() { static std::atomic<uint64_t> c{0}; return c; }
-inline void tick_menu() { menu_total().fetch_add(1, std::memory_order_relaxed); }
-inline void tick_prompt() { prompt_total().fetch_add(1, std::memory_order_relaxed); }
-inline void tick_title() { title_total().fetch_add(1, std::memory_order_relaxed); }
 inline void tick_prompt_elem() { prompt_elem_total().fetch_add(1, std::memory_order_relaxed); }
+// A-press timestamp (ms since start). Latched on the rising edge of the A
+// button in the final merged pad state (see observe_a_button, called from the
+// sub_822B2D60 hook), so it works no matter which input source drives A. The
+// press is brief (a few hundred ms), so we latch the timestamp and compare
+// in-sample instead of relying on catching the button mid-press.
+inline std::atomic<int64_t>& last_a_press_ms() { static std::atomic<int64_t> t{0}; return t; }
+inline void record_a_press(int64_t ms) { last_a_press_ms().store(ms, std::memory_order_relaxed); }
+// Current A-button state from the FINAL pad state (all drivers OR-merged:
+// remote + keyboard + physical). Set by the sub_822B2D60 hook (the guest's
+// XamInputGetState wrapper). The rising edge (0 -> 1) latches last_a_press_ms,
+// so the A-press works no matter which input source drives the A button.
+inline std::atomic<int>& a_button_state() { static std::atomic<int> b{0}; return b; }
+// Reads the full 16-bit button mask from a final X_INPUT_STATE (guest address);
+// the mask is be<uint16_t> at offset +4.
+inline uint16_t read_a_button_mask(uint32_t state_ptr) {
+  uint8_t buf[2] = {0, 0};
+  if (!aread(state_ptr + 4, buf, 2)) return 0;
+  return (uint16_t)((buf[0] << 8) | buf[1]);
+}
+// Records a rising A-press edge if the final pad state just gained the A button
+// (X_INPUT_GAMEPAD_A = 0x1000). Called from the sub_822B2D60 hook on the guest
+// thread; the edge is latched with its exact timestamp.
+inline void observe_a_button(uint32_t state_ptr) {
+  const uint16_t mask = read_a_button_mask(state_ptr);
+  const int now = (mask & 0x1000u) ? 1 : 0;
+  const int prev = a_button_state().load(std::memory_order_relaxed);
+  a_button_state().store(now, std::memory_order_relaxed);
+  if (now && !prev) record_a_press(t_ms());
+}
 
 // Scan the run-dependent heap region for the UTF-16BE "Press <a_img> to start"
 // prompt string. Match on "to start" (00 74 00 6F 00 20 00 73 00 74 00 61 00 72
@@ -328,112 +291,65 @@ inline int64_t boot_ms() {
 // in-game logger (REXSYS) on state change + to the file every sample.
 inline void do_sample() {
   static bool first = true;
-  static uint64_t last_menu = 0, last_title = 0, last_pet = 0;
+  static uint64_t last_pet = 0;
   static int64_t last_t = 0;
   const int64_t t = t_ms();
-  double menu_rate = 0.0, title_rate = 0.0, pe_rate = 0.0;
+  double pe_rate = 0.0;
   if (first) {
     first = false;
-    last_menu = menu_total().load(std::memory_order_relaxed);
-    last_title = title_total().load(std::memory_order_relaxed);
     last_pet = prompt_elem_total().load(std::memory_order_relaxed);
     last_t = t;
   } else {
     const int64_t dt = (t - last_t > 0) ? (t - last_t) : 1;
-    const uint64_t mt = menu_total().load(std::memory_order_relaxed);
-    const uint64_t tt = title_total().load(std::memory_order_relaxed);
     const uint64_t pet = prompt_elem_total().load(std::memory_order_relaxed);
-    menu_rate = (double)(mt - last_menu) * 1000.0 / (double)dt;
-    title_rate = (double)(tt - last_title) * 1000.0 / (double)dt;
     pe_rate = (double)(pet - last_pet) * 1000.0 / (double)dt;
-    last_menu = mt; last_title = tt; last_pet = pet; last_t = t;
+    last_pet = pet; last_t = t;
   }
 
   // Before the guest arena is mapped (early boot) we can't read it; report
   // "unknown" so the caller knows the classifier has no data yet.
   const bool ready = page_ok(reinterpret_cast<const void*>(kArena + 0x42640000u));
-
-  // Main UI text list (0x83334AA0). When the "Press A" prompt is on screen its
-  // item object (vtable 0x8200A114) is the list's single entry; the item object
-  // pointer lives at A+272 where A = *(*(list+4)). It changes when the prompt
-  // is removed (e.g. the main-menu movie), so this is the "prompt visible" flag.
-  uint32_t item_this = 0, item_ptr = 0, item_vtable = 0;
-  if (ready) {
-    const uint32_t wrapper = aread32(kList + 4);
-    if (plausible(wrapper)) {
-      const uint32_t A = aread32(wrapper);
-      if (plausible(A + 264) && plausible(A + 272)) {
-        const uint32_t B = aread32(A + 264);
-        item_this = B + (A + 272);  // per recompiled 'add r31,r11,r10'
-        if (plausible(item_this)) {
-          item_ptr = aread32(item_this);
-          if (plausible(item_ptr)) item_vtable = aread32(item_ptr);
-        }
-      }
-    }
-  }
   const bool prompt_alloc = ready && heap_has_prompt();
-  // prompt_visible: the "Press A" prompt elements are being drawn this second
-  // (pe_rate high). ~0 during the movie / empty list.
-  const bool prompt_visible = pe_rate > 8.0;
-
-  // One-time structural dump to nail the list layout for the prompt_visible
-  // signal. Logs the main UI list + the prompt element-list (0x83334E20).
-  if (ready) {
-    static bool dumped = false;
-    if (!dumped) {
-      dumped = true;
-      char buf[512];
-      int o = 0;
-      auto words = [&](const char* tag, uint32_t addr, int n) {
-        o += std::snprintf(buf + o, sizeof(buf) - (size_t)o, "%s 0x%08X[", tag, addr);
-        for (int w = 0; w < n && o < 480; ++w)
-          o += std::snprintf(buf + o, sizeof(buf) - (size_t)o, "%s%08X",
-                             w ? " " : "", aread32(addr + w * 4));
-        o += std::snprintf(buf + o, sizeof(buf) - (size_t)o, "] ");
-      };
-      words("desc", kList, 12);
-      const uint32_t wrapper = aread32(kList + 4);
-      words("wrap", wrapper, 8);
-      const uint32_t A = aread32(wrapper);
-      words("A+248", A + 248, 14);
-      REXSYS_INFO("[state] DUMP {}", std::string(buf));
-      if (logging()) {
-        FILE* f = logf();
-        if (f) { std::fputs(buf, f); std::fputc('\n', f); std::fflush(f); }
-      }
-    }
-  }
 
   // State machine (see plans/ai-remote-input-control.md):
-  //   menu (ConstTrue ~40,000+/s vs <1,000/s baseline) -> MainMenu
-  //   prompt item in the main list                     -> PressAScreen
-  //   past the first prompt, no prompt/menu            -> MainMenuMovie
-  //   before the prompt (early boot)                   -> PreMainMenu
-  //   arena not mapped yet                             -> "?"
+  //   ProgramOpens           -> PreMainMenu
+  //   after time             -> PressAScreen
+  //   PressAScreen + time    -> MainMenuMovie
+  //   PressAScreen + press A -> MainMenu
+  //   MainMenuMovie + time   -> PressAScreen
+  //   MainMenuMovie + press A-> PressAScreen
+  //   (undetermined          -> "?" (Unknown))
+  //
+  // Signals:
+  //   prompt_alloc : the "to start" string is allocated (persists once seen).
+  //   pe_rate : manager element-list fetch rate. >8 => the prompt or the menu
+  //     is being drawn; ~0 => the movie (video, no UI elements). The prompt and
+  //     the menu share the same element lists/rate, so they cannot be told
+  //     apart visually -- the A-press (the state machine's input transition)
+  //     distinguishes them. prev_showing captures whether the A-press landed on
+  //     the prompt (PressAScreen -> MainMenu) or on the movie (-> PressAScreen).
+  const bool showing = pe_rate > 8.0;
+  const int64_t a_press_t = last_a_press_ms().load(std::memory_order_relaxed);
+  static int64_t last_press_t = -1;
+  static bool in_menu = false;
+  static bool prev_showing = false;
+  if (a_press_t > 0 && a_press_t != last_press_t) {
+    last_press_t = a_press_t;
+    in_menu = prev_showing;  // A on the prompt -> menu; A on the movie -> not
+  }
   static bool past_first_prompt = false;
-  if (prompt_visible || prompt_alloc) past_first_prompt = true;
-  // Menu = sustained high ConstTrue rate (real menu ~40,000-87,000/s). A single
-  // 1s burst (e.g. a splash transition spike) must not trigger it, so require
-  // the rate to be high for several consecutive samples.
-  static int menu_run = 0;
-  if (menu_rate > 10000.0) menu_run = (menu_run < 12) ? menu_run + 1 : 12;
-  else menu_run = 0;
-  // Real menu is a sustained ~44,000-87,000/s; the splash loader produces a
-  // transient 216,000-1,600,000/s spike lasting only ~4 samples. Require a
-  // longer sustained run so the loader spike is ignored.
-  const bool menu = menu_run >= 5;
+  if (prompt_alloc) past_first_prompt = true;
   int state;
   if (!ready) state = kUnknown;
-  else if (menu) state = kMainMenu;
-  else if (prompt_visible) state = kPressAScreen;
-  else if (past_first_prompt) state = kMainMenuMovie;
-  else state = kPreMainMenu;
+  else if (!prompt_alloc) { state = kPreMainMenu; in_menu = false; }
+  else if (!showing) { state = kMainMenuMovie; in_menu = false; }  // movie
+  else state = in_menu ? kMainMenu : kPressAScreen;
+  prev_showing = showing;
 
   Snapshot& sn = snap();
-  sn.prompt_seen.store((int)(prompt_visible ? 1 : 0), std::memory_order_relaxed);
-  sn.menu_seen.store((int)(menu ? 1 : 0), std::memory_order_relaxed);
-  sn.item_count.store((int)(title_rate + 0.5), std::memory_order_relaxed);
+  sn.prompt_seen.store((int)(prompt_alloc ? 1 : 0), std::memory_order_relaxed);
+  sn.menu_seen.store((int)(state == kMainMenu ? 1 : 0), std::memory_order_relaxed);
+  sn.item_count.store((int)(pe_rate + 0.5), std::memory_order_relaxed);
   sn.state.store(state, std::memory_order_relaxed);
 
   static const char* names[] = {"?", "PreMainMenu", "PressAScreen",
@@ -448,22 +364,22 @@ inline void do_sample() {
         (last_state >= 0 && last_state <= 4) ? names[last_state] : "?";
     last_state = state;
     REXSYS_INFO(
-        "[state] boot={}ms: {} -> {} (menu={} title={} pv={} pa={} item_vt=0x{:08X})",
-        (long long)boot_ms(), prev_name, cur_name, (int)menu_rate, (int)title_rate,
-        prompt_visible ? 1 : 0, prompt_alloc ? 1 : 0, item_vtable);
+        "[state] boot={}ms: {} -> {} (pe={} pa={})",
+        (long long)boot_ms(), prev_name, cur_name, (int)pe_rate,
+        prompt_alloc ? 1 : 0);
   }
 
   // File log (FABLE2_STATE_PROBE=1): every sample, for classifier tuning.
   if (logging()) {
     FILE* f = logf();
     if (f) {
-      char hdr[300];
+      const int64_t a_age = (a_press_t > 0) ? (t - a_press_t) : -1;
+      char hdr[220];
       std::snprintf(hdr, sizeof hdr,
-                    "boot=%lldms  %-13s  (menu=%.0f title=%.0f pe=%.0f pv=%d pa=%d "
-                    "item_ptr=0x%08X item_vt=0x%08X past=%d)\n",
-                    (long long)boot_ms(), cur_name, menu_rate, title_rate, pe_rate,
-                    prompt_visible ? 1 : 0, prompt_alloc ? 1 : 0,
-                    item_ptr, item_vtable, past_first_prompt ? 1 : 0);
+                    "boot=%lldms  %-13s  (pe=%.0f pa=%d in_menu=%d a_age=%lld a_btn=%d)\n",
+                    (long long)boot_ms(), cur_name, pe_rate,
+                    prompt_alloc ? 1 : 0, in_menu ? 1 : 0, (long long)a_age,
+                    fable2::stateprobe::a_button_state().load(std::memory_order_relaxed));
       std::fputs(hdr, f);
       std::fflush(f);
     }
@@ -472,31 +388,32 @@ inline void do_sample() {
 
 }  // namespace fable2::stateprobe
 
-// Strong overrides: count calls to the discriminative functions, then run the
-// original (weak) body. These run on the render thread at high frequency, so
-// the tick is a single relaxed atomic increment (no I/O, no allocation).
-// Debug/remote builds only (FABLE2_REMOTE_CONTROL); release builds use the
-// original weak bodies untouched.
+// Strong override of the element-list fetch (see below). Runs on the render
+// thread at high frequency, so the tick is a single relaxed atomic increment
+// (no I/O, no allocation). Debug/remote builds only (FABLE2_REMOTE_CONTROL);
+// release builds use the original weak body untouched.
 #ifdef FABLE2_REMOTE_CONTROL
-extern "C" void __imp__ConstTrue_Predicate_82C43198(PPCContext&, uint8_t*);
-extern "C" void ConstTrue_Predicate_82C43198(PPCContext& ctx, uint8_t* base) {
-  fable2::stateprobe::tick_menu();
-  __imp__ConstTrue_Predicate_82C43198(ctx, base);
-}
-extern "C" void __imp__ToLower_SdkRuntime_82CA4288(PPCContext&, uint8_t*);
-extern "C" void ToLower_SdkRuntime_82CA4288(PPCContext& ctx, uint8_t* base) {
-  fable2::stateprobe::tick_title();
-  __imp__ToLower_SdkRuntime_82CA4288(ctx, base);
-}
-// sub_82B458C0 = prompt element-list fetch/next (returns element, 0 = done).
-// Count the non-zero returns: each drawn prompt element ticks once, so the
-// rate is high while the "Press A" prompt is on screen and ~0 during the movie
-// (empty element list) -- this is the prompt_visible signal.
+// sub_82B458C0 = prompt/manager element-list fetch/next (returns element, 0 =
+// done). Count the non-zero returns for lists in the 0x8333xxxx manager region:
+// the rate is high (~15-17/s) while the "Press A" prompt OR the main menu is
+// being drawn and ~0 during the movie (video, no UI elements).
 extern "C" void __imp__sub_82B458C0(PPCContext&, uint8_t*);
 extern "C" void sub_82B458C0(PPCContext& ctx, uint8_t* base) {
   const uint32_t in_list = ctx.r3.u32;
   __imp__sub_82B458C0(ctx, base);
-  if (ctx.r3.u32 != 0 && in_list >= 0x83330000u && in_list < 0x83340000u)
-    fable2::stateprobe::tick_prompt_elem();
+  if (ctx.r3.u32 != 0 && in_list >= 0x83330000u && in_list < 0x83340000u) {
+    fable2::stateprobe::tick_prompt_elem();  // any manager element list
+  }
+}
+
+// The guest's XamInputGetState wrapper: reads the FINAL merged pad state (all
+// drivers OR-merged: remote + keyboard + physical). Capture the A button from
+// it so the A-press is detected no matter which input source drives it. The
+// X_INPUT_STATE pointer is r4 (the argument to this function); the original
+// fills it, so read it after the call.
+extern "C" void sub_822B2D60(PPCContext& ctx, uint8_t* base) {
+  const uint32_t state_ptr = ctx.r4.u32;
+  __imp__sub_822B2D60(ctx, base);
+  fable2::stateprobe::observe_a_button(state_ptr);
 }
 #endif  // FABLE2_REMOTE_CONTROL

@@ -384,12 +384,48 @@ Commands: `ping`, `info`, `auth`, `press` (`input`, `hold_ms`, `value`),
 `release`, `stick` (`input` = `StkLx`/`StkLy`/`StkRx`/`StkRy`, `value`,
 `hold_ms`), `state` (sticky baseline: `buttons[]`, `triggers{LT,RT}`,
 `stk{lx,ly,rx,ry}`), `clear`, `script` (atomic timed sequence), `get_state`,
-`cvar` (get/set any cvar by name), `enable`/`disable`. Input names match the
+`game_state` (current boot/menu state, see below), `cvar` (get/set any cvar
+by name), `enable`/`disable`. Input names match the
 keyboard-gamepad vocabulary (`A`/`B`/`X`/`Y`, `LB`/`RB`, `LT`/`RT`,
 `Up`/`Down`/`Left`/`Right`, `Start`/`Back`, `L3`/`R3`, stick direction
 shorthands). `StkLy` positive = forward (Fable 2 convention). `script` is a
 single atomic message, so a repro sequence runs with no network round-trips
 between steps.
+
+### Game state
+
+`game_state` reports which boot/menu screen the game is on so the AI can
+navigate and verify its actions:
+
+```
+python tools\fable2_control.py game-state
+> {"cmd":"game_state"}
+< {"ok":true,"state":{"code":2,"name":"PressAScreen"}}
+```
+
+The classifier samples once per second on a background thread (independent of
+the render loop, so it keeps working during the movie, which renders video with
+no UI text) and reports one of:
+
+| State | Meaning |
+|---|---|
+| `?` (Unknown) | Arena not mapped yet / undetermined (first ~1 s). |
+| `PreMainMenu` | Splash / intro, before the "Press A" prompt. |
+| `PressAScreen` | The "Press A to start" prompt is on screen. |
+| `MainMenuMovie` | The idle movie is playing (no prompt / menu). |
+| `MainMenu` | The main menu (reached by pressing A on the prompt). |
+
+This follows the game's own state machine:
+`PreMainMenu →(time)→ PressAScreen →(time)→ MainMenuMovie →(time)→
+PressAScreen`, with `PressAScreen →(A)→ MainMenu` and
+`MainMenuMovie →(A)→ PressAScreen`. The prompt vs. the menu are visually
+indistinguishable (same element-list draw rate), so the transition into the
+menu is driven by the A-press, observed on the final merged pad state (remote +
+keyboard + physical — it works no matter which input drives A) and latched with
+its exact timestamp. State changes are logged to the in-game logger
+(`REXSYS_INFO`, same channel as the remote control) on transition only, and
+every sample is written to `fable2_state_probe.log` when
+`FABLE2_STATE_PROBE=1` is set.
 
 Config (`[remote]` in `fable2_config.toml`): `enabled` (default `true`),
 `host` (`127.0.0.1`; `0.0.0.0` exposes it on all interfaces), `port`

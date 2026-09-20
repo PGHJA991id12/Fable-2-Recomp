@@ -50,9 +50,31 @@ class InputStateStore {
     return cur_;
   }
 
+  // Optional observer, invoked (on the publishing thread) after a successful
+  // publish. Used by the state probe to observe the A-press timestamp without
+  // having to poll faster than the button is held. Pass nullptr to clear.
+  void SetOnPublish(std::function<void(const InputSnapshot&)> cb) {
+    std::lock_guard<std::mutex> lock(mu_);
+    on_publish_ = std::move(cb);
+  }
+
  private:
+  friend class ControlServer;
+  bool PublishAndNotify(InputSnapshot s) {
+    std::function<void(const InputSnapshot&)> cb;
+    {
+      std::lock_guard<std::mutex> lock(mu_);
+      if (cur_ == s) return false;
+      cur_ = s;
+      cb = on_publish_;
+    }
+    if (cb) cb(s);
+    return true;
+  }
+
   mutable std::mutex mu_;
   InputSnapshot cur_{};
+  std::function<void(const InputSnapshot&)> on_publish_;
 };
 
 }  // namespace fable2::remote
