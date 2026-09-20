@@ -35652,6 +35652,319 @@ name = "ProcessAndCheckAndProcess_82BD61F0"
 [entrypoint.functions."0x82BFFB38"]
 name = "ProcessAndJumpTo_82BFFB38"
 
+# A processor that computes and processes the data (seventeenth form). It takes a value (a), a float (b), a value (c), and a value (d). It calls sub_82C13068 (with a). It then calls sub_82C13E48 (with a, the result of the first call, c, and d).
+# This is the "compute and process this data" routine (seventeenth form), part of the 0x82BFF process cluster. 52 lines. 2 callees (sub_82C13068 and sub_82C13E48). 1 caller (sub_82C161D8).
+[entrypoint.functions."0x82BFFF40"]
+name = "ProcessAndComputeAndProcess17_82BFFF40"
+
+# A getter for a global field (offset 19764). It reads a field from a .data structure (at offset 19764) and returns it. This is the "get this global field" routine, part of the 0x82C13 process cluster. 10 lines. 0 callees (leaf function).
+# 12 callers (sub_82BFFD88, sub_82BFFC68, sub_82BFFBD8, sub_82BFFCE8, ProcessAndComputeAndProcess17_82BFFF40, sub_82BFFD30, sub_82BFFEE8, sub_82BFFE50, sub_82BFFBB0, sub_82BFFEA8, sub_82BFFB10, and sub_82BFFC20).
+[entrypoint.functions."0x82C13068"]
+name = "GetGlobalField19764_82C13068"
+
+# A compute function that returns a boolean bit from a global field (offset 19764). It reads the field from a .data structure, counts the leading zeros (cntlzw), rotates the count left by 27 (equivalent to taking bit 5), and XORs the result with 1.
+# This is the "compute a bit from this global field" routine, part of the 0x82C13 process cluster. 16 lines. 0 callees (leaf function). 1 caller (ProcessAndJumpTo_82BFFB38).
+[entrypoint.functions."0x82C13078"]
+name = "ComputeGlobalField19764Bit_82C13078"
+
+# A function that decrements a counter and performs a vcall when it reaches zero. It takes a structure (a: fields at a->4 and a->8). It reads a->8 (a counter) and decrements it. When the counter reaches zero it reads a->4 (a pointer) and
+# performs a vcall via the pointer's +0 field's +4 entry (bctrl). This is the "decrement and perform a vcall when zero" routine, part of the 0x82C13 process cluster. 25 lines. 0 callees (leaf function). 0 callers (unresolved — body is recovered
+# but no callers found; likely a vtable method or indirect entry).
+[entrypoint.functions."0x82C13510"]
+name = "DecrementAndVcall_82C13510"
+
+# A constructor that allocates and processes a 20-byte structure. It takes a value (a), a float (b), a value (c), and a value (d). It allocates a 20-byte block (Allocate_OrDbgBreak_8221F388, with 20). When the allocation succeeds it initializes
+# the structure with .data pointers (at -21108 and -20952) and zeros. This is the "construct and process this 20-byte structure" routine, part of the 0x82C13 process cluster. 159 lines. 4 callees (Allocate_OrDbgBreak, MemCpy_SdkRuntime,
+# sub_82C4D7F8, and sub_82C4DA20). 1 caller (ProcessAndComputeAndProcess17_82BFFF40).
+[entrypoint.functions."0x82C13E48"]
+name = "ConstructAndProcess20Byte_82C13E48"
+
+# An initializer that stores float constants into a structure. It takes a structure (a: fields at a->0, a->4, a->8, a->12, a->16, and a->24). It stores 0 into a->0 and a->8, -10000 into a->4 and a->24, and various float constants (from .data
+# pointers) into a->12, a->16, and a->20. This is the "initialize and store floats into this structure" routine, part of the 0x82C16 process cluster. 85 lines. 0 callees (leaf function). 1 caller (ProcessAndGrowAndProcess8_82C1A5D0).
+[entrypoint.functions."0x82C16158"]
+name = "InitializeAndStoreFloats_82C16158"
+
+# A processor that performs a vcall and processes the data (eleventh form). It takes a value (a) and a structure (b: field at b->0). It reads b->0 (a pointer) and performs a vcall via the pointer's +20 field (bctrl). It then calls
+# VcallTriple_AllSuccess_82C011E8 (with b, a .data pointer, and a). When the result is non-zero it calls VcallTriple_AllSuccess_82C011E8 again (with b, a .data pointer, and a+4). This is the "perform a vcall and process this data"
+# routine (eleventh form), part of the 0x82C16 process cluster. 402 lines. 7 callees (DispatchVcallTriple, ProcessAndJumpTo, ProcessAndVcallAndClear3, ProcessAndVcallAndProcess10, VcallChain_AllSuccess, VcallTriple_AllSuccess, and
+# ProcessAndComputeAndProcess17). 1 caller (sub_82C192D8).
+[entrypoint.functions."0x82C161D8"]
+name = "ProcessAndVcallAndProcess11_82C161D8"
+
+# A processor that performs a vcall and processes the data (twelfth form). It takes a structure (a: field at a->0) and a value (b). It reads a->0 (a pointer) and performs a vcall via the pointer's +24 field (bctrl). When the result is
+# non-zero it processes and performs a vcall (ProcessAndVcallAndProcess11_82C161D8, with b and a). When that result is also non-zero it performs a vcall via the pointer's +28 field (bctrl). This is the "perform a vcall and process this
+# data" routine (twelfth form), part of the 0x82C19 process cluster. 86 lines. 1 callee (ProcessAndVcallAndProcess11). 1 caller (ProcessAndGrowAndProcess8_82C1A5D0).
+[entrypoint.functions."0x82C192D8"]
+name = "ProcessAndVcallAndProcess12_82C192D8"
+
+# A function that swaps and compares elements. It takes a pointer (a) and a pointer (b). When the pointers differ it iterates: for each pair of elements (a and a+4) it reads the element's +0 field (a pointer) and compares the pointers' +4
+# fields. When the fields are equal it compares the pointers' +12 fields. This is the "swap and compare these elements" routine, part of the 0x82C2B process cluster. 135 lines. 1 callee (Process2DRegion). 1 caller (SortAndRecurse_82C2C520).
+[entrypoint.functions."0x82C2BB20"]
+name = "SwapAndCompareElements_82C2BB20"
+
+# A processor that calls and checks a method. It takes a value (a). It calls methods (ProcessAndCallMethods_8223E958, with a .data pointer and 1). When the result is non-zero it stores a .data pointer into the result's +0 field. It then
+# stores a into the result's +4 field and checks the method (ProcessAndCheckMethod_8223E820, with a .data pointer). This is the "call and check this method" routine, part of the 0x82C4D process cluster. 60 lines. 2 callees
+# (ProcessAndCallMethods and ProcessAndCheckMethod). 1 caller (ConstructAndProcess20Byte_82C13E48).
+[entrypoint.functions."0x82C4D7F8"]
+name = "ProcessAndCallAndCheckMethod_82C4D7F8"
+
+# A function that clears two fields (offsets 0 and 56) of a structure. It takes a structure (a: fields at a->0 and a->56). It stores 0 into a->0 and a->56. This is the "clear fields 0 and 56 of this structure" routine, part of the 0x82C4D
+# process cluster. 12 lines. 0 callees (leaf function). 1 caller (ConstructAndProcess20Byte_82C13E48).
+[entrypoint.functions."0x82C4DA20"]
+name = "ClearFields0And56_82C4DA20"
+
+# A processor that performs a vcall and processes the data (thirteenth form). It takes a value (a) and a structure (b: fields at b->0 and b->40). When b->40 is zero it reads b->0 (a pointer) and performs a vcall via the pointer's +16
+# field (bctrl). It then calls VirtualCall4_8260C130 (with b+40 and a local buffer). When the result is non-zero it reads the result's +0 field and performs a vcall via the +0 field's +8 entry (bctrl). This is the "perform a vcall and
+# process this data" routine (thirteenth form), part of the 0x82C6C process cluster. 93 lines. 1 callee (VirtualCall4). 0 callers (unresolved — body is recovered but no callers found; likely a vtable method or indirect entry).
+[entrypoint.functions."0x82C6CD60"]
+name = "ProcessAndVcallAndProcess13_82C6CD60"
+
+# A processor that computes and processes the data (eighteenth form). It takes a structure (a: fields at a->4, a->8, and a->12), a structure (b: field at b->0), a value (c), and a value (d). It reads a->4 (a pointer); when the pointer is
+# non-zero it reads a->12 (a pointer) and computes (a->12 minus a->4) shifted right by 3. This is the "compute and process this data" routine (eighteenth form), part of the 0x82C6D process cluster. 503 lines. 3 callees
+# (AllocateChecked4, Free_Thunk, and sub_82BF8E78). 1 caller (sub_82C6E028).
+[entrypoint.functions."0x82C6DAC8"]
+name = "ProcessAndComputeAndProcess18_82C6DAC8"
+
+# A processor that computes and processes the data (nineteenth form). It takes a value (a), a structure (b: fields at b->4 and b->8), and a value (c). It reads b->4 (a pointer); when the pointer is non-zero it reads b->8 (a pointer) and
+# computes (b->8 minus b->4) shifted right by 3. This is the "compute and process this data" routine (nineteenth form), part of the 0x82C6E process cluster. 132 lines. 1 callee (ProcessAndComputeAndProcess18). 1 caller (sub_82C6E4D8).
+[entrypoint.functions."0x82C6E028"]
+name = "ProcessAndComputeAndProcess19_82C6E028"
+
+# A processor that computes and processes the data (twentieth form). It takes a structure (a: fields at a->4, a->8, and a->12) and a structure (b: field at b->0). It reads a->4 (a pointer); when the pointer is non-zero it reads a->8 (a
+# pointer) and computes (a->8 minus a->4) shifted right by 3. This is the "compute and process this data" routine (twentieth form), part of the 0x82C6E process cluster. 107 lines. 1 callee (ProcessAndComputeAndProcess19). 1 caller
+# (sub_82C6E7D8).
+[entrypoint.functions."0x82C6E4D8"]
+name = "ProcessAndComputeAndProcess20_82C6E4D8"
+
+# A processor that computes and processes the data (twenty-first form). It takes a value (a), a value (b), and a value (c). It adds 76 to a and computes and processes (ProcessAndComputeAndProcess20_82C6E4D8, with a+76, b, and c). This is
+# the "compute and process this data" routine (twenty-first form), part of the 0x82C6E process cluster. 32 lines. 1 callee (ProcessAndComputeAndProcess20). 1 caller (sub_82C6B640).
+[entrypoint.functions."0x82C6E7D8"]
+name = "ProcessAndComputeAndProcess21_82C6E7D8"
+
+# A processor that copies and processes the data (fifth form). It takes a value (a) and a structure (b: fields at b->4, b->12, and b->20). It reads b->20 (a count). When the count is at least 1 it reads b->12 (a pointer), decrements the
+# count, increments b->4 (a pointer) and b->12 (a pointer) by 1, and stores the byte at b->12 into a local buffer. This is the "copy and process this data" routine (fifth form), part of the 0x8321D process cluster. 78 lines. 1 callee
+# (ProcessAndCopyStructRegion). 1 caller (ProcessAndCopyAndProcess4_82A0D878).
+[entrypoint.functions."0x8321D458"]
+name = "ProcessAndCopyAndProcess5_8321D458"
+
+# A processor that performs a vcall and processes the data (fourteenth form). It takes a value (a). It stores and processes (ProcessAndStoreElement_82BB1E58, with a). It then reads the result's +0 field (a pointer) and performs a vcall via
+# the pointer's +88 field (bctrl). It then performs a vcall via the pointer's +84 field (bctrl). It then performs a vcall via the pointer's +52 field (bctrl). This is the "perform a vcall and process this data" routine (fourteenth form),
+# part of the 0x8219F process cluster. 131 lines. 1 callee (ProcessAndStoreElement). 0 callers (unresolved — body is recovered but no callers found; likely a vtable method or indirect entry).
+[entrypoint.functions."0x8219F2A8"]
+name = "ProcessAndVcallAndProcess14_8219F2A8"
+
+# A processor that performs a vcall and processes the data (fifteenth form). It takes a value (a), a structure (b: field at b->0), a structure (c: fields at c->32 and c->40), and a value (d). It reads c->40 (a count) and c->32 (a
+# pointer). It then iterates: for each element it reads b->0 (a pointer) and performs a vcall via the pointer's +76 field (bctrl). When the result is non-zero it reads b->0 again and continues. This is the "perform a vcall and process
+# this data" routine (fifteenth form), part of the 0x821D2 process cluster. 99 lines. 1 callee (ProcessAndApplyAndAccessElement). 1 caller (sub_821D2C70).
+[entrypoint.functions."0x821D2BB0"]
+name = "ProcessAndVcallAndProcess15_821D2BB0"
+
+# A processor that checks and processes the data (second form). It takes a structure (a: field at a->8). It gets an indexed pointer (GetIndexedPointer_82BC5448, with a). It then reads the result's +4 field (a type tag). When the tag is 6
+# or 7 it processes (StateDispatch_82BCA7D8). When the tag is 8 it reads a->8 (a pointer), stores 5 into the result's +72 field, and stores the pointer's -8 field into the result's +68 field. This is the "check and process this data"
+# routine (second form), part of the 0x822C0 process cluster. 132 lines. 2 callees (GetIndexedPointer and StateDispatch). 4 callers (sub_82BD93F0, sub_82BDB558, sub_82BCFAE8, and sub_82BD5750).
+[entrypoint.functions."0x822C06C0"]
+name = "ProcessAndCheckAndProcess2_822C06C0"
+
+# A function that adds an offset (852) to a value. It takes a value (a) and returns a+852. This is the "add offset 852 to this value" routine, part of the 0x822D3 process cluster. 8 lines. 0 callees (leaf function). 0 callers (unresolved —
+# body is recovered but no callers found; likely a vtable method or indirect entry).
+[entrypoint.functions."0x822D3D78"]
+name = "AddOffset852_822D3D78"
+
+# A processor that frees and processes the data. It takes a structure (a: fields at a->4, a->20, and a->24), a value (b), and a value (c). When the low byte of b is non-zero and a->24 is at least 8 it reads a->4 (a pointer). When c is
+# non-zero it copies or zeros (Buffer_CopyOrZero_Error_82CA3730, with a+4, 16, the pointer, and c times 2). It then frees (Free_SizeBucketed_Thunk_8221BE68, with the pointer). This is the "free and process this data" routine, part of the
+# 0x822F6 process cluster. 73 lines. 2 callees (Buffer_CopyOrZero_Error and Free_SizeBucketed_Thunk). 2 callers (sub_825F3050 and ProcessValue_FlagNonZero_8217A5E0).
+[entrypoint.functions."0x822F65E8"]
+name = "ProcessAndFreeAndProcess_822F65E8"
+
+# A processor that applies and processes the data. It takes a structure (a: field at a->0) and a structure (b: field at b->4). It reads b->4 (a pointer); when the pointer is non-zero it reads the pointer's +12 field (a value) and +8 field
+# (a value) and computes (the +8 field minus the +12 field) shifted right by 3. It then applies (ProcessApply_8227B7E0, with the pointer, a .data pointer, 0, and the computed value). This is the "apply and process this data" routine, part
+# of the 0x82306 process cluster. 143 lines. 4 callees (GrowAndZeroBuffer, ProcessAndConstructAndDispatch, ProcessAndGuardedDispatch, and ProcessApply). 2 callers (sub_823F8908 and sub_82173718).
+[entrypoint.functions."0x82306718"]
+name = "ProcessAndApplyAndProcess_82306718"
+
+# A processor that performs a vcall and processes the data (sixteenth form). It takes a value (a) and a structure (b: field at b->0). When b is non-zero and a .data flag is set it reads b->0 (a pointer) and performs a vcall via the
+# pointer's +20 field (bctrl). When the result is non-zero it applies and processes (ProcessAndApplyAndProcess_82306718, with a and the result). This is the "perform a vcall and process this data" routine (sixteenth form), part of the
+# 0x823F8 process cluster. 97 lines. 3 callees (ProcessAndApplyAndProcess, sub_823068E0, and sub_823077B8). 12 callers (sub_828DF1A8, sub_824F9B08, sub_8257D250, sub_8283FD80, sub_82411528, sub_828CBB40, sub_828ECC10, sub_8257EA18,
+# sub_82582E50, sub_825914F0, sub_82595098, and sub_826C71C8).
+[entrypoint.functions."0x823F8908"]
+name = "ProcessAndVcallAndProcess16_823F8908"
+
+# A processor that validates and processes the data (third form). It takes a value (a) and a structure (b: fields at b->4, b->20, and b->24). It reads b->24 (a size); when the size is at least 16 it reads b->4 (a pointer), otherwise it uses
+# b+4 (a local buffer). It then validates and stores a pointer (ValidateAndStorePointer_8236F008, with a local buffer, b->20 plus the pointer, and b). This is the "validate and process this data" routine (third form), part of the 0x826C0
+# process cluster. 99 lines. 3 callees (ProcessAndAppendAndProcess2, ReadStringElement, and ValidateAndStorePointer). 3 callers (sub_82C6DE30, sub_82C6A3A8, and sub_826C0628).
+[entrypoint.functions."0x826C00C0"]
+name = "ProcessAndValidateAndProcess3_826C00C0"
+
+# A recursive processor that recurses and frees the data. It takes a value (a) and a structure (b: fields at b->0, b->8, and b->33). When b->33 (a flag) is zero it iterates: for each element it recurses (with a and b->8) and frees
+# (Free_SizeBucketed_Thunk_8221BE68, with b). It then reads b->0 (a pointer) and continues the loop. This is the "recurse and free this data" routine, part of the 0x82B4F process cluster. 61 lines. 2 callees (Free_SizeBucketed_Thunk and
+# itself). 2 callers (sub_822EBD28 and sub_8233E468).
+[entrypoint.functions."0x82B4F2F8"]
+name = "ProcessAndRecurseAndFree_82B4F2F8"
+
+# A processor that frees and processes the data (second form). It takes a value (a) and a value (b). It calls sub_82B4F4C8 (with a and b). When the low bit of b is set it frees (Free_SizeBucketed_Thunk_8221BE68, with a). This is the
+# "free and process this data" routine (second form), part of the 0x82B4F process cluster. 50 lines. 2 callees (sub_82B4F4C8 and Free_SizeBucketed_Thunk). 0 callers (unresolved — body is recovered but no callers found; likely a vtable
+# method or indirect entry).
+[entrypoint.functions."0x82B4F478"]
+name = "ProcessAndFreeAndProcess2_82B4F478"
+
+# A processor that checks and processes the data (third form). It takes a structure (a: fields at a->0, a->8, and a->12). It stores a .data pointer (-28180) into a->0. It then reads a->8 (a pointer) and checks success (ProcessAndCheckSuccess
+# _82CBBF60, with the pointer). It then reads a->12 (a value); when the value is not -1 and differs from a->8 it checks success again (ProcessAndCheckSuccess_82CBBF60, with a->8). This is the "check and process this data" routine (third form),
+# part of the 0x82B4F process cluster. 126 lines. 1 callee (ProcessAndCheckSuccess). 1 caller (ProcessAndFreeAndProcess2_82B4F478).
+[entrypoint.functions."0x82B4F4C8"]
+name = "ProcessAndCheckAndProcess3_82B4F4C8"
+
+# A getter for a structure field (offset 20). It takes a structure (a: field at a->20). It reads a->20 and returns it. This is the "get field 20 of this structure" routine, part of the 0x82B56 process cluster. 8 lines. 0 callees
+# (leaf function). 12 callers (sub_82E938B0, sub_82E81258, sub_82EB7F78, sub_82E92610, sub_82EB7A18, sub_82E821F8, sub_82EC52E8, sub_82E84DB8, sub_82EBC060, sub_82E6A1C8, sub_82EAD038, and sub_82E7C5F8).
+[entrypoint.functions."0x82B568C0"]
+name = "GetField20_82B568C0"
+
+# A function that erases a byte from a buffer (a string structure). It takes a structure (a: fields at a->0 (a pointer) and a->4 (a halfword length)), an offset (b), and a count (c). It clamps the offset to the length. When c is -1 it
+# computes (the length minus the offset). It then stores the new length into a->4 and memmoves (MemMove_SdkRuntime_82CAA2E0, with a->0, a->0+the offset, and the new length). It then stores a NUL byte at a->0+the new length. This is the
+# "erase a byte from this buffer" routine, part of the 0x82BA8 process cluster. 68 lines. 1 callee (MemMove_SdkRuntime). 3 callers (sub_82BAA238, sub_82BAA3D0, and sub_82BBE220).
+[entrypoint.functions."0x82BA8938"]
+name = "EraseByteFromBuffer_82BA8938"
+
+# A wrapper that initializes a string with an offset. It takes a value (a) and a value (b). It adds 12 to b and calls ProcessAndInitializeString (ProcessAndInitializeString_82BA8798, with a and b+12). This is the "initialize a string with an
+# offset" routine, part of the 0x82BAA process cluster. 34 lines. 1 callee (ProcessAndInitializeString). 0 callers (unresolved — body is recovered but no callers found; likely a vtable method or indirect entry).
+[entrypoint.functions."0x82BAA0D8"]
+name = "InitializeStringWithOffset_82BAA0D8"
+
+# A processor that computes and processes the data (twenty-second form). It takes a structure (a: fields at a->8 and a->12). It computes (a->8 minus a->12) shifted right by 3 and calls sub_82BB5C30 (with a and the result). It then reads a->12
+# (a pointer); when the pointer is less than a->8 and not equal to a .data pointer (1876) it reads the pointer's +4 field. This is the "compute and process this data" routine (twenty-second form), part of the 0x82BB4 process cluster. 191
+# lines. 4 callees (ProcessAndGetPointerAndProcess, sub_82BB5BD0, sub_82BB5C30, and sub_82BC6A18). 0 callers (unresolved — body is recovered but no callers found; likely a vtable method or indirect entry).
+[entrypoint.functions."0x82BB49E0"]
+name = "ProcessAndComputeAndProcess22_82BB49E0"
+
+# A processor that dispatches and processes the data (twelfth form). It takes a value (a). It dispatches and processes (ProcessAndDispatchAndProcess_82BC6558, with a and 12). It then hashes a string (ProcessAndHashString2_821E1408, with a,
+# -10000, and a .data pointer (-9996)). It then dispatches by type (ProcessAndDispatchByType_82BC5FF0, with a and -2). This is the "dispatch and process this data" routine (twelfth form), part of the 0x82BB5 process cluster. 58 lines.
+# 3 callees (ProcessAndDispatchAndProcess, ProcessAndDispatchByType, and ProcessAndHashString2). 5 callers (sub_82BB5388, sub_82BB18A0, sub_82BB5130, sub_82BB5260, and ProcessAndComputeAndProcess22_82BB49E0).
+[entrypoint.functions."0x82BB5C30"]
+name = "ProcessAndDispatchAndProcess12_82BB5C30"
+
+# A processor that hashes and stores the data (second form). It takes a structure (a: fields at a->8 and a->28) and a pointer (b). It reads a->8 (a pointer). It then scans for a NUL terminator (from b), computing the length (the NUL position minus
+# b minus 1). It then computes a hash (ComputeHash_8227BA30, with a and the length). It then stores a and 4 into a->8's +0 and +4 fields. This is the "hash and store this data" routine (second form), part of the 0x82BC8 process cluster. 94 lines.
+# 2 callees (ComputeHash and ProcessAndDispatchAndProcess5). 1 caller (sub_82BC8490).
+[entrypoint.functions."0x82BC83E8"]
+name = "ProcessAndHashAndStore2_82BC83E8"
+
+# A processor that checks and processes the data (fourth form). It takes a structure (a: fields at a->8 and a->12). It reads a->8 (a pointer) and a->12 (a pointer). When a->12 is less than a->8 and not equal to a .data pointer (1876) it reads the
+# pointer's +4 field; when that field is not 5 it processes (sub_82BC68F0, with a, 1, and a .data pointer's +20 field). This is the "check and process this data" routine (fourth form), part of the 0x82BD5 process cluster. 173 lines. 3 callees
+# (ProcessAndDispatchIndexedValue, sub_82BC67F0, and sub_82BC68F0). 0 callers (unresolved — body is recovered but no callers found; likely a vtable method or indirect entry).
+[entrypoint.functions."0x82BD5AD8"]
+name = "ProcessAndCheckAndProcess4_82BD5AD8"
+
+# A processor that checks and processes the data (fifth form). It takes a structure (a: fields at a->8 and a->12). It reads a->8 (a pointer) and a->12 (a pointer). When a->12 is less than a->8 and not equal to a .data pointer (1876) it reads the
+# pointer's +4 field; when that field is -1 it processes (sub_82BC67F0, with a, 1, and a .data pointer's +8120 field). This is the "check and process this data" routine (fifth form), part of the 0x82BD6 process cluster. 129 lines. 3 callees
+# (ProcessAndCheckAndProcess, sub_82BC67F0, and sub_82BC6A18). 0 callers (unresolved — body is recovered but no callers found; likely a vtable method or indirect entry).
+[entrypoint.functions."0x82BD6748"]
+name = "ProcessAndCheckAndProcess5_82BD6748"
+
+# A processor that dispatches and processes the data (thirteenth form). It takes a value (a). It dispatches and processes (ProcessAndDispatchAndProcess_82BC6558, with a and 4). It then stores 0 into the result's +0 field. It then hashes a
+# string (ProcessAndHashString2_821E1408, with a, -10000, and a .data pointer (-4576)). It then dispatches by type (ProcessAndDispatchByType_82BC5FF0, with a and -2). This is the "dispatch and process this data" routine (thirteenth form), part
+# of the 0x82BD7 process cluster. 62 lines. 3 callees (ProcessAndDispatchAndProcess, ProcessAndDispatchByType, and ProcessAndHashString2). 6 callers (sub_82BD8698, sub_82BD82F0, sub_82BD81F8, sub_82BD93F0, sub_82BD8458, and sub_82BD80F0).
+[entrypoint.functions."0x82BD7DD8"]
+name = "ProcessAndDispatchAndProcess13_82BD7DD8"
+
+# A processor that dispatches and processes the data (fourteenth form). It takes a structure (a: fields at a->4, a->12, and a->32), a value (b), and a value (c). When a->12 equals b it shifts fields (ProcessAndShiftFields_82BCF7D8). When a->4
+# equals c it processes (sub_82BCDA68, with a and b) and then calls sub_82BC8870 (with a->32, a .data pointer (13404), and the result). This is the "dispatch and process this data" routine (fourteenth form), part of the 0x82BDD process
+# cluster. 105 lines. 4 callees (ProcessAndShiftFields, sub_82BC8870, sub_82BCDA68, and sub_82BCDAF8). 9 callers (ProcessAndDispatchAndProcess6, sub_82BE0EB8, ProcessAndDispatchAndProcess4, sub_82BDF220, sub_82BE0648, sub_82BDEE48, sub_82BE0548,
+# sub_82BE0D80, and sub_82BDF398).
+[entrypoint.functions."0x82BDDD28"]
+name = "ProcessAndDispatchAndProcess14_82BDDD28"
+
+# A processor that dispatches and processes the data (fifteenth form). It takes a structure (a: fields at a->4, a->12, a->16, and a->28) and a value (b). It reads a->12 (a type tag) and dispatches: when the tag is 40, 123, or 286 it performs a
+# specific operation; otherwise it calls sub_82BCDAF8 (with a and a .data pointer (13760)). It then shifts fields (ProcessAndShiftFields_82BCF7D8). This is the "dispatch and process this data" routine (fifteenth form), part of the 0x82BDF process
+# cluster. 216 lines. 9 callees (ProcessAndComputeAndStore, ProcessAndDispatchAndProcess10, ProcessAndShiftFields, sub_82BCDAF8, ProcessAndDispatchAndProcess14, sub_82BDDDD8, sub_82BDEE48, sub_82BDF330, and sub_82BE1DD0). 1 caller
+# (ProcessAndDispatchAndProcess4_82BDF510).
+[entrypoint.functions."0x82BDF398"]
+name = "ProcessAndDispatchAndProcess15_82BDF398"
+
+# A processor that dispatches and processes the data (sixteenth form). It takes a value (a) and a structure (b: fields at b->0, b->12, and b->16). It reads b->12 (a value) and b->16 (a value). When the two values differ it dispatches and
+# processes (ProcessAndDispatchAndProcess11_82BE2428). When the two values are equal it dispatches by value (ProcessAndDispatchByValue_82BE1F00). It then reads b->0 (a value); when the value minus 1 is at most 4 it performs a table-lookup dispatch.
+# This is the "dispatch and process this data" routine (sixteenth form), part of the 0x82BE2 process cluster. 183 lines. 3 callees (ProcessAndDispatchAndCheck, ProcessAndDispatchAndProcess11, and ProcessAndDispatchByValue). 9 callers
+# (sub_82BDECC0, sub_82BDEBD0, sub_82BE25E8, sub_82BE12E8, sub_82BE2EE0, ProcessAndDispatchAndProcess4, sub_82BDFEB8, sub_82BE3038, and sub_82BE2758).
+[entrypoint.functions."0x82BE24B0"]
+name = "ProcessAndDispatchAndProcess16_82BE24B0"
+
+# A processor that dispatches and processes the data (seventeenth form). It takes a structure (a: fields at a->0, a->36, and a->50), a structure (b: fields at b->0 and b->4), and a value (c). It dispatches and processes
+# (ProcessAndDispatchAndProcess11_82BE2428, with a, b, and c). When b->0 equals 12 and b->4 has the 0x100 bit clear and b->4 is at least a->50 (a byte) it decrements a->36. This is the "dispatch and process this data" routine (seventeenth
+# form), part of the 0x82BE2 process cluster. 155 lines. 4 callees (ProcessAndComputeAndStore, ProcessAndDispatchAndProcess11, sub_82BCDAF8, and ProcessAndDispatchAndProcess16). 1 caller (ProcessAndDispatchAndProcess4_82BDF510).
+[entrypoint.functions."0x82BE2758"]
+name = "ProcessAndDispatchAndProcess17_82BE2758"
+
+# A processor that performs a vcall and destructs the data (third form). It takes a structure (a: fields at a->0, a->8, and a->12). It stores a .data pointer (-8672) into a->0. It then reads a->12 (a pointer); when the pointer is non-zero it
+# performs a vcall via the pointer's +8 field (bctrl). It then reads a->8 (a pointer); when the pointer is non-zero it performs a vcall via the pointer's +8 field. This is the "perform a vcall and destruct this data" routine (third form), part
+# of the 0x82C62 process cluster. 76 lines. 1 callee (DestructRefCounted). 12 callers (sub_8290BE28, sub_826939A0, sub_82359BE8, sub_8281A568, sub_82AA9548, sub_82357DF8, sub_826928F8, sub_82B7CD18, sub_8233EC30, sub_824E9E70, sub_825F4120, and
+# sub_823B07D0).
+[entrypoint.functions."0x82C62A08"]
+name = "ProcessAndVcallAndDestruct3_82C62A08"
+
+# A check for whether a field is non-zero. It takes a structure (a: field at a->8). It reads a->8 (a value) and returns 1 when the value is non-zero, 0 when it is zero. This is the "is this field non-zero" routine, part of the 0x82C62 process
+# cluster. 14 lines. 0 callees (leaf function). 12 callers (sub_826935F0, sub_822F3B18, sub_8233EC30, sub_82466098, sub_8290BE28, sub_82691A70, sub_825F45A8, sub_82A4BE40, sub_823FE828, sub_823B07D0, sub_825F3050, and sub_822F27C0).
+[entrypoint.functions."0x82C62DE8"]
+name = "IsNonZero_82C62DE8"
+
+# A lazy initializer for a global. It reads a .data flag (offset 22452) and checks the low bit. When the bit is clear it sets the bit (storing the flag with the low bit set), stores the original low bit into a .data field (offset 22448), and calls
+# sub_82CA3700 (with a .data pointer (1280) and other .data pointers). This is the "lazy-initialize this global" routine, part of the 0x82C63 process cluster. 69 lines. 1 callee (sub_82CA3700). 2 callers (sub_82C635D8 and sub_82C634C0).
+[entrypoint.functions."0x82C63258"]
+name = "LazyInitializeGlobal_82C63258"
+
+# A processor that constructs and processes the data (twenty-third form). It takes a structure (a: field at a->4) and a value (b). It converts to lowercase (ProcessToLower_821EEA00, with a local buffer and b). It then copies a refcounted
+# (CopyAssign_RefCounted2_82265160, with a+4 and the local buffer). It then constructs a refcounted (ConstructRefCounted_8222CF18, with a local buffer, a .data pointer (-29772), and -1). This is the "construct and process this data" routine
+# (twenty-third form), part of the 0x82C63 process cluster. 428 lines. 11 callees (ConstructRefCounted, ConstructString, CopyAssign_RefCounted2, DestructRefCounted, Free_Thunk, ProcessAtomicIncrement, ProcessToLower, StringCompare, VirtualCall4,
+# sub_82B3E0A8, and LazyInitializeGlobal). 3 callers (sub_822F3B18, sub_82A4BE40, and sub_82C63FB8).
+[entrypoint.functions."0x82C635D8"]
+name = "ProcessAndConstructAndProcess23_82C635D8"
+
+# A processor that performs a vcall and processes the data (seventeenth form). It takes a structure (a: fields at a->0, a->36, and a->40) and a value (b). When a->36 (a flag) is zero and a->40 is zero it reads a->0 (a pointer) and performs a
+# vcall via the pointer's +16 field (bctrl). It then performs a virtual call (VirtualCall4_8260C130, with a+40 and the local buffer). This is the "perform a vcall and process this data" routine (seventeenth form), part of the 0x82C6D process
+# cluster. 163 lines. 4 callees (DestructAndClearField, Free_Thunk, VirtualCall4, and ProcessAndValidateAndProcess3). 0 callers (unresolved — body is recovered but no callers found; likely a vtable method or indirect entry).
+[entrypoint.functions."0x82C6DE30"]
+name = "ProcessAndVcallAndProcess17_82C6DE30"
+
+# A getter for a structure field (offset 8). It takes a structure (a: field at a->8). It reads a->8 and returns it. This is the "get field 8 of this structure" routine, part of the 0x83041 process cluster. 8 lines. 0 callees (leaf function).
+# 12 callers (sub_82C510C8, sub_82C50FE8, UIFont_Initialize, sub_82C88C58, sub_82C50E28, sub_82C88B38, sub_82C88BC8, sub_82C51810, sub_82C51870, sub_82C51960, sub_82C519C8, and sub_82C51040).
+[entrypoint.functions."0x830418A8"]
+name = "GetField8_830418A8"
+
+# A processor that sets up a setjmp and processes the data (second form). It takes a structure (a: fields at a->20, a->32, a->40, a->52, a->57, and a->100), a value (b), and a value (c). It stores c into a->100. It then reads a->20 (a pointer) and
+# a->40 (a pointer) and computes (a->20 minus a->40). It then sets up a setjmp (ProcessAndSetjmpAndProcess_82277AF8). When the result is non-zero it processes (sub_8222B4C0, with a and a->32 plus the result). This is the "set up a setjmp and process
+# this data" routine (second form), part of the 0x8219A process cluster. 114 lines. 4 callees (ProcessAndSetjmpAndProcess, sub_8222B4C0, sub_82A2DF88, and sub_82A2E1C8). 12 callers (sub_8244FC00, sub_82459A28, sub_8244FAB0, sub_825B8300, sub_825B7A78,
+# sub_82755128, sub_82A2ADF8, sub_82A22470, sub_82916888, sub_825AC638, sub_829F0B38, and sub_82A22368).
+[entrypoint.functions."0x8219A8E8"]
+name = "ProcessAndSetjmpAndProcess2_8219A8E8"
+
+# A processor that checks and processes the data (sixth form). It takes a structure (a: fields at a->8 and a->16), a value (b), and a value (c). It reads a->16 (a pointer) and then reads the pointer's +68 field (a value) and +64 field (a value).
+# When the +68 field is at least the +64 field it processes (sub_82179350, with a, b, and c). It then performs a virtual call (ProcessAndVirtualAndProcess_822277C0, with a, b, and c). This is the "check and process this data" routine (sixth form),
+# part of the 0x821E1 process cluster. 62 lines. 2 callees (ProcessAndVirtualAndProcess and sub_82179350). 12 callers (sub_828BD0F8, sub_82846D48, sub_828BD288, sub_825D43A0, sub_82671D50, sub_825E05E0, sub_827593F8, sub_82934F38, sub_82A1F5B0,
+# sub_827714A8, sub_82A22938, and sub_82425908).
+[entrypoint.functions."0x821E1768"]
+name = "ProcessAndCheckAndProcess6_821E1768"
+
+# A processor that computes and processes the data (twenty-fourth form). It takes a structure (a: fields at a->20, a->32, and a->56) and a value (b). It reads a->56 (a flag) and checks the 0x2 bit. When the bit is set it reads a->32 (a value) and
+# computes (b minus a->32). It then processes (sub_82A2E310, with a, 1, and -1). This is the "compute and process this data" routine (twenty-fourth form), part of the 0x82228 process cluster. 184 lines. 1 callee (sub_82A2E310). 3 callers
+# (GuildChest_ProcessItems_822DE008, sub_82A2E4D0, and GuildChest_ProcessItem_82228830).
+[entrypoint.functions."0x82228B28"]
+name = "ProcessAndComputeAndProcess24_82228B28"
+
+# A processor that computes and processes the data (twenty-fifth form). It takes a structure (a: fields at a->4, a->8, and a->12) and a structure (b: fields at b->4 and b->8). It reads b->4 (a pointer). When the pointer is non-zero it reads b->8
+# (a pointer) and computes (b->8 minus b->4) shifted right by 2. It then stores 0 into a->4, a->8, and a->12. This is the "compute and process this data" routine (twenty-fifth form), part of the 0x822F7 process cluster. 122 lines. 1 callee
+# (sub_825813E8). 2 callers (sub_822F72B8 and sub_822F5608).
+[entrypoint.functions."0x822F77A0"]
+name = "ProcessAndComputeAndProcess25_822F77A0"
+
+# A function that finds a value in a list. It takes a structure (a: fields at a->52 and a->56) and a value (b). It reads a->56 (a pointer) and a+52 (a pointer). It then iterates the list (from a+52), reading each element's +4 field (a pointer). When it
+# finds a matching element (where the element's +4 field equals a->56) it returns the element. When it reaches the end of the list (where the element is null) it traps (r0, 22). This is the "find a value in this list" routine, part of the 0x8236A
+# process cluster. 104 lines. 1 callee (FindListTail_82C705D8). 2 callers (sub_8233A8D8 and ProcessAndComputeAndProcess12_823754C8).
+[entrypoint.functions."0x8236A3B0"]
+name = "FindInList_8236A3B0"
+
+# A processor that iterates and processes the data. It takes a structure (a: fields at a->20 and a->40) and a value (b). It reads a->20 (a pointer). When b is greater than 0 it reads a->40 (a pointer) and iterates the list (from a->20 to a->40), reading
+# each element's +4 field (a pointer). It decrements b for each element; when the element's +6 field (a byte) is zero it also decrements b by the element's +20 field. This is the "iterate and process this data" routine, part of the 0x82A2B process
+# cluster. 82 lines. 0 callees (leaf function). 12 callers (sub_82BD5590, sub_82BF94E0, sub_82BCFD70, sub_82A294B0, sub_82A2A388, sub_82A1F360, sub_82BD0E28, sub_82A2A028, sub_82BF63F8, sub_82BD00D0, sub_82BF7A38, and sub_82BF8820).
+[entrypoint.functions."0x82A2B3C0"]
+name = "ProcessAndIterateAndProcess_82A2B3C0"
+
 # Existing Functions
 
 # The main per-frame render/present loop (one call per frame: ~30/s at the

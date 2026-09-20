@@ -333,6 +333,71 @@ console, so you can dial in the sensitivity live. Example: `fable_2.exe
 
 All cvars above are hot-reloadable, so they can also be changed from the in-game console.
 
+## Remote control (AI input channel)
+
+`fable_2.exe` runs a localhost TCP **remote control server** so an external
+AI/automation harness can drive the guest gamepad over JSON-lines messages —
+no human at the keyboard. Design doc: `plans/ai-remote-input-control.md`.
+
+**Debug builds only.** This is a debugging/automation channel — it opens a
+localhost TCP port and injects guest input — so it must not ship to players.
+It is gated on the `FABLE2_REMOTE_CONTROL` macro, defined only for the Debug
+build; Release / RelWithDebInfo builds compile out the pad driver + server
+entirely (no port is opened and `fable2_control.py` is not staged).
+
+- **Where:** `127.0.0.1:8791` by default (configurable, see below). One JSON
+  object per line; every request gets exactly one response line; keep-alive
+  connections are supported.
+- **How:** a second synthetic pad driver
+  (`src/remote_gamepad_driver.h`) is registered next to the keyboard driver,
+  fed by the server (`src/remote_control_server.h`). It OR-merges with the
+  human pads and is **not** gated on window focus, so the AI can drive the
+  game while it's in the background.
+
+Quick start (from the build dir, game running):
+
+```
+python tools\fable2_control.py ping
+python tools\fable2_control.py press A --hold 120
+python tools\fable2_control.py get-state
+python tools\fable2_control.py script --file repro.json
+```
+
+Or speak the protocol directly (any language):
+
+```
+> {"cmd":"press","input":"RT","hold_ms":900}
+< {"ok":true,"input":"RT","release_in_ms":900}
+> {"cmd":"script","steps":[
+      {"delay_ms":500,"op":"press","input":"LB","hold_ms":2000},
+      {"delay_ms":1000,"op":"press","input":"A","hold_ms":80}]}
+< {"ok":true,"duration_ms":2500}
+```
+
+`hold_ms` ≤ 0 (or omitted) means *hold until released/cleared*; a positive value
+auto-releases after that many ms. In a `script`, each step's `delay_ms` is a **gap
+since the previous step** on a single clock — the example presses LB at t=500 (held to
+t=2500) and A at t=1500 (held to t=1580), so `duration_ms` (when the last input stops
+being active) is 2500.
+
+Commands: `ping`, `info`, `auth`, `press` (`input`, `hold_ms`, `value`),
+`release`, `stick` (`input` = `StkLx`/`StkLy`/`StkRx`/`StkRy`, `value`,
+`hold_ms`), `state` (sticky baseline: `buttons[]`, `triggers{LT,RT}`,
+`stk{lx,ly,rx,ry}`), `clear`, `script` (atomic timed sequence), `get_state`,
+`cvar` (get/set any cvar by name), `enable`/`disable`. Input names match the
+keyboard-gamepad vocabulary (`A`/`B`/`X`/`Y`, `LB`/`RB`, `LT`/`RT`,
+`Up`/`Down`/`Left`/`Right`, `Start`/`Back`, `L3`/`R3`, stick direction
+shorthands). `StkLy` positive = forward (Fable 2 convention). `script` is a
+single atomic message, so a repro sequence runs with no network round-trips
+between steps.
+
+Config (`[remote]` in `fable2_config.toml`): `enabled` (default `true`),
+`host` (`127.0.0.1`; `0.0.0.0` exposes it on all interfaces), `port`
+(`8791`; if busy, `+1..+9` are tried, the bound port is logged at startup),
+`token` (empty = no auth; when set, each connection's first line must be
+`{"cmd":"auth","token":"..."}`). Every received command is logged (audit
+trail) to `logs/`.
+
 ## Building
 
 Everything the build needs is either in this repo or auto-fetched — **no

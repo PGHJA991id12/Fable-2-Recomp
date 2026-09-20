@@ -39,6 +39,16 @@ rexglue_setup_target(fable_2 GPU_PLUGINS xenos)
 target_compile_definitions(fable_2 PRIVATE
     $<$<PLATFORM_ID:Windows>:_CRT_SECURE_NO_WARNINGS>)
 
+# Remote control server (AI input channel) is a debug-only tool: it opens a
+# localhost TCP port and injects guest input, so it must NOT ship in Release /
+# RelWithDebInfo builds (players shouldn't see a hidden input channel, and it's
+# only useful for debugging). Defining FABLE2_REMOTE_CONTROL compiles the pad
+# driver registration + server start/stop into the app; without it (non-Debug)
+# those are #ifdef'd out entirely and no port is ever opened.
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_compile_definitions(fable_2 PRIVATE FABLE2_REMOTE_CONTROL)
+endif()
+
 # --- Recomp-level patches (Xenia code-region patches, made effective) ------
 # This is a RECOMP: guest .text is never executed, so Xenia code patches
 # (byte writes to .text) are inert at runtime. tools/apply_recomp_patches.py
@@ -103,6 +113,17 @@ add_custom_command(TARGET fable_2 POST_BUILD
           $<TARGET_FILE_DIR:fable_2>/fable2-functrace.cmd
   COMMENT "Staging README.md + fable2-functrace.cmd next to fable_2.exe"
 )
+
+# The remote-control CLI client is a debug-only feature (see the
+# FABLE2_REMOTE_CONTROL gate above), so only stage it for Debug builds.
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+  add_custom_command(TARGET fable_2 POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_CURRENT_SOURCE_DIR}/tools/fable2_control.py
+            $<TARGET_FILE_DIR:fable_2>/fable2_control.py
+    COMMENT "Staging fable2_control.py (debug-only remote control client) next to fable_2.exe"
+  )
+endif()
 
 # --- Recomp user config (fable2_config.toml) -------------------------------
 # Header-only toml++ parser, vendored from the same version the ReXGlue SDK

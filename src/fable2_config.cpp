@@ -100,6 +100,26 @@ unlock_website = true
 # the CE items are granted at save load. false = locked (original).
 # Default: true
 unlock_ce = true
+
+[remote]
+# Remote control server (AI/automation input channel): a localhost TCP
+# server that accepts JSON-lines commands to drive the guest gamepad -
+# press/release/stick, timed scripts, cvar get/set. See
+# src/remote_control_server.h and plans/ai-remote-input-control.md.
+# Default: true
+enabled = true
+# Interface to bind. "127.0.0.1" = this machine only (default). "0.0.0.0" =
+# all interfaces (use with a token; a remote attacker could then drive the
+# game and set cvars).
+# Default: "127.0.0.1"
+host = "127.0.0.1"
+# TCP port. If the port is busy the game tries port+1..port+9 (the bound
+# port is logged at startup). Default: 8791
+port = 8791
+# Shared token. Empty = no auth. When set, every client connection must send
+# {"cmd":"auth","token":"..."} as its first line.
+# Default: ""
+token = ""
 )TOML_EOF";
 
 std::string_view TypeName(toml::node_type t) {
@@ -157,8 +177,8 @@ bool Load(const std::filesystem::path& path) {
 
   // Warn about unknown top-level sections (usually a typo or a file written
   // for a newer build).
-  static constexpr std::array<std::string_view, 3> kKnownSections = {
-      "general", "input", "patches"};
+  static constexpr std::array<std::string_view, 4> kKnownSections = {
+      "general", "input", "patches", "remote"};
   for (const auto& [key, value] : root) {
     const bool known =
         std::ranges::find(kKnownSections, key.str()) != kKnownSections.end();
@@ -200,6 +220,20 @@ bool Load(const std::filesystem::path& path) {
                                        values.unlock_website);
     values.unlock_ce = Read<bool>(patches_table, "patches", "unlock_ce",
                                   "boolean", values.unlock_ce);
+  }
+  const toml::path remote_path{"remote"};
+  const auto remote = root[remote_path];
+  if (remote.is_table()) {
+    const toml::table& remote_table = *remote.as_table();
+    values.remote_enabled =
+        Read<bool>(remote_table, "remote", "enabled", "boolean",
+                   values.remote_enabled);
+    values.remote_host = Read<std::string>(
+        remote_table, "remote", "host", "string", values.remote_host);
+    values.remote_port = static_cast<int32_t>(Read<int64_t>(
+        remote_table, "remote", "port", "integer", values.remote_port));
+    values.remote_token = Read<std::string>(
+        remote_table, "remote", "token", "string", values.remote_token);
   }
 
   g_values = values;

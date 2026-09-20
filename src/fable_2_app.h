@@ -35,6 +35,10 @@
 // Re-enable to re-measure the frame pacing:
 // #include "fps_probe.h"
 #include "keyboard_gamepad.h"
+#ifdef FABLE2_REMOTE_CONTROL
+#include "remote_control_server.h"
+#include "remote_gamepad_driver.h"
+#endif  // FABLE2_REMOTE_CONTROL
 #include "xex_verify.h"
 
 class Fable2App : public rex::ReXApp {
@@ -46,6 +50,21 @@ class Fable2App : public rex::ReXApp {
     return std::unique_ptr<Fable2App>(new Fable2App(ctx, "fable_2",
         PPCImageConfig));
   }
+
+  // Remote control (AI input channel) - see plans/ai-remote-input-control.md
+  // and src/remote_control_server.h. The store is shared by the remote pad
+  // driver (registered in OnPreSetup) and the command server (started in
+  // OnPostInitLogging); the server publishes resolved snapshots and the
+  // guest-side driver consumes the latest on each poll. DEBUG builds only
+  // (gated on FABLE2_REMOTE_CONTROL; a hidden input channel must not ship in
+  // Release builds).
+#ifdef FABLE2_REMOTE_CONTROL
+  std::shared_ptr<fable2::remote::InputStateStore> remote_state_ =
+      std::make_shared<fable2::remote::InputStateStore>();
+  std::atomic<bool> remote_pad_enabled_{true};
+  fable2::remote::ControlServer remote_server_{remote_state_.get(),
+                                               &remote_pad_enabled_};
+#endif  // FABLE2_REMOTE_CONTROL
 
   // Emulate the Xbox 360 Xenos GPU. Two plugins are staged next to the exe:
   //   rexgpu-xenos[d].dll        -> D3D12 (prebuilt SDK plugin; the default)
@@ -70,11 +89,18 @@ class Fable2App : public rex::ReXApp {
     // synthetic "keyboard gamepad" driver so host keys can drive the guest.
     // The mapping is the `keyboard_gamepad_map` cvar (default "E:A"). See
     // src/keyboard_gamepad.h.
-    config.input_factory = [](bool tool_mode) ->
+    config.input_factory = [this](bool tool_mode) ->
         std::unique_ptr<rex::system::IInputSystem> {
       auto system = rex::input::CreateDefaultInputSystem(tool_mode);
       system->AddDriver(
           std::make_unique<fable2::KeyboardGamepadDriver>(system->window(), 0));
+#ifdef FABLE2_REMOTE_CONTROL
+      // Remote (AI) pad: driven over localhost TCP by an external harness
+      // (src/remote_control_server.h). OR-merges with the pads above; not
+      // gated on window focus. Debug builds only.
+      system->AddDriver(std::make_unique<fable2::remote::GamepadDriver>(
+          system->window(), 0, remote_state_.get(), &remote_pad_enabled_));
+#endif  // FABLE2_REMOTE_CONTROL
       return system;  // C++14 unique_ptr<Derived> -> unique_ptr<Base>
     };
   }
@@ -231,7 +257,31 @@ class Fable2App : public rex::ReXApp {
     seed_cvar("keyboard_gamepad_map", cfg.keyboard_gamepad_map);
     seed_cvar("mouse_look", cfg.mouse_look ? "true" : "false");
     seed_cvar("mouse_look_scale", std::to_string(cfg.mouse_look_scale));
+
+#ifdef FABLE2_REMOTE_CONTROL
+    // Start the remote control server (AI input channel; [remote] section).
+    // Debug builds only (FABLE2_REMOTE_CONTROL); Release builds never open the
+    // port.
+    if (cfg.remote_enabled) {
+      fable2::remote::ControlServer::Config rcfg;
+      rcfg.host = cfg.remote_host;
+      rcfg.port = cfg.remote_port;
+      rcfg.token = cfg.remote_token;
+      if (!remote_server_.Start(rcfg)) {
+        REXSYS_WARN(
+            "[fable2-config] remote control server could not start; remote "
+            "input disabled (see logs/)");
+      }
+    } else {
+      REXSYS_INFO("[fable2-config] remote control disabled by config");
+    }
+#endif  // FABLE2_REMOTE_CONTROL
   }
+
+#ifdef FABLE2_REMOTE_CONTROL
+  // Stop the remote control server threads before anything else tears down.
+  void OnShutdown() override { remote_server_.Stop(); }
+#endif  // FABLE2_REMOTE_CONTROL
   // Apply the game patches (see src/fable2_patches.h) once the SDK has
   // decrypted default.xex into the guest arena, before the module launches.
   // The patch table is data-driven: fable2_patches.toml next to the exe

@@ -56,6 +56,13 @@ struct Values {
   // GuildChest_GetCEContent_824B3528 (hooks fable2_hook_ce_g1/g1b/grantavail
   // in src/fable2_hooks.cpp).
   bool unlock_ce = true;
+  // [remote] - localhost JSON-lines command channel so an external AI/
+  // automation harness can drive the guest gamepad (see
+  // src/remote_control_server.h and plans/ai-remote-input-control.md).
+  bool remote_enabled = true;
+  std::string remote_host = "127.0.0.1";  // "0.0.0.0" = all interfaces
+  int32_t remote_port = 8791;  // if busy, ports +1..+9 are tried
+  std::string remote_token;  // empty = no auth required
 };
 
 // Load the config from `path`.
