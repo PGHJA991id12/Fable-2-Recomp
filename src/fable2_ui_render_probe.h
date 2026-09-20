@@ -285,10 +285,10 @@ inline bool hook(const char* name, PPCContext& ctx, uint8_t* base) {
 // Strong overrides for pipeline functions not owned by any other probe.
 // (Pattern: weak sub_XXX forwards to __imp__sub_XXX; we replace the weak
 // wrapper with a strong one that does probe work then calls the original.)
-extern "C" void __imp__sub_82BFD850(PPCContext& ctx, uint8_t* base);
-extern "C" void sub_82BFD850(PPCContext& ctx, uint8_t* base) {
-  if (fable2::uir::hook("sub_82BFD850", ctx, base)) return;
-  __imp__sub_82BFD850(ctx, base);
+extern "C" void __imp__ThunkTo_UIText_FrameRender_82BFD850(PPCContext& ctx, uint8_t* base);
+extern "C" void ThunkTo_UIText_FrameRender_82BFD850(PPCContext& ctx, uint8_t* base) {
+  if (fable2::uir::hook("ThunkTo_UIText_FrameRender_82BFD850", ctx, base)) return;
+  __imp__ThunkTo_UIText_FrameRender_82BFD850(ctx, base);
 }
 
 extern "C" void __imp__UITextItem_Render(PPCContext& ctx, uint8_t* base);

@@ -38830,6 +38830,139 @@ name = "ProcessAndProcessAndProcess496_82354A70"
 [entrypoint.functions."0x82354AE0"]
 name = "ProcessAndProcessAndProcess497_82354AE0"
 
+# Originally Missed Functions
+# Process two values with a buffer copy and global field update (four hundred and ninety-eighth form). It takes two values (a and b); it processes the values, performs a buffer copy/zero operation, and sets a global field. This is the "process this data" routine (four hundred and ninety-eighth form), part of the 0x82BF0 process cluster. 158 lines. 4 callees (ProcessAndProcessAndProcess356, sub_82BF2B68, Buffer_CopyOrZero_Error, and SetGlobalField_Thunk). 1 caller (ProcessAndProcessAndProcess259).
+[entrypoint.functions."0x82BF09C0"]
+name = "ProcessAndProcessAndProcess498_82BF09C0"
+
+# Multiply-and-add in place on a 12-byte structure (a simple arithmetic routine). It takes a structure (a: fields at a->0, a->4, and a->8); it computes (a->0 * a->8) + a->4 and stores the result in a->8. This is a "multiply and add in place" routine. 20 lines. 0 callees. 1 caller (sub_82C60180).
+[entrypoint.functions."0x82C627E0"]
+name = "MultiplyAndAddInPlace_82C627E0"
+
+# Compute a floating-point time difference and convert to an integer (a time-to-integer routine). It takes a floating-point value (a: f1); it compares a to a global threshold, and — if below — computes the difference from the threshold, otherwise computes the sum with another global, then converts the result to an integer. This is a "compute time difference as integer" routine. 39 lines. 0 callees. 1 caller (sub_82C60180).
+[entrypoint.functions."0x82C60140"]
+name = "ComputeTimeDifferenceAsInteger_82C60140"
+
+# Interpolate between two floating-point arrays and store the result (a float interpolation routine). It takes a structure (a: fields at a->8, a->36, a->40, a->16, a->20, and a->12); if the count (a->8) is positive, it iterates over the range [a->36, a->40) and computes a weighted sum of two float arrays (a->16 and a->20), storing the interpolated result in a->12. This is a "interpolate float array" routine. 292 lines. 0 callees. 1 caller (sub_82C60180).
+[entrypoint.functions."0x82C62548"]
+name = "InterpolateFloatArray_82C62548"
+
+# Process an entry array in a critical section with mutex protection (four hundred and ninety-ninth form). It takes a structure (a: fields at a->692, a->236, a->28, and a->704); it checks the structure's state, and — when ready — locks the mutex, processes the entry array in a critical section, and unlocks the mutex. This is the "process this data" routine (four hundred and ninety-ninth form), part of the 0x832B6 process cluster. 263 lines. 3 callees (CriticalSection_ProcessEntryArray, MutexLock_WaitInfinite, and MutexUnlock_ReleaseMutant). 1 caller (sub_82A3BC58).
+[entrypoint.functions."0x832B6110"]
+name = "ProcessAndProcessAndProcess499_832B6110"
+
+# Issue a virtual call on a structure, then clear its fields (five hundredth form). It takes a structure (a: fields at a->80, a->96, and a->88); it issues a virtual call on a->80, then clears a->96 and a->88 to zero. This is the "process this data" routine (five hundredth form), part of the 0x822A2 process cluster. 66 lines. 1 callee (ProcessAndVcallAndClear3). 0 callers (unresolved — body is recovered but no callers found; likely a vtable method or indirect entry).
+[entrypoint.functions."0x822A2A40"]
+name = "ProcessAndProcessAndProcess500_822A2A40"
+
+# Large processor that checks a structure's state and drives multiple sub-operations (five hundred and first form). It takes a structure (a: fields at a->129, a->160, a->84, and a->148) and two values (b and c); it checks the structure's state and drives the appropriate sub-operations based on the flags. This is the "process this data" routine (five hundred and first form), part of the 0x8221E process cluster. 310 lines. 3 callees (sub_821D7730, sub_8221D228, and sub_82A6EBA0). 12 callers (many from the 0x82A* cluster).
+[entrypoint.functions."0x8221EC20"]
+name = "ProcessAndProcessAndProcess501_8221EC20"
+
+# Remove a node from a doubly-linked list and clean up its references (a list-removal routine). It takes a structure (a: fields at a->8, a->40, a->24, a->16, and a->12); it checks the node's state, and — if valid — unlinks the node from its prev/next pointers and clears the references. This is a "remove from linked list" routine. 80 lines. 0 callees. 8 callers (sub_8221EC20, sub_8221D118, sub_82181270, sub_82215978, sub_821815B0, sub_821AC058, sub_821D7730, and sub_82A6EBA0).
+[entrypoint.functions."0x8221D228"]
+name = "RemoveFromLinkedList_8221D228"
+
+# Grow a buffer and append data, adjusting the size and capacity fields (a buffer-grow routine). It takes a structure (a: fields at a->12, a->4, a->8, and a->20); it computes the new size, and — if the buffer needs to grow — adjusts the size and capacity fields. This is a "grow buffer and append" routine. 122 lines. 0 callees. 12 callers (many from the 0x82A* and 0x822* clusters).
+[entrypoint.functions."0x821FFC90"]
+name = "GrowBufferAndAppend_821FFC90"
+
+# Check a structure's state and drive the appropriate sub-operations (five hundred and second form). It takes a structure (a: fields at a->72, a->76, a->88, a->148, and a->152); it checks the structure's state, and — when ready — drives the appropriate sub-operations based on the flags. This is the "process this data" routine (five hundred and second form), part of the 0x82A62 process cluster. 148 lines. 2 callees (ProcessAndProcessAndProcess501 and sub_82A62CE0). 0 callers (unresolved — body is recovered but no callers found; likely a vtable method or indirect entry).
+[entrypoint.functions."0x82A628A0"]
+name = "ProcessAndProcessAndProcess502_82A628A0"
+
+# Get a flag from a substructure, returning the byte value only when the guard byte is zero (a flag-getter routine). It takes a structure (a: field at a->16, which is a pointer to a sub-structure with bytes at +16 and +17); if the guard byte (a->16+17) is zero, it returns the flag byte (a->16+16), otherwise it returns 0. This is a "get flag from substructure" routine. 18 lines. 0 callees. 0 callers (unresolved — body is recovered but no callers found; likely a vtable method or indirect entry).
+[entrypoint.functions."0x821DB8D0"]
+name = "GetFlagFromSubstructure_821DB8D0"
+
+# Atomically decrement a reference count, performing cleanup when it reaches zero (a refcount-decrement routine). It takes a structure (a: fields at a->4 and a->0); it uses atomic operations (lwarx/stwcx) to decrement the counter at a->4, and — when the counter reaches zero — performs additional cleanup based on the type field (a->0). This is a "decrement refcount atomically" routine. 88 lines. 2 callees (sub_821F6490 and sub_821FC1F0, recursive). 12 callers (many from the 0x832A* and 0x82* clusters).
+[entrypoint.functions."0x821FC1F0"]
+name = "DecrementRefcountAtomic_821FC1F0"
+
+# Atomically increment a reference count, performing initialization when it reaches one (a refcount-increment routine). It takes a structure (a: fields at a->4 and a->0); it uses atomic operations (lwarx/stwcx) to increment the counter at a->4, and — when the counter reaches 1 — performs additional initialization based on the type field (a->0). This is a "increment refcount atomically" routine. 80 lines. 1 callee (sub_821FC048, recursive). 12 callers (many from the 0x82B* and 0x82* clusters).
+[entrypoint.functions."0x821FC048"]
+name = "IncrementRefcountAtomic_821FC048"
+
+# Process a state transition by checking the state field and issuing a virtual call (a state-transition routine). It takes a structure (a: fields at a->0, a->4, a->20, a->21, and a->16); it checks the state field (a->21), and — when the state is valid — issues a virtual call based on the type. This is a "process state transition" routine. 92 lines. 0 callees (uses an indirect call). 12 callers (many from the 0x82B* and 0x82* clusters).
+[entrypoint.functions."0x8221E680"]
+name = "ProcessStateTransition_8221E680"
+
+# Yield execution and check a value against a threshold, returning a bit (a yield-and-check routine). It takes a value (a); it yields execution (NtYieldExecution), then compares a to a threshold (16420), and returns a bit value based on the comparison. This is a "yield and check threshold" routine. 36 lines. 1 callee (__imp__NtYieldExecution). 10 callers (many from the 0x82B* and 0x82* clusters).
+[entrypoint.functions."0x82CBD098"]
+name = "YieldAndCheckThreshold_82CBD098"
+
+# Check a structure's state and drive the appropriate sub-operations (five hundred and third form). It takes a structure (a: fields at a->32, a->8, and a->52) and two values (b and c); it checks the structure's state, and — when ready — drives the appropriate sub-operations based on the flags. This is the "process this data" routine (five hundred and third form), part of the 0x8222A process cluster. 171 lines. 2 callees (sub_821A5A30 and sub_82CBC6B0). 0 callers (unresolved — body is recovered but no callers found; likely a vtable method or indirect entry).
+[entrypoint.functions."0x8222AC38"]
+name = "ProcessAndProcessAndProcess503_8222AC38"
+
+# Thunk that calls KeQuerySystemTime to get the current system time (a system-time thunk). It takes no arguments and simply calls __imp__KeQuerySystemTime. This is a "query system time" thunk. 7 lines. 1 callee (__imp__KeQuerySystemTime). 5 callers (sub_83000E70, sub_821882B0, sub_83003018, sub_82CA4248, and sub_830038E0).
+[entrypoint.functions."0x821882A8"]
+name = "QuerySystemTime_Thunk_821882A8"
+
+# Get the current time in milliseconds by querying the system time and converting (a time-conversion routine). It takes no arguments; it queries the system time (KeQuerySystemTime), computes the time difference from a reference, and divides by 10000 to convert to milliseconds. This is a "get current time in milliseconds" routine. 46 lines. 1 callee (QuerySystemTime_Thunk). 11 callers (many from the 0x82C* and 0x82* clusters).
+[entrypoint.functions."0x821882B0"]
+name = "GetCurrentTimeMillis_821882B0"
+
+# Large processor that performs complex floating-point operations (five hundred and fourth form). It takes two floating-point values (a and b: f1 and f2); it performs complex floating-point operations, comparing the values to global thresholds and driving the appropriate sub-operations based on the results. This is the "process this data" routine (five hundred and fourth form), part of the 0x821FE process cluster. 733 lines. 7 callees (sub_821F3C80, sub_821FE2F0, sub_821FE308, sub_821FE868, sub_821FE890, sub_82CA3D78, and sub_82CA40C0). 12 callers (many from the 0x82A* and 0x82* clusters).
+[entrypoint.functions."0x821FE378"]
+name = "ProcessAndProcessAndProcess504_821FE378"
+
+# Check a specific bit in a flag byte, returning 0 or 1 (a flag-bit-check routine). It takes a structure (a: field at a->44); it checks a specific bit in the flag byte (a->44) and returns 0 or 1. This is a "check flag bit" routine. 12 lines. 0 callees. 0 callers (unresolved — body is recovered but no callers found; likely a vtable method or indirect entry).
+[entrypoint.functions."0x82185418"]
+name = "CheckFlagBit_82185418"
+
+# Process notifications by checking a flag and driving the appropriate sub-operations (five hundred and fifth form). It takes a structure (a: field at a->44) and two values (b and c); it checks the flag, and — when ready — processes the notifications and drives the appropriate sub-operations based on the results. This is the "process this data" routine (five hundred and fifth form), part of the 0x8229A process cluster. 109 lines. 6 callees (ProcessAndProcessAndProcess255, ProcessAndProcessAndProcess257, ProcessAndProcessAndProcess258, __imp__XNotifyGetNext, sub_821DB798, and sub_82BEB0A8). 3 callers (sub_823784A0, sub_82276C30, and sub_82355460).
+[entrypoint.functions."0x8229A9D8"]
+name = "ProcessAndProcessAndProcess505_8229A9D8"
+
+# Iterate a linked list within a critical section, driving sub-operations for each node (five hundred and sixth form). It takes a structure (a: fields at a->12, a->16, and a->4); it enters a critical section, iterates the linked list, and drives the appropriate sub-operations for each node. This is the "process this data" routine (five hundred and sixth form), part of the 0x821DB process cluster. 183 lines. 5 callees (sub_822C5A18, sub_822A2948, sub_822606B0, CriticalSection_EnterOrTry, and __imp__RtlLeaveCriticalSection). 1 caller (ProcessAndProcessAndProcess505).
+[entrypoint.functions."0x821DB798"]
+name = "ProcessAndProcessAndProcess506_821DB798"
+
+# Simple thunk that forwards to sub_82BFD850 (a forwarding thunk). It takes no arguments and simply calls sub_82BFD850. This is a "forward to another function" thunk. 7 lines. 1 callee (sub_82BFD850). 1 caller (ProcessAndProcessAndProcess506).
+[entrypoint.functions."0x822C5A18"]
+name = "ThunkTo_82BFD850_822C5A18"
+
+# Return the byte at offset 8 of a structure (a byte-getter routine). It takes a structure (a: field at a->8) and returns the byte value at a->8. This is a "get byte at offset" routine. 7 lines. 0 callees. 0 callers (unresolved — body is recovered but no callers found; likely a vtable method or indirect entry).
+[entrypoint.functions."0x8217FD88"]
+name = "GetByteAtOffset8_8217FD88"
+
+# Process notifications by checking a notification type and handling it (five hundred and seventh form). It takes a structure (a: field at a->4); it checks the notification type, and — when valid — processes the notification using XNotifyGetNext. This is the "process this data" routine (five hundred and seventh form), part of the 0x82185 process cluster. 92 lines. 1 callee (__imp__XNotifyGetNext). 0 callers (unresolved — body is recovered but no callers found; likely a vtable method or indirect entry).
+[entrypoint.functions."0x82185228"]
+name = "ProcessAndProcessAndProcess507_82185228"
+
+# Iterate an array of pointers and issue a virtual call on each one (five hundred and eighth form). It takes a structure (a: array of pointers at a->0, a->4, a->8, ...); it iterates over the array (up to 6 entries), and for each valid pointer, issues a virtual call. This is the "process this data" routine (five hundred and eighth form), part of the 0x822A2 process cluster. 148 lines. 0 callees (uses indirect calls). 4 callers (sub_829F8D30, ProcessAndProcessAndProcess506, sub_829F8028, and sub_829F7F88). Strong override in fable2_text_probe.h.
+[entrypoint.functions."0x822A2948"]
+name = "ProcessAndProcessAndProcess508_822A2948"
+
+# Return the byte at offset 96 of a structure (a byte-getter routine). It takes a structure (a: field at a->96) and returns the byte value at a->96. This is a "get byte at offset" routine. 7 lines. 0 callees. 0 callers (unresolved — body is recovered but no callers found; likely a vtable method or indirect entry).
+[entrypoint.functions."0x822A9360"]
+name = "GetByteAtOffset96_822A9360"
+
+# Return the byte at offset 4 of a structure (a byte-getter routine). It takes a structure (a: field at a->4) and returns the byte value at a->4. This is a "get byte at offset" routine. 8 lines. 0 callees. 7 callers (many from the 0x82EE* cluster).
+[entrypoint.functions."0x829F9C40"]
+name = "GetByteAtOffset4_829F9C40"
+
+# Simple thunk that forwards to UIText_FrameRender (a UI text rendering thunk). It takes no arguments and simply calls UIText_FrameRender. This is a "forward to UI text render" thunk. 7 lines. 1 callee (UIText_FrameRender). 1 caller (ThunkTo_82BFD850_822C5A18). Strong override in fable2_ui_render_probe.h.
+[entrypoint.functions."0x82BFD850"]
+name = "ThunkTo_UIText_FrameRender_82BFD850"
+
+# Large processor that performs complex vector operations on a structure (five hundred and ninth form). It takes a value (a) and a structure (b: fields at b->0, b->4, and b->8); it performs complex vector operations on the structure, zeroing out various fields and processing the data. This is the "process this data" routine (five hundred and ninth form), part of the 0x832C1 process cluster. 1501 lines. 0 callees. 1 caller (sub_832BB018).
+[entrypoint.functions."0x832C13A8"]
+name = "ProcessAndProcessAndProcess509_832C13A8"
+
+# Process two structures by checking a count and driving sub-operations (five hundred and tenth form). It takes a value (a), a structure (b: fields at b->3136 and b->48), and a structure (c: fields at c->48, c->32, c->44, c->28, c->36, and c->40); it checks the count, and — when valid — processes the structures and drives the appropriate sub-operations. This is the "process this data" routine (five hundred and tenth form), part of the 0x821B7 process cluster. 207 lines. 1 callee (sub_82B9B340). 12 callers (many from the 0x82* and 0x82A* clusters).
+[entrypoint.functions."0x821B7020"]
+name = "ProcessAndProcessAndProcess510_821B7020"
+
+# Dispatch by type code, setting values in two output structures based on the code (a type-dispatch routine). It takes a type code (a), and two output structures (b: field at b->0, and c: field at c->0); it dispatches on the type code and sets the output values accordingly. This is a "dispatch by type code" routine. 87 lines. 0 callees. 10 callers (many from the 0x821F* and 0x8300* clusters).
+[entrypoint.functions."0x821FAFF8"]
+name = "DispatchByTypeCode_821FAFF8"
+
+# Process a structure by checking its fields and performing floating-point computation (five hundred and eleventh form). It takes a structure (a: fields at a->44, a->52, a->60, a->0, a->56, a->48, and a->4); it checks the structure's fields, and — when valid — performs a floating-point computation based on the values. This is the "process this data" routine (five hundred and eleventh form), part of the 0x82C61 process cluster. 103 lines. 0 callees. 1 caller (sub_82C62210).
+[entrypoint.functions."0x82C61898"]
+name = "ProcessAndProcessAndProcess511_82C61898"
+
 # Existing Functions
 
 # The main per-frame render/present loop (one call per frame: ~30/s at the

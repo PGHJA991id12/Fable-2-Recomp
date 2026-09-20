@@ -23,8 +23,8 @@ namespace fable2::fpsprobe {
 
 // Always-original entry points (strong symbols in the generated code).
 extern "C" void __imp__MainRenderLoop_82B9CD68(PPCContext& ctx, uint8_t* base);  // main loop (calls VdSwap); renamed from sub_82B9CD68
-extern "C" void __imp__sub_82CC2028(PPCContext& ctx, uint8_t* base);  // KeDelayExecutionThread wrapper
-extern "C" void __imp__sub_82CBD098(PPCContext& ctx, uint8_t* base);  // NtYieldExecution wrapper
+extern "C" void __imp__DelayMilliseconds_82CC2028(PPCContext& ctx, uint8_t* base);  // KeDelayExecutionThread wrapper
+extern "C" void __imp__YieldAndCheckThreshold_82CBD098(PPCContext& ctx, uint8_t* base);  // NtYieldExecution wrapper
 extern "C" void __imp__sub_83004C20(PPCContext& ctx, uint8_t* base);  // NtSetTimerEx wrapper
 extern "C" void __imp__sub_83004C90(PPCContext& ctx, uint8_t* base);  // NtCreateTimer wrapper
 extern "C" void __imp__sub_82BA32C8(PPCContext& ctx, uint8_t* base);  // per-frame helper (calls the frame-wait)
@@ -41,7 +41,7 @@ extern "C" void __imp__sub_82B9BF90(PPCContext& ctx, uint8_t* base);
 extern "C" void __imp__sub_82B9BEC8(PPCContext& ctx, uint8_t* base);
 extern "C" void __imp__sub_82BA8350(PPCContext& ctx, uint8_t* base);
 extern "C" void __imp__sub_822A6318(PPCContext& ctx, uint8_t* base);
-extern "C" void __imp__sub_82CA3190(PPCContext& ctx, uint8_t* base);
+extern "C" void __imp__MemSet_SdkRuntime_82CA3190(PPCContext& ctx, uint8_t* base);
 extern "C" void __imp__sub_82B9CB88(PPCContext& ctx, uint8_t* base);
 extern "C" void __imp__sub_82B9C7F8(PPCContext& ctx, uint8_t* base);
 extern "C" void __imp__sub_82B9C9D8(PPCContext& ctx, uint8_t* base);
@@ -166,13 +166,13 @@ extern "C" void MainRenderLoop_82B9CD68(PPCContext& ctx, uint8_t* base) {
   fable2::fpsprobe::note(fable2::fpsprobe::probe_main_loop, ctx);
   __imp__MainRenderLoop_82B9CD68(ctx, base);
 }
-extern "C" void sub_82CC2028(PPCContext& ctx, uint8_t* base) {
+extern "C" void DelayMilliseconds_82CC2028(PPCContext& ctx, uint8_t* base) {
   fable2::fpsprobe::note(fable2::fpsprobe::probe_ke_delay, ctx);
-  __imp__sub_82CC2028(ctx, base);
+  __imp__DelayMilliseconds_82CC2028(ctx, base);
 }
-extern "C" void sub_82CBD098(PPCContext& ctx, uint8_t* base) {
+extern "C" void YieldAndCheckThreshold_82CBD098(PPCContext& ctx, uint8_t* base) {
   fable2::fpsprobe::note(fable2::fpsprobe::probe_yield, ctx);
-  __imp__sub_82CBD098(ctx, base);
+  __imp__YieldAndCheckThreshold_82CBD098(ctx, base);
 }
 extern "C" void sub_83004C20(PPCContext& ctx, uint8_t* base) {
   fable2::fpsprobe::note(fable2::fpsprobe::probe_nt_set_timer, ctx);
@@ -300,7 +300,7 @@ FPS_PROBE_HOOK(sub_82B9BF90, probe_h5, __imp__sub_82B9BF90)
 FPS_PROBE_HOOK(sub_82B9BEC8, probe_h6, __imp__sub_82B9BEC8)
 FPS_PROBE_HOOK(sub_82BA8350, probe_h7, __imp__sub_82BA8350)
 FPS_PROBE_HOOK(sub_822A6318, probe_h8, __imp__sub_822A6318)
-FPS_PROBE_HOOK(sub_82CA3190, probe_h9, __imp__sub_82CA3190)
+FPS_PROBE_HOOK(MemSet_SdkRuntime_82CA3190, probe_h9, __imp__MemSet_SdkRuntime_82CA3190)
 FPS_PROBE_HOOK(sub_82B9CB88, probe_h10, __imp__sub_82B9CB88)
 FPS_PROBE_HOOK(sub_82B9C7F8, probe_h11, __imp__sub_82B9C7F8)
 FPS_PROBE_HOOK(sub_82B9C9D8, probe_h12, __imp__sub_82B9C9D8)
