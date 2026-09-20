@@ -17,6 +17,8 @@ rem   fable2-functrace.cmd vulkan           Vulkan, trace every call
 rem   fable2-functrace.cmd subs             only sub_* functions - naming mode
 rem   fable2-functrace.cmd subs LoadingScreen   naming mode + substring filter
 rem   fable2-functrace.cmd d3d12 82B9 subs  D3D12, address-range naming mode
+rem   fable2-functrace.cmd summary          summary file only, no trace log
+rem   fable2-functrace.cmd trace            trace log only, no summary file
 rem
 rem   <backend>  d3d12 (default) | vulkan | prebuilt  (passed to fable2.cmd)
 rem   <filter>   any other argument: sets FABLE2_FUNC_TRACE_FILTER (substring
@@ -24,6 +26,9 @@ rem              match; e.g. Story_, SwitchDispatch, or 82B9 with subs)
 rem   subs       keyword: sets FABLE2_FUNC_TRACE_SUBS_ONLY=1, dropping
 rem              everything that isn't a sub_<hex> name (named functions,
 rem              __savegprlr_*/__restgprlr_* helpers, xstart)
+rem   trace      keyword: write only fable2_func_trace.log
+rem   summary    keyword: write only fable2_func_summary.log
+rem              (no keyword = both, the default)
 rem
 rem A previous session's logs are renamed to fable2_func_trace_prev.log /
 rem fable2_func_summary_prev.log first, so each launch starts fresh (the
@@ -40,9 +45,15 @@ rem --- Parse keyword arguments in any order -------------------------------
 set "BACKEND="
 set "FILTER="
 set "SUBSONLY=0"
+set "WANTLOG=0"
+set "WANTSUMMARY=0"
 for %%A in (%*) do (
     if /i "%%A"=="subs" (
         set "SUBSONLY=1"
+    ) else if /i "%%A"=="trace" (
+        set "WANTLOG=1"
+    ) else if /i "%%A"=="summary" (
+        set "WANTSUMMARY=1"
     ) else if /i "%%A"=="d3d12" (
         if not defined BACKEND set "BACKEND=d3d12"
     ) else if /i "%%A"=="vulkan" (
@@ -54,7 +65,20 @@ for %%A in (%*) do (
     )
 )
 
+rem trace/summary output selection: no keyword = both, one keyword = just
+rem that output, both keywords = both.
 set "FABLE2_FUNC_TRACE=1"
+set "FABLE2_FUNC_TRACE_LOG=1"
+set "FABLE2_FUNC_TRACE_SUMMARY=1"
+set "OUTMODE=trace + summary"
+if "%WANTLOG%"=="1" if not "%WANTSUMMARY%"=="1" (
+    set "FABLE2_FUNC_TRACE_SUMMARY=0"
+    set "OUTMODE=trace only"
+)
+if "%WANTSUMMARY%"=="1" if not "%WANTLOG%"=="1" (
+    set "FABLE2_FUNC_TRACE_LOG=0"
+    set "OUTMODE=summary only"
+)
 if defined FILTER set "FABLE2_FUNC_TRACE_FILTER=%FILTER%"
 if "%SUBSONLY%"=="1" set "FABLE2_FUNC_TRACE_SUBS_ONLY=1"
 
@@ -72,14 +96,14 @@ rem NOTE: no literal parens in these echo strings - a ")" inside a
 rem parenthesized if block makes cmd close the block early.
 if "%SUBSONLY%"=="1" (
     if defined FILTER (
-        echo fable2-functrace: tracing sub_* functions only, filter %FILTER% 1>&2
+        echo fable2-functrace: tracing sub_* functions only, filter %FILTER%, %OUTMODE% 1>&2
     ) else (
-        echo fable2-functrace: tracing sub_* functions only - naming mode 1>&2
+        echo fable2-functrace: tracing sub_* functions only - naming mode, %OUTMODE% 1>&2
     )
 ) else if defined FILTER (
-    echo fable2-functrace: tracing all functions, filter %FILTER% 1>&2
+    echo fable2-functrace: tracing all functions, filter %FILTER%, %OUTMODE% 1>&2
 ) else (
-    echo fable2-functrace: tracing all functions - log grows by GBs per minute 1>&2
+    echo fable2-functrace: tracing all functions - log grows by GBs per minute, %OUTMODE% 1>&2
 )
 
 if exist "fable2.cmd" goto full_launcher

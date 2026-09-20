@@ -245,11 +245,17 @@ set FABLE2_FUNC_TRACE=1            rem every guest function entry
 set FABLE2_FUNC_TRACE_FILTER=LoadingScreen   rem optional: only names containing this
 ```
 
+Either output can be turned off independently (default: both on):
+`FABLE2_FUNC_TRACE_LOG=0` skips `fable2_func_trace.log` (summary only),
+`FABLE2_FUNC_TRACE_SUMMARY=0` skips `fable2_func_summary.log` (trace only).
+
 or at runtime from a named-function override (see `src/fps_probe.h` for the
 override pattern): `Fable2FuncTraceSetEnabled(true)` /
 `Fable2FuncTraceSetFilter("LoadingScreen")` /
-`Fable2FuncTraceSetSubsOnly(true)` / `Fable2FuncTraceFlush()` (declared
-`extern "C"` in `src/fable2_func_trace.h`).
+`Fable2FuncTraceSetSubsOnly(true)` /
+`Fable2FuncTraceSetLogEnabled(false)` /
+`Fable2FuncTraceSetSummaryEnabled(false)` / `Fable2FuncTraceFlush()`
+(declared `extern "C"` in `src/fable2_func_trace.h`).
 
 **Naming mode** (`FABLE2_FUNC_TRACE_SUBS_ONLY=1`): log only the unnamed
 guest functions - names matching `sub_` + hex digits - dropping named
@@ -263,8 +269,9 @@ to an address range).
 var dance for you and renames the previous session's log to
 `fable2_func_trace_prev.log` first:
 
-Arguments are keywords in any order (`subs` enables naming mode, the
-backend word picks the GPU path, anything else is the substring filter):
+Arguments are keywords in any order (`subs` enables naming mode,
+`trace`/`summary` pick which output file(s) are written, the backend word
+picks the GPU path, anything else is the substring filter):
 
 ```
 fable2-functrace.cmd                  D3D12, trace every call
@@ -272,7 +279,13 @@ fable2-functrace.cmd vulkan           Vulkan, trace every call
 fable2-functrace.cmd subs             naming mode: only sub_<hex> functions
 fable2-functrace.cmd subs LoadingScreen   naming mode + substring filter
 fable2-functrace.cmd d3d12 82B9 subs  D3D12, address-range naming mode
+fable2-functrace.cmd summary          summary file only, no trace log
+fable2-functrace.cmd trace            trace log only, no summary file
 ```
+
+With no `trace`/`summary` keyword both files are written (the default).
+`summary` is the cheap option for long sessions - it avoids the multi-GB
+sequential log while still accumulating the call counts.
 
 It writes its own lightweight log (same pattern as `fps_probe.log`) rather
 than the SDK spdlog logger, which would be far too slow at Fable 2's call

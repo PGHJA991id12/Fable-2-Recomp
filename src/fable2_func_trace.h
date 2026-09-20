@@ -28,6 +28,9 @@
 // Optional substring filter (only log names containing it):
 //   FABLE2_FUNC_TRACE_FILTER=LoadingScreen    (env var)
 //   Fable2FuncTraceSetFilter("LoadingScreen") (runtime, "" = everything)
+// Output toggles (both on by default; set 0 to produce just the other file):
+//   FABLE2_FUNC_TRACE_LOG=0        no fable2_func_trace.log (summary only)
+//   FABLE2_FUNC_TRACE_SUMMARY=0    no fable2_func_summary.log (trace only)
 //
 // Deliberately a lightweight dedicated log (same pattern as fps_probe.log),
 // not the SDK spdlog logger: at Fable 2's call rate, per-call spdlog
@@ -109,6 +112,42 @@ inline std::atomic<bool>& subs_only() {
 
 inline void set_subs_only(bool on) {
   subs_only().store(on, std::memory_order_relaxed);
+}
+
+// Output toggles (default on when tracing is enabled): "0" disables the
+// sequential trace log, "0" disables the periodic summary file. The rest of
+// the string is ignored ("1" = on).
+namespace detail {
+inline bool env_toggle_on(const char* var) {
+#ifdef _WIN32
+  char v[8] = {};
+  size_t n = 0;
+  if (::getenv_s(&n, v, sizeof(v), var) != 0) return true;
+  return v[0] != '0';
+#else
+  const char* v = std::getenv(var);
+  return v == nullptr || v[0] != '0';
+#endif
+}
+}  // namespace detail
+
+inline std::atomic<bool>& trace_log_enabled() {
+  static std::atomic<bool> t{detail::env_toggle_on("FABLE2_FUNC_TRACE_LOG")};
+  return t;
+}
+
+inline std::atomic<bool>& summary_enabled() {
+  static std::atomic<bool> s{
+      detail::env_toggle_on("FABLE2_FUNC_TRACE_SUMMARY")};
+  return s;
+}
+
+inline void set_trace_log_enabled(bool on) {
+  trace_log_enabled().store(on, std::memory_order_relaxed);
+}
+
+inline void set_summary_enabled(bool on) {
+  summary_enabled().store(on, std::memory_order_relaxed);
 }
 
 // Matches the codegen naming convention for unnamed guest functions:
@@ -300,7 +339,9 @@ inline void ensure_sweeper() {
 // to disk every 8 KB.
 inline void trace(const char* name) {
   if (!enabled().load(std::memory_order_relaxed)) return;
-  ensure_sweeper();
+  const bool want_summary = summary_enabled().load(std::memory_order_relaxed);
+  const bool want_log = trace_log_enabled().load(std::memory_order_relaxed);
+  if (want_summary) ensure_sweeper();
   // The function body lives in __imp__<name> (name is a weak alias), so
   // __func__ carries the __imp__ prefix - strip it for readable logs.
   if (std::strncmp(name, "__imp__", 7) == 0) name += 7;
@@ -309,9 +350,11 @@ inline void trace(const char* name) {
   if (subs_only().load(std::memory_order_relaxed) && !is_sub_name(name))
     return;
 
+  if (!want_summary && !want_log) return;
+
   ThreadState& ts = state();
-  // Session-summary count (per-thread map; the sweeper snapshots it).
-  {
+  if (want_summary) {
+    // Session-summary count (per-thread map; the sweeper snapshots it).
     std::lock_guard<std::mutex> l(ts.m);
     auto it = ts.counts.find(name);
     if (it == ts.counts.end())
@@ -319,6 +362,7 @@ inline void trace(const char* name) {
     else
       ++it->second;
   }
+  if (!want_log) return;
   if (ts.run > 0 && ts.last == name) {
     ts.run++;  // extend the in-flight run; nothing hits the buffer yet
     return;
@@ -359,6 +403,16 @@ inline void Fable2FuncTraceSetFilter(const char* substr) {
 // "Subs only" mode: log only sub_<hex> (unnamed guest) functions.
 inline void Fable2FuncTraceSetSubsOnly(bool on) {
   fable2::functrace::set_subs_only(on);
+}
+
+// Output toggles: sequential fable2_func_trace.log and periodic
+// fable2_func_summary.log, each independently on/off (default on).
+inline void Fable2FuncTraceSetLogEnabled(bool on) {
+  fable2::functrace::set_trace_log_enabled(on);
+}
+
+inline void Fable2FuncTraceSetSummaryEnabled(bool on) {
+  fable2::functrace::set_summary_enabled(on);
 }
 
 // Finalize the CALLING thread's in-flight run and write it to disk
