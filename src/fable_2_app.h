@@ -38,6 +38,14 @@
 #ifdef FABLE2_REMOTE_CONTROL
 #include "remote_control_server.h"
 #include "remote_gamepad_driver.h"
+// 1-second game-state classifier (src/fable2_state_probe.h, single-TU inline).
+// Forward-declared here; the inline definitions live in the state probe header
+// (included once, in main.cpp), so the app can start/stop it alongside the
+// remote control server without pulling the whole probe into this header.
+namespace fable2::stateprobe {
+void start();
+void stop();
+}
 #endif  // FABLE2_REMOTE_CONTROL
 #include "xex_verify.h"
 
@@ -275,12 +283,21 @@ class Fable2App : public rex::ReXApp {
     } else {
       REXSYS_INFO("[fable2-config] remote control disabled by config");
     }
+
+    // Start the 1-second game-state classifier (feeds the remote `state`
+    // command + the [state] in-game log). Runs regardless of remote_enabled so
+    // the state is always tracked in debug builds.
+    fable2::stateprobe::start();
 #endif  // FABLE2_REMOTE_CONTROL
   }
 
 #ifdef FABLE2_REMOTE_CONTROL
-  // Stop the remote control server threads before anything else tears down.
-  void OnShutdown() override { remote_server_.Stop(); }
+  // Stop the state classifier thread, then the remote control server threads,
+  // before anything else tears down.
+  void OnShutdown() override {
+    fable2::stateprobe::stop();
+    remote_server_.Stop();
+  }
 #endif  // FABLE2_REMOTE_CONTROL
   // Apply the game patches (see src/fable2_patches.h) once the SDK has
   // decrypted default.xex into the guest arena, before the module launches.

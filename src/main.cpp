@@ -9,6 +9,7 @@
 #include "fable2_hotfuncs.h"
 #include "fable2_heap_scan.h"
 #include "fable2_text_append.h"
+#include "fable2_state_probe.h"
 // #include "fable2_ui_render_probe.h"
 #include "keyboard_gamepad.h"
 

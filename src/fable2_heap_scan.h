@@ -35,6 +35,8 @@
 #include <windows.h>
 #endif
 
+#include "fable2_state_probe.h"  // per-frame UI state sampler (render thread)
+
 namespace fable2::heapscan {
 
 inline constexpr uintptr_t kArenaHostBase = 0x100000000ull;  // see alloc_watch.h
