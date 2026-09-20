@@ -38801,6 +38801,35 @@ name = "ProcessAndProcessAndProcess493_83230900"
 [entrypoint.functions."0x83230FA0"]
 name = "ProcessAndProcessAndProcess494_83230FA0"
 
+# The functions Under here happen when the trailer is playing when idle on main menu
+# Check completion or progress by computing a percentage threshold and comparing values (a comparison routine). It takes a structure (a: fields at a->-228, a->-184, a->-188, and a->248) and a value (b); if the flag (a->-228) is zero it computes a progress percentage as 100*(a->-184+1)/(a->-188+1), and — if under 50% — returns the percentage minus one; otherwise it compares a->248 to b and returns the difference or zero. This is a progress/completion checker. 50 lines. 0 callees. 0 callers (unresolved — body is recovered but no callers found; likely a vtable method or indirect entry).
+[entrypoint.functions."0x832B3C30"]
+name = "CheckCompletionOrProgress_832B3C30"
+
+# Issue a virtual call on a structure, then store a value in field 248 (a setter routine). It takes a structure (a: fields at a->-596, a->-244, and a->248) and a value (b); it issues a virtual call on the structure (via a->-244) and then stores b in a->248. This is a "set a field after a virtual call" routine. 46 lines. 0 callees (uses an indirect call). 0 callers (unresolved — body is recovered but no callers found; likely a vtable method or indirect entry).
+[entrypoint.functions."0x832B3C88"]
+name = "SetFieldAfterVirtualCall_832B3C88"
+
+# Check a mutex-protected flag by locking the mutex and extracting a bit value (a flag-check routine). It takes a structure (a: fields at a->260 and a->264); if the pointer (a->260) is valid and the flag (a->264) is nonzero, it locks the mutex (MutexLock_WaitInfinite) and returns a specific bit from the flag; otherwise it returns 1. This is a "check a mutex-protected flag" routine. 53 lines. 1 callee (MutexLock_WaitInfinite). 0 callers (unresolved — body is recovered but no callers found; likely a vtable method or indirect entry).
+[entrypoint.functions."0x832B3CF8"]
+name = "CheckMutexFlag_832B3CF8"
+
+# Unlock a mutex-protected flag by releasing the mutex (a mutex-unlock routine). It takes a structure (a: fields at a->260 and a->264); if the pointer (a->260) is valid and the flag (a->264) is nonzero, it releases the mutex (MutexUnlock_ReleaseMutant). This is the "unlock a mutex-protected flag" routine, counterpart to CheckMutexFlag. 19 lines. 1 callee (MutexUnlock_ReleaseMutant). 0 callers (unresolved — body is recovered but no callers found; likely a vtable method or indirect entry).
+[entrypoint.functions."0x832B3D50"]
+name = "UnlockMutexFlag_832B3D50"
+
+# Large processor that issues a virtual call on a structure and drives initialization (four hundred and ninety-fifth form). It takes a structure (a: fields at a->44, a->32, a->80, and a->248); it checks the structure's state, and — when ready — issues a virtual call on a->248, then drives the initialization routine. This is the "process this data" routine (four hundred and ninety-fifth form), part of the 0x832B8 process cluster. 368 lines. 2 callees (ProcessAndInitializeAndProcess and sub_832B8168). 1 caller (sub_832B8960).
+[entrypoint.functions."0x832B86F8"]
+name = "ProcessAndProcessAndProcess495_832B86F8"
+
+# Iterate a linked list to find a matching node and check a byte value (four hundred and ninety-sixth form). It takes a structure (a: field at a->136); it iterates over a global linked list, and for each node it searches for a match and checks a byte value. This is the "process this data" routine (four hundred and ninety-sixth form), part of the 0x82354 process cluster. 70 lines. 2 callees (ProcessAndSearchAndProcess10 and ByteValueCheck). 2 callers (sub_82355460 and sub_82354AE0).
+[entrypoint.functions."0x82354A70"]
+name = "ProcessAndProcessAndProcess496_82354A70"
+
+# Process data within a critical section (four hundred and ninety-seventh form). It takes a structure (a: fields at a->164 and a->192); it enters a critical section, processes the data (setting thread affinity and searching), and leaves the critical section. This is the "process this data" routine (four hundred and ninety-seventh form), part of the 0x82354 process cluster. 71 lines. 5 callees (ProcessAndProcessAndProcess318, ProcessAndProcessAndProcess478, ProcessAndProcessAndProcess496, CriticalSection_EnterOrTry, and __imp__RtlLeaveCriticalSection). 0 callers (unresolved — body is recovered but no callers found; likely a vtable method or indirect entry).
+[entrypoint.functions."0x82354AE0"]
+name = "ProcessAndProcessAndProcess497_82354AE0"
+
 # Existing Functions
 
 # The main per-frame render/present loop (one call per frame: ~30/s at the
