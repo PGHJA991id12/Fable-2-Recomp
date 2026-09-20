@@ -188,6 +188,7 @@ inline std::FILE* file() {
 // call counters (name -> times called) for the summary file.
 struct ThreadState {
   std::string last;    // name of the in-flight run
+  const char* lastPtr = nullptr;  // original name pointer of the in-flight run
   uint64_t run = 0;    // how many times in a row (0 = no run in flight)
   std::string buf;     // finished runs, waiting to be written
   std::mutex m;        // guards counts (the summary sweeper snapshots it)
@@ -218,14 +219,17 @@ namespace detail {
 struct Unreg {
   ThreadState* ts;
   ~Unreg() {
-    // Thread is exiting: fold its counters into the global map so the
-    // summary keeps them, then mark the state dead (it stays registered,
-    // but write_summary() skips dead entries).
+    // Thread is exiting: fold its counters (plus any uncommitted in-flight
+    // run) into the global map so the summary keeps them, then mark the
+    // state dead (it stays registered, but write_summary() skips dead
+    // entries).
     {
       std::lock_guard<std::mutex> l(ts->m);
       auto& g = global_counts();
+      if (ts->run > 0) g[ts->last] += ts->run;
       for (auto& kv : ts->counts) g[kv.first] += kv.second;
       ts->counts.clear();
+      ts->run = 0;
     }
     ts->dead.store(true, std::memory_order_release);
   }
@@ -233,7 +237,15 @@ struct Unreg {
 }  // namespace detail
 
 inline ThreadState& state() {
-  static thread_local ThreadState* ts = new ThreadState;  // leaked on purpose
+  static thread_local ThreadState* ts = [] {
+    auto* t = new ThreadState;  // leaked on purpose
+    t->counts.reserve(1024);
+    // Register so the sweeper can snapshot this thread's counters. Stays in
+    // the registry after exit (dead flag set by Unreg's destructor).
+    std::lock_guard<std::mutex> l(registry_lock());
+    registry().push_back(t);
+    return t;
+  }();
   static thread_local detail::Unreg unreg{ts};
   return *ts;
 }
@@ -246,16 +258,28 @@ inline void flush_buffer(std::string& buf) {
   buf.clear();
 }
 
-// Finalizes the in-flight run into the buffer: "name\n" for a single call,
-// "name x N\n" for N consecutive calls of the same function.
-inline void append_run(ThreadState& ts) {
+// Finalizes the in-flight run: folds its N calls into the per-thread summary
+// map (one map touch per run, not per call) and appends one "name x N" line
+// to the pending log buffer. Runs the per-thread lock only when a summary
+// count update is actually needed.
+inline void commit_run(ThreadState& ts, bool want_summary, bool want_log) {
   if (ts.run == 0) return;
-  ts.buf.append(ts.last);
-  if (ts.run > 1) {
-    ts.buf.append(" x ");
-    ts.buf.append(std::to_string(ts.run));
+  if (want_summary) {
+    std::lock_guard<std::mutex> l(ts.m);
+    auto it = ts.counts.find(ts.last);
+    if (it == ts.counts.end())
+      ts.counts.emplace(ts.last, ts.run);
+    else
+      it->second += ts.run;
   }
-  ts.buf.push_back('\n');
+  if (want_log) {
+    ts.buf.append(ts.last);
+    if (ts.run > 1) {
+      ts.buf.append(" x ");
+      ts.buf.append(std::to_string(ts.run));
+    }
+    ts.buf.push_back('\n');
+  }
   ts.run = 0;
 }
 
@@ -267,8 +291,9 @@ inline void append_run(ThreadState& ts) {
 // one "N x name" line per function, sorted by count (highest first), so the
 // file is a near-live overview of what's being called. The periodic rewrite
 // means the file is at most ~5 s stale even when the game exits through
-// ExitProcess (which skips atexit handlers); an atexit handler writes one
-// final snapshot when the process exits normally.
+// ExitProcess (which skips exit handlers); a final snapshot is written when
+// the process exits normally (a late-constructed static's destructor, which
+// is order-safe unlike a std::atexit handler).
 // ---------------------------------------------------------------------------
 
 // Merges the global counters + every live thread's counters and writes the
@@ -324,19 +349,36 @@ inline void sweeper_loop() {
   }
 }
 
+// Final-summary sentinel: constructed on the first traced call (AFTER the
+// registry/global-counts statics, which exist by then), so its destructor
+// runs BEFORE theirs (reverse construction order). That guarantees the
+// final write_summary() still finds live statics - unlike a std::atexit
+// handler, which can run after the tracing statics are already destroyed.
+struct final_summary_guard {
+  ~final_summary_guard() { write_summary(); }
+};
+
 // Starts the sweeper exactly once (on the first traced call).
 inline void ensure_sweeper() {
   static std::atomic<bool> started{false};
   bool expected = false;
-  if (!started.compare_exchange_strong(expected, true)) return;
-  std::thread(sweeper_loop).detach();
-  std::atexit([] { write_summary(); });
+  if (started.compare_exchange_strong(expected, true)) {
+    // Touch every static write_summary() needs so it is constructed NOW
+    // (on the first traced call), which also guarantees it is destroyed
+    // AFTER the guard below (statics die in reverse construction order).
+    (void)registry_lock();
+    (void)registry();
+    (void)global_counts();
+    std::thread(sweeper_loop).detach();
+    static final_summary_guard guard;  // destructor = final summary write
+  }
 }
 
-// Hot path: one atomic load when disabled. When enabled, the call is counted
-// for the summary, consecutive calls of the same function collapse into one
-// "name x N" line (run-length encoded per thread), and finished runs flush
-// to disk every 8 KB.
+// Hot path: a handful of atomic loads when disabled or when every output
+// is off. When enabled, the common case (same function entered again) is a
+// single pointer compare + counter bump; the per-thread summary map is
+// touched once per RUN of identical calls, and finished runs flush to disk
+// every 8 KB.
 inline void trace(const char* name) {
   if (!enabled().load(std::memory_order_relaxed)) return;
   const bool want_summary = summary_enabled().load(std::memory_order_relaxed);
@@ -353,30 +395,28 @@ inline void trace(const char* name) {
   if (!want_summary && !want_log) return;
 
   ThreadState& ts = state();
-  if (want_summary) {
-    // Session-summary count (per-thread map; the sweeper snapshots it).
-    std::lock_guard<std::mutex> l(ts.m);
-    auto it = ts.counts.find(name);
-    if (it == ts.counts.end())
-      ts.counts.emplace(name, 1);
-    else
-      ++it->second;
-  }
-  if (!want_log) return;
-  if (ts.run > 0 && ts.last == name) {
-    ts.run++;  // extend the in-flight run; nothing hits the buffer yet
+  // Fast path: the same function entered again. name is the compile-time
+  // __func__ literal, so the pointer is identical for the same function -
+  // extend the in-flight run with a single pointer compare (no lock, no
+  // map, no string copy) and get out.
+  if (ts.run > 0 && (ts.lastPtr == name || ts.last == name)) {
+    ts.run++;
     return;
   }
-  append_run(ts);
+  // Name changed: commit the finished run (one locked map update per run,
+  // not per call), then start a new one.
+  commit_run(ts, want_summary, want_log);
   ts.last = name;
+  ts.lastPtr = name;
   ts.run = 1;
-  if (ts.buf.size() >= 8192) flush_buffer(ts.buf);
+  if (want_log && ts.buf.size() >= 8192) flush_buffer(ts.buf);
 }
 
 // Finalizes the calling thread's in-flight run and writes everything to disk.
 inline void flush() {
   ThreadState& ts = state();
-  append_run(ts);
+  commit_run(ts, summary_enabled().load(std::memory_order_relaxed),
+             trace_log_enabled().load(std::memory_order_relaxed));
   flush_buffer(ts.buf);
 }
 
