@@ -69,7 +69,7 @@ inline const char* name(int i) {
       "UIFont_EmitGlyphQuad",
       "UIFont_RenderGlyph",
       "UIFont_LookupGlyph",
-      "sub_82A6EF40 (recvt[0])",
+      "ProcessAndProcessAndProcess563_82A6EF40 (recvt[0])",
       "sub_82A8D2D0 (recvt[3])",
       "sub_82CA38C8 (recvt[1])",
       "sub_82C13928 (objvt[4])",
@@ -151,7 +151,7 @@ FABLE2_HOT_HOOK(UIText_RenderCurrentObject, kUIText_RenderCurrentObject)
 // UIText_RenderSegment / UIFont_EmitGlyphQuad / UIFont_LookupGlyph are
 // owned by fable2_text_append.h (probe + append).
 FABLE2_HOT_HOOK(UIFont_RenderGlyph, kUIFont_RenderGlyph)
-FABLE2_HOT_HOOK(sub_82A6EF40, kSub_82A6EF40)
+FABLE2_HOT_HOOK(ProcessAndProcessAndProcess563_82A6EF40, kSub_82A6EF40)
 FABLE2_HOT_HOOK(sub_82A8D2D0, kSub_82A8D2D0)
 FABLE2_HOT_HOOK(sub_82CA38C8, kSub_82CA38C8)
 FABLE2_HOT_HOOK(sub_82C13928, kSub_82C13928)

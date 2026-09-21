@@ -751,7 +751,7 @@ extern "C" void UIFont_EmitGlyphQuad(PPCContext& __restrict ctx, uint8_t* base) 
 }
 
 // ===========================================================================
-// Probe: the layout pass. sub_82C55AD8(r3 = glyph item, r4 = text-source
+// Probe: the layout pass. ProcessAndProcessAndProcess561_82C55AD8(r3 = glyph item, r4 = text-source
 // wrapper); it calls the source object's vtable slot 0 ("fetch next
 // glyph"). sub_82C52A80(r3 = draw object, r5 = text-source wrapper) is the
 // per-text layout entry.
@@ -774,7 +774,7 @@ inline void probe_source(const char* who, const uint8_t* base, uint32_t wrap) {
   }
 }
 
-extern "C" void sub_82C55AD8(PPCContext& __restrict ctx, uint8_t* base) {
+extern "C" void ProcessAndProcessAndProcess561_82C55AD8(PPCContext& __restrict ctx, uint8_t* base) {
   if (fable2::textappend::probe_on()) {
     static std::atomic<int> n{0};
     if (n.load() < 400) {
@@ -799,7 +799,7 @@ extern "C" void sub_82C55AD8(PPCContext& __restrict ctx, uint8_t* base) {
             }
           }
         }
-        __imp__sub_82C55AD8(ctx, base);
+        __imp__ProcessAndProcessAndProcess561_82C55AD8(ctx, base);
         float f1;
         std::memcpy(&f1, &ctx.f1.f64, 4);
         log_line("[fetch]#%d out: r3=0x%08X f1=%.9g\n", i, (uint32_t)ctx.r3.u64,
@@ -808,7 +808,7 @@ extern "C" void sub_82C55AD8(PPCContext& __restrict ctx, uint8_t* base) {
       }
     }
   }
-  __imp__sub_82C55AD8(ctx, base);
+  __imp__ProcessAndProcessAndProcess561_82C55AD8(ctx, base);
 }
 
 extern "C" void sub_82C52A80(PPCContext& __restrict ctx, uint8_t* base) {

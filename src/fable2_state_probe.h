@@ -397,10 +397,10 @@ inline void do_sample() {
 // done). Count the non-zero returns for lists in the 0x8333xxxx manager region:
 // the rate is high (~15-17/s) while the "Press A" prompt OR the main menu is
 // being drawn and ~0 during the movie (video, no UI elements).
-extern "C" void __imp__sub_82B458C0(PPCContext&, uint8_t*);
-extern "C" void sub_82B458C0(PPCContext& ctx, uint8_t* base) {
+extern "C" void __imp__ProcessAndProcessAndProcess573_82B458C0(PPCContext&, uint8_t*);
+extern "C" void ProcessAndProcessAndProcess573_82B458C0(PPCContext& ctx, uint8_t* base) {
   const uint32_t in_list = ctx.r3.u32;
-  __imp__sub_82B458C0(ctx, base);
+  __imp__ProcessAndProcessAndProcess573_82B458C0(ctx, base);
   if (ctx.r3.u32 != 0 && in_list >= 0x83330000u && in_list < 0x83340000u) {
     fable2::stateprobe::tick_prompt_elem();  // any manager element list
   }

@@ -37,7 +37,7 @@ extern "C" void __imp__sub_82BA6F08(PPCContext& ctx, uint8_t* base);
 extern "C" void __imp__sub_82BA8630(PPCContext& ctx, uint8_t* base);
 extern "C" void __imp__sub_821D17B8(PPCContext& ctx, uint8_t* base);
 extern "C" void __imp__sub_82242628(PPCContext& ctx, uint8_t* base);
-extern "C" void __imp__sub_82B9BF90(PPCContext& ctx, uint8_t* base);
+extern "C" void __imp__ProcessAndProcessAndProcess523_82B9BF90(PPCContext& ctx, uint8_t* base);
 extern "C" void __imp__sub_82B9BEC8(PPCContext& ctx, uint8_t* base);
 extern "C" void __imp__sub_82BA8350(PPCContext& ctx, uint8_t* base);
 extern "C" void __imp__sub_822A6318(PPCContext& ctx, uint8_t* base);
@@ -296,7 +296,7 @@ extern "C" void sub_82242628(PPCContext& ctx, uint8_t* base) {
 FPS_PROBE_HOOK(sub_82BA6F08, probe_h1, __imp__sub_82BA6F08)
 FPS_PROBE_HOOK(sub_82BA8630, probe_h2, __imp__sub_82BA8630)
 FPS_PROBE_HOOK(sub_821D17B8, probe_h3, __imp__sub_821D17B8)
-FPS_PROBE_HOOK(sub_82B9BF90, probe_h5, __imp__sub_82B9BF90)
+FPS_PROBE_HOOK(ProcessAndProcessAndProcess523_82B9BF90, probe_h5, __imp__ProcessAndProcessAndProcess523_82B9BF90)
 FPS_PROBE_HOOK(sub_82B9BEC8, probe_h6, __imp__sub_82B9BEC8)
 FPS_PROBE_HOOK(sub_82BA8350, probe_h7, __imp__sub_82BA8350)
 FPS_PROBE_HOOK(sub_822A6318, probe_h8, __imp__sub_822A6318)
