@@ -74,17 +74,17 @@ inline const char* name(int i) {
       "sub_82CA38C8 (recvt[1])",
       "sub_82C13928 (objvt[4])",
       "sub_82C13A70 (objvt[5])",
-      "sub_82C12D90 (objvt[13])",
-      "sub_82C12F78 (objvt[9])",
+      "ProcessAndProcessAndProcess1335_82C12D90 (objvt[13])",
+      "ProcessAndProcessAndProcess1693_82C12F78 (objvt[9])",
       "sub_82C12EA0 (objvt[14])",
       "sub_82CDE918 (vert?)",
       "sub_82CD1500 (vert?)",
       "sub_82CC3978 (vert?)",
       "sub_82C12CF8 (objvt[0])",
       "sub_82C12D00 (objvt[1])",
-      "sub_82C133B0 (objvt[2])",
+      "ProcessAndProcessAndProcess2301_82C133B0 (objvt[2])",
       "sub_82C13018 (objvt[15])",
-      "sub_82C14B70 (objvt[17])",
+      "ProcessAndProcessAndProcess2393_82C14B70 (objvt[17])",
       "sub_82C09018 (state)",
   };
   return (i >= 0 && i < kCount) ? n[i] : "?";
@@ -154,17 +154,17 @@ FABLE2_HOT_HOOK(UIFont_RenderGlyph, kUIFont_RenderGlyph)
 FABLE2_HOT_HOOK(ProcessAndProcessAndProcess563_82A6EF40, kSub_82A6EF40)
 FABLE2_HOT_HOOK(sub_82A8D2D0, kSub_82A8D2D0)
 FABLE2_HOT_HOOK(sub_82CA38C8, kSub_82CA38C8)
-FABLE2_HOT_HOOK(sub_82C13928, kSub_82C13928)
+FABLE2_HOT_HOOK(ProcessAndProcessAndProcess2206_82C13928, kSub_82C13928)
 FABLE2_HOT_HOOK(sub_82C13A70, kSub_82C13A70)
-FABLE2_HOT_HOOK(sub_82C12D90, kSub_82C12D90)
-FABLE2_HOT_HOOK(sub_82C12F78, kSub_82C12F78)
-FABLE2_HOT_HOOK(sub_82C12EA0, kSub_82C12EA0)
+FABLE2_HOT_HOOK(ProcessAndProcessAndProcess1335_82C12D90, kSub_82C12D90)
+FABLE2_HOT_HOOK(ProcessAndProcessAndProcess1693_82C12F78, kSub_82C12F78)
+FABLE2_HOT_HOOK(ProcessAndProcessAndProcess974_82C12EA0, kSub_82C12EA0)
 FABLE2_HOT_HOOK(sub_82CDE918, kSub_82CDE918)
 FABLE2_HOT_HOOK(sub_82CD1500, kSub_82CD1500)
 FABLE2_HOT_HOOK(sub_82CC3978, kSub_82CC3978)
 FABLE2_HOT_HOOK(sub_82C12CF8, kSub_82C12CF8)
 FABLE2_HOT_HOOK(sub_82C12D00, kSub_82C12D00)
-FABLE2_HOT_HOOK(sub_82C133B0, kSub_82C133B0)
+FABLE2_HOT_HOOK(ProcessAndProcessAndProcess2301_82C133B0, kSub_82C133B0)
 FABLE2_HOT_HOOK(sub_82C13018, kSub_82C13018)
-FABLE2_HOT_HOOK(sub_82C14B70, kSub_82C14B70)
+FABLE2_HOT_HOOK(ProcessAndProcessAndProcess2393_82C14B70, kSub_82C14B70)
 // sub_82C09018 is owned by fable2_text_append.h (probe + append).

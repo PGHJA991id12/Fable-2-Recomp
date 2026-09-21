@@ -27,24 +27,24 @@ extern "C" void __imp__DelayMilliseconds_82CC2028(PPCContext& ctx, uint8_t* base
 extern "C" void __imp__YieldAndCheckThreshold_82CBD098(PPCContext& ctx, uint8_t* base);  // NtYieldExecution wrapper
 extern "C" void __imp__sub_83004C20(PPCContext& ctx, uint8_t* base);  // NtSetTimerEx wrapper
 extern "C" void __imp__sub_83004C90(PPCContext& ctx, uint8_t* base);  // NtCreateTimer wrapper
-extern "C" void __imp__sub_82BA32C8(PPCContext& ctx, uint8_t* base);  // per-frame helper (calls the frame-wait)
+extern "C" void __imp__ProcessAndProcessAndProcess1260_82BA32C8(PPCContext& ctx, uint8_t* base);  // per-frame helper (calls the frame-wait)
 extern "C" void __imp__sub_82BA2568(PPCContext& ctx, uint8_t* base);  // frame-wait (KeQuerySystemTime poller)
 extern "C" void __imp__sub_82B9B8D8(PPCContext& ctx, uint8_t* base);  // vblank/GPU interrupt callback
 extern "C" void __imp__sub_82CC2948(PPCContext& ctx, uint8_t* base);  // GPU CPU-interrupt cb: KeSetEvent (render thread waker?)
 extern "C" void __imp__sub_82B9F598(PPCContext& ctx, uint8_t* base);  // main render thread loop (KeWaitForSingleObject + render)
 // Helpers called directly by the main render loop - measured to find the 33ms wait.
-extern "C" void __imp__sub_82BA6F08(PPCContext& ctx, uint8_t* base);
-extern "C" void __imp__sub_82BA8630(PPCContext& ctx, uint8_t* base);
-extern "C" void __imp__sub_821D17B8(PPCContext& ctx, uint8_t* base);
-extern "C" void __imp__sub_82242628(PPCContext& ctx, uint8_t* base);
+extern "C" void __imp__ProcessAndProcessAndProcess1261_82BA6F08(PPCContext& ctx, uint8_t* base);
+extern "C" void __imp__ProcessAndProcessAndProcess1256_82BA8630(PPCContext& ctx, uint8_t* base);
+extern "C" void __imp__ProcessAndProcessAndProcess1257_821D17B8(PPCContext& ctx, uint8_t* base);
+extern "C" void __imp__ProcessAndProcessAndProcess1087_82242628(PPCContext& ctx, uint8_t* base);
 extern "C" void __imp__ProcessAndProcessAndProcess523_82B9BF90(PPCContext& ctx, uint8_t* base);
 extern "C" void __imp__sub_82B9BEC8(PPCContext& ctx, uint8_t* base);
-extern "C" void __imp__sub_82BA8350(PPCContext& ctx, uint8_t* base);
-extern "C" void __imp__sub_822A6318(PPCContext& ctx, uint8_t* base);
+extern "C" void __imp__ProcessAndProcessAndProcess1263_82BA8350(PPCContext& ctx, uint8_t* base);
+extern "C" void __imp__ProcessAndProcessAndProcess1046_822A6318(PPCContext& ctx, uint8_t* base);
 extern "C" void __imp__MemSet_SdkRuntime_82CA3190(PPCContext& ctx, uint8_t* base);
 extern "C" void __imp__sub_82B9CB88(PPCContext& ctx, uint8_t* base);
-extern "C" void __imp__sub_82B9C7F8(PPCContext& ctx, uint8_t* base);
-extern "C" void __imp__sub_82B9C9D8(PPCContext& ctx, uint8_t* base);
+extern "C" void __imp__ProcessAndProcessAndProcess1258_82B9C7F8(PPCContext& ctx, uint8_t* base);
+extern "C" void __imp__ProcessAndProcessAndProcess1259_82B9C9D8(PPCContext& ctx, uint8_t* base);
 extern "C" void __imp__sub_821E8D20(PPCContext& ctx, uint8_t* base);
 
 struct Probe {
@@ -182,9 +182,9 @@ extern "C" void sub_83004C90(PPCContext& ctx, uint8_t* base) {
   fable2::fpsprobe::note(fable2::fpsprobe::probe_nt_create_timer, ctx);
   __imp__sub_83004C90(ctx, base);
 }
-extern "C" void sub_82BA32C8(PPCContext& ctx, uint8_t* base) {
+extern "C" void ProcessAndProcessAndProcess1260_82BA32C8(PPCContext& ctx, uint8_t* base) {
   fable2::fpsprobe::note(fable2::fpsprobe::probe_frame_helper, ctx);
-  __imp__sub_82BA32C8(ctx, base);
+  __imp__ProcessAndProcessAndProcess1260_82BA32C8(ctx, base);
 }
 extern "C" void sub_82BA2568(PPCContext& ctx, uint8_t* base) {
   fable2::fpsprobe::note(fable2::fpsprobe::probe_frame_wait, ctx);
@@ -204,9 +204,9 @@ extern "C" void sub_82B9F598(PPCContext& ctx, uint8_t* base) {
 }
 
 // ---- Limiter context inspection ----
-// sub_82242628(ctx, base) = limiter_wait(limit*, now, frame_len, flag).
+// ProcessAndProcessAndProcess1087_82242628(ctx, base) = limiter_wait(limit*, now, frame_len, flag).
 // limit*+8 = frame start, limit*+12 = deadline. Log both per call.
-extern "C" void sub_82242628(PPCContext& ctx, uint8_t* base) {
+extern "C" void ProcessAndProcessAndProcess1087_82242628(PPCContext& ctx, uint8_t* base) {
   using namespace fable2::fpsprobe;
   note(probe_h4, ctx);
   try {
@@ -273,7 +273,7 @@ extern "C" void sub_82242628(PPCContext& ctx, uint8_t* base) {
   note_exit(probe_h4);
   return;
 #else
-  __imp__sub_82242628(ctx, base);
+  __imp__ProcessAndProcessAndProcess1087_82242628(ctx, base);
   note_exit(probe_h4);
 #endif
 }
@@ -293,15 +293,15 @@ extern "C" void sub_82242628(PPCContext& ctx, uint8_t* base) {
     orig(ctx, base);                                                        \
     fable2::fpsprobe::note_exit(fable2::fpsprobe::probe);                   \
   }
-FPS_PROBE_HOOK(sub_82BA6F08, probe_h1, __imp__sub_82BA6F08)
-FPS_PROBE_HOOK(sub_82BA8630, probe_h2, __imp__sub_82BA8630)
-FPS_PROBE_HOOK(sub_821D17B8, probe_h3, __imp__sub_821D17B8)
+FPS_PROBE_HOOK(ProcessAndProcessAndProcess1261_82BA6F08, probe_h1, __imp__ProcessAndProcessAndProcess1261_82BA6F08)
+FPS_PROBE_HOOK(ProcessAndProcessAndProcess1256_82BA8630, probe_h2, __imp__ProcessAndProcessAndProcess1256_82BA8630)
+FPS_PROBE_HOOK(ProcessAndProcessAndProcess1257_821D17B8, probe_h3, __imp__ProcessAndProcessAndProcess1257_821D17B8)
 FPS_PROBE_HOOK(ProcessAndProcessAndProcess523_82B9BF90, probe_h5, __imp__ProcessAndProcessAndProcess523_82B9BF90)
 FPS_PROBE_HOOK(sub_82B9BEC8, probe_h6, __imp__sub_82B9BEC8)
-FPS_PROBE_HOOK(sub_82BA8350, probe_h7, __imp__sub_82BA8350)
-FPS_PROBE_HOOK(sub_822A6318, probe_h8, __imp__sub_822A6318)
+FPS_PROBE_HOOK(ProcessAndProcessAndProcess1263_82BA8350, probe_h7, __imp__ProcessAndProcessAndProcess1263_82BA8350)
+FPS_PROBE_HOOK(ProcessAndProcessAndProcess1046_822A6318, probe_h8, __imp__ProcessAndProcessAndProcess1046_822A6318)
 FPS_PROBE_HOOK(MemSet_SdkRuntime_82CA3190, probe_h9, __imp__MemSet_SdkRuntime_82CA3190)
 FPS_PROBE_HOOK(sub_82B9CB88, probe_h10, __imp__sub_82B9CB88)
-FPS_PROBE_HOOK(sub_82B9C7F8, probe_h11, __imp__sub_82B9C7F8)
-FPS_PROBE_HOOK(sub_82B9C9D8, probe_h12, __imp__sub_82B9C9D8)
+FPS_PROBE_HOOK(ProcessAndProcessAndProcess1258_82B9C7F8, probe_h11, __imp__ProcessAndProcessAndProcess1258_82B9C7F8)
+FPS_PROBE_HOOK(ProcessAndProcessAndProcess1259_82B9C9D8, probe_h12, __imp__ProcessAndProcessAndProcess1259_82B9C9D8)
 FPS_PROBE_HOOK(sub_821E8D20, probe_h13, __imp__sub_821E8D20)
