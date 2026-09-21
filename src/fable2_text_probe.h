@@ -32,6 +32,13 @@
 #include "fable2_deadbeef.h"
 #include "fable2_ui_render_probe.h"
 
+// On-screen text evidence for the game-state classifier (defined in
+// fable2_state_probe.h): ticks a per-item counter and, throttled, extracts
+// the strings the item renders. Cheap enough to call for every UI text item.
+namespace fable2::stateprobe {
+void sample_text_item(const uint8_t* base, PPCContext& ctx);
+}
+
 namespace fable2::textprobe {
 
 inline bool enabled() {
@@ -263,6 +270,8 @@ extern "C" void ProcessAndProcessAndProcess508_822A2948(PPCContext& ctx, uint8_t
 // title text is on screen (per-frame regeneration). Dump each unique object
 // (fully constructed by the time slot 1 runs) with its referenced memory.
 extern "C" void UITextItem_Dispatch(PPCContext& ctx, uint8_t* base) {
+  // State classifier on-screen-text evidence (fable2_state_probe.h).
+  fable2::stateprobe::sample_text_item(base, ctx);
   // DEADBEEF canary: append " DEADBEEF" to every UI text string (FABLE2_DEADBEEF=1).
   if (fable2::deadbeef::enabled()) fable2::deadbeef::process(base, ctx);
   if (fable2::textprobe::enabled()) {

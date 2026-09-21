@@ -96,6 +96,7 @@ inline void CloseSock(sock_t s) {
 namespace fable2::stateprobe {
 int CurrentState();
 const char* CurrentStateName();
+std::string CurrentFrontEndValue();
 }
 
 namespace fable2::remote {
@@ -1128,8 +1129,10 @@ class ControlServer {
   // PreMainMenu, PressAScreen, MainMenuMovie, MainMenu, or Unknown (?).
   std::string HandleGameState(const json_min::Value& v) {
     const int st = fable2::stateprobe::CurrentState();
-    return std::format(R"({{"ok":true,"state":{{"code":{},"name":"{}"}}}})",
-                       st, fable2::stateprobe::CurrentStateName());
+    return std::format(
+        R"({{"ok":true,"state":{{"code":{},"name":"{}","front_end":"{}"}}}})",
+        st, fable2::stateprobe::CurrentStateName(),
+        fable2::stateprobe::CurrentFrontEndValue());
   }
 
   std::string HandleCvar(const json_min::Value& v) {

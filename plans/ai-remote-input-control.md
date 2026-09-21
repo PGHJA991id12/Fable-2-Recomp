@@ -48,46 +48,71 @@ Implementation details that settled while building (supersede §4/§5 where they
 
 ### Game state API (implemented & verified)
 
-A 1-second classifier on a background thread reports which boot/menu screen the game
-is on. It runs independently of the render loop (the iter stops firing during the
-movie, which renders video with no UI text), so the state is tracked through all
-phases. Verified end-to-end via `game_state` + the `FABLE2_STATE_PROBE=1` file log:
+A 1-second, evidence-based classifier on a background thread reports which screen
+the game is on. **Unknown (`?`) is the default**: a known state is reported only
+while its evidence is present, so gameplay, cutscenes, pause/options sub-screens and
+early boot all read `?`. Verified end-to-end via `game_state` + the
+`FABLE2_STATE_PROBE=1` file log (`tools/state_probe_test.py` drives a full run):
 
-- `?` (Unknown) → `PreMainMenu` (splash) → `PressAScreen` ("Press A") →
-  `MainMenuMovie` (idle movie, after ~40 s) → `PressAScreen` (loops), and
-  `PressAScreen →(press A)→ MainMenu`.
+- `?` (boot) -> `PreMainMenu` (splash) -> `PressAScreen` ("Press A") ->
+  `MainMenuMovie` (idle movie, after ~40 s) -> `PressAScreen` (loops), and
+  `PressAScreen ->(press A)-> MainMenu`; leaving the front end (gameplay) -> `?`.
 
-Signals (each verified against the live game):
+Evidence (all memory-derived, no screenshots): the classifier (1 Hz) reads:
 
-- **`prompt_alloc`** — a heap scan for the UTF-16BE string `"to start"`
-  (0x42640000–0x42700000, 64 KB chunks). Allocated once at the first prompt and never
-  freed, so it marks "past the intro" (`PreMainMenu` = not yet allocated).
-- **`pe_rate`** — the prompt/manager element-list fetch rate. `sub_82B458C0` (the
-  element fetch/next) is hooked; non-zero returns for lists in the 0x8333xxxx manager
-  region are counted per second. High (~15–17/s) when the prompt **or** the menu is
-  drawn, ~0–7 during the movie (video, no elements). This splits {PressAScreen,
-  MainMenu} from {MainMenuMovie}.
-- **the A-press** — the prompt and the menu share the same element lists at the same
-  draw rate, so they are visually indistinguishable. The transition into the menu is
-  therefore driven by the A-press. It is detected from the **final merged pad state**
-  (all drivers OR-merged: remote + keyboard + physical), so it works no matter which
-  input source drives A: the guest's `XamInputGetState` wrapper (`sub_822B2D60`) is
-  hooked, and the A button (`X_INPUT_GAMEPAD_A = 0x1000`) is read from the filled
-  `X_INPUT_STATE` after each call. The rising edge (0 -> 1) latches the exact press
-  timestamp (the press is only ~250 ms, so a 1 s sample would otherwise miss it). On
-  the next sample, if the press landed while elements were being drawn
-  (`prev_showing` true) the state latches to `MainMenu`; if it landed on the movie
-  (`prev_showing` false) it goes back to `PressAScreen`. This is the state machine's
-  input transition, modeled directly. (A remote-store publish callback also latches
-  the remote A as a backup, but the pad-state hook is the primary, source-agnostic
-  detector.)
+- **front-end text** - a 1 Hz heap scan of the front-end string window
+  (`0x42000000`-`0x42800000`, `scan_front_end()` in `fable2_state_probe.h`) matches
+  marker words (UTF-16BE + plain ASCII):
+  - "to start" present -> `prompt_alloc` (latched from the first prompt).
+  - >=2 front-end menu words (`New Game`, `Load Game`, `Downloadable Content`,
+    `Options`, `License`, `Quit`, `Language`) -> the menu option words are present.
+  The heap holds ALLOCATED strings (the prompt is never freed), so this says which
+  screen's text exists, not whether it is being drawn -- render activity supplies
+  the "being drawn" bit.
+- **`pe_rate`** - the prompt/manager element-list fetch rate. `sub_82B458C0` (the
+  element fetch/next) is hooked; non-zero returns for lists in the 0x8333xxxx
+  manager region are counted per second. High (~15-17/s) when the prompt **or** the
+  menu is drawn, and it drops to **0 for the whole attract movie** (~15-30 s of
+  idle). This is the movie signal: `render_active = pe_rate > 8`, so the movie
+  (element manager paused) reads `!render_active` -> `MainMenuMovie`.
+- **`ui_rate`** - UI text item dispatches per second. Logged for debugging but
+  **not** a usable state signal: the prompt/menu text stays composited over the
+  movie, so `ui_rate` stays ~700-800/s the entire time (it does *not* drop to 0
+  during the movie). An earlier `pe>8 || ui>100` gate therefore never saw the
+  movie; `pe` alone is the correct signal.
+- **`prompt_alloc`** - a heap scan for the UTF-16BE string "to start"
+  (0x42640000-0x42700000, 64 KB chunks). Allocated once at the first prompt and
+  never freed, so it separates `PreMainMenu` from everything after it.
+- **the front-end flag** - the XEX keeps the front-end cvar/flag strings as static
+  constants (`CAN_PRESS_A` @ 0x820CD0C0, `GUI_FRONT_END` @ 0x820A8064, default
+  value `DefaultScenario` @ 0x820A8094; gameplay starts in `QC010_ChildhoodStart`).
+  A one-time heap hunt (log mode) locates the runtime copy of the value; while it
+  stays a front-end value the game is in the front end. Once it changes (a gameplay
+  scenario loads) the whole front-end branch is skipped and everything reads `?` --
+  this is what makes gameplay / cutscenes / pause / options report `?`.
+- **the A / B press** - rising A and B edges in the **final merged pad state**
+  (all drivers OR-merged: remote + keyboard + physical). The guest's
+  `XamInputGetState` wrapper (`sub_822B2D60`) is hooked and the button flags
+  (`X_INPUT_GAMEPAD_A = 0x1000`, `X_INPUT_GAMEPAD_B = 0x2000`) are read from the
+  filled `X_INPUT_STATE` after each call. The prompt and the menu both render UI
+  at the same rate, so a rising **A on the prompt** is the discrete event that
+  opens the menu: it sets a **sticky `in_menu`** flag (also set when >=2 menu
+  words are found). `in_menu` is cleared by a **B** (back out to the prompt), by
+  leaving the front end, or when the UI element manager pauses (movie) for 2
+  samples.
 
-Rejected signals (documented here so we don't re-try them): the `ConstTrue` menu
-predicate rate (it never exceeded ~2,943/s in the real menu — the 40,000+ spike was
-only the splash loader), the `ToLower` title-text rate (0 in the menu), the main UI
-list descriptor at 0x83334AA0 (its item read returns a file-path fragment, not a
-prompt item), and the 0x83334E20 "prompt list" (the real prompt lists are 0x83334ED8
-/ 0x83334F00). The `game_state` command returns `{"code":N,"name":"..."}`;
+Classification (Unknown is the default; a 2-sample (2 s) hysteresis stops a
+one-second dip - e.g. the prompt blink-off phase - from flickering the state, which
+was the old `MainMenuMovie` misfire):
+
+- `!ready`            -> `?`
+- `!front_end`        -> `?` (gameplay / cutscenes / pause / loading)
+- `!prompt_alloc`     -> `PreMainMenu`
+- `!render_active`    -> `MainMenuMovie` (front end, UI element manager paused)
+- `in_menu`           -> `MainMenu`
+- else                -> `PressAScreen`
+
+The `game_state` command returns `{"code":N,"name":"...","front_end":"..."}`;
 `fable2_control.py game-state` wraps it. State changes are logged via `REXSYS_INFO`
 (transition-only, to avoid spam) and every sample to `fable2_state_probe.log`.
 
