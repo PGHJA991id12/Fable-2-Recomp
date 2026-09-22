@@ -27,7 +27,7 @@ CMake). It sets `REX_VSYNC=0` and calls `fable2.cmd`. To run capped (native
   disabling `vsync` removes the pacing at the source (no SDK patch/rebuild needed).
 
 ### Cleanup done
-- `src/fps_probe.h` instrumentation disabled (include commented out in
+- `src/diagnostics/fps_probe.h` instrumentation disabled (include commented out in
   `fable_2_app.h`); file kept for re-measurement.
 - SDK `command_processor.cpp` `[wrm]` instrumentation reverted (git clean).
 - Temp SDK build tree + script removed.
@@ -39,7 +39,7 @@ CMake). It sets `REX_VSYNC=0` and calls `fable2.cmd`. To run capped (native
 
 - Build: `cmd //c "build.cmd -release fable_2"` (project root)
 - Run: `Set-Location out/build/win-amd64-release; cmd //c "fable2.cmd d3d12"` (~110 s timeout to reach title loop)
-- Probe: `src/fps_probe.h` (included from `src/fable_2_app.h:23`). Strong `extern "C"`
+- Probe: `src/diagnostics/fps_probe.h` (included from `src/core/fable_2_app.h:23`). Strong `extern "C"`
   overrides of weak recompiled symbols forward to `__imp__sub_XXXX` after logging.
   Logs to `fps_probe.log` in CWD.
 - Guest arena host base = `0x100000000` (identity map for guest addrs < 0xE0000000;
@@ -148,7 +148,7 @@ Instrumentation added (temporary): logs every memory `WAIT_REG_MEM` with
 ## If revisiting
 
 - To re-measure frame pacing: uncomment the `#include "fps_probe.h"` in
-  `src/fable_2_app.h` and rebuild.
+  `src/core/fable_2_app.h` and rebuild.
 - If a *capped-but-smoother* 60 fps is ever wanted instead of fully uncapped,
   the surgical option is a source patch making the vblank worker run at exactly
   2× (120 Hz) so the guest's "+2 units" = 16.6 ms; that needs a plugin/runtime
@@ -157,8 +157,8 @@ Instrumentation added (temporary): logs every memory `WAIT_REG_MEM` with
 
 ## Files
 
-- `src/fps_probe.h` — all probes + limiter experiment (temporary)
-- `src/fable_2_app.h` — includes probe (no-limiter define reverted)
+- `src/diagnostics/fps_probe.h` — all probes + limiter experiment (temporary)
+- `src/core/fable_2_app.h` — includes probe (no-limiter define reverted)
 - `D:/projects/hacking/Windows/rexglue-sdk-src/src/graphics/command_processor.cpp`
   — `[wrm]` instrumentation in `ExecutePacketType3_WAIT_REG_MEM` (temporary)
 - `D:/projects/hacking/Windows/rexglue-sdk-src/out/build/d3d12-fps/` — fresh

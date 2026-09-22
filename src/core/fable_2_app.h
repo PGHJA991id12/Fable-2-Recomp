@@ -38,7 +38,7 @@
 #ifdef FABLE2_REMOTE_CONTROL
 #include "remote_control_server.h"
 #include "remote_gamepad_driver.h"
-// 1-second game-state classifier (src/fable2_state_probe.h, single-TU inline).
+// 1-second game-state classifier (src/diagnostics/fable2_state_probe.h, single-TU inline).
 // Forward-declared here; the inline definitions live in the state probe header
 // (included once, in main.cpp), so the app can start/stop it alongside the
 // remote control server without pulling the whole probe into this header.
@@ -62,7 +62,7 @@ class Fable2App : public rex::ReXApp {
   }
 
   // Remote control (AI input channel) - see plans/ai-remote-input-control.md
-  // and src/remote_control_server.h. The store is shared by the remote pad
+  // and src/input/remote_control_server.h. The store is shared by the remote pad
   // driver (registered in OnPreSetup) and the command server (started in
   // OnPostInitLogging); the server publishes resolved snapshots and the
   // guest-side driver consumes the latest on each poll. DEBUG builds only
@@ -98,7 +98,7 @@ class Fable2App : public rex::ReXApp {
     // Build on top of the default input system (SDL gamepad + NOP) and add a
     // synthetic "keyboard gamepad" driver so host keys can drive the guest.
     // The mapping is the `keyboard_gamepad_map` cvar (default "E:A"). See
-    // src/keyboard_gamepad.h.
+    // src/input/keyboard_gamepad.h.
     config.input_factory = [this](bool tool_mode) ->
         std::unique_ptr<rex::system::IInputSystem> {
       auto system = rex::input::CreateDefaultInputSystem(tool_mode);
@@ -106,7 +106,7 @@ class Fable2App : public rex::ReXApp {
           std::make_unique<fable2::KeyboardGamepadDriver>(system->window(), 0));
 #ifdef FABLE2_REMOTE_CONTROL
       // Remote (AI) pad: driven over localhost TCP by an external harness
-      // (src/remote_control_server.h). OR-merges with the pads above; not
+      // (src/input/remote_control_server.h). OR-merges with the pads above; not
       // gated on window focus. Debug builds only.
       system->AddDriver(std::make_unique<fable2::remote::GamepadDriver>(
           system->window(), 0, remote_state_.get(), &remote_pad_enabled_));
@@ -237,7 +237,7 @@ class Fable2App : public rex::ReXApp {
 
   // Load the recomp's own user config (fable2_config.toml) next to the exe,
   // creating it with defaults on first launch. Runs after the SDK's logging
-  // init so load/create/parse problems land in logs/ (see src/fable2_config.h).
+  // init so load/create/parse problems land in logs/ (see src/core/fable2_config.h).
   // Plain settings are read via fable2::config::Get(); settings that back a
   // cvar are seeded into it below so the console/overlay keep working.
   void OnPostInitLogging() override {
@@ -250,7 +250,7 @@ class Fable2App : public rex::ReXApp {
     // fable_2.toml (kConfig), REX_* env vars (kEnvironment), and the command
     // line (kCommandLine) -- keep winning over the recomp config. The F3
     // console can still change the value live afterwards (the driver
-    // hot-reloads on text change, see src/keyboard_gamepad.h).
+    // hot-reloads on text change, see src/input/keyboard_gamepad.h).
     const auto seed_cvar = [](std::string_view cvar, std::string_view value) {
       if (rex::cvar::GetFlagSource(cvar) != rex::cvar::Source::kDefault) return;
       if (!rex::cvar::SetFlagByName(cvar, value)) {
@@ -308,7 +308,7 @@ class Fable2App : public rex::ReXApp {
     remote_server_.Stop();
   }
 #endif  // FABLE2_REMOTE_CONTROL
-  // Apply the game patches (see src/fable2_patches.h) once the SDK has
+  // Apply the game patches (see src/core/fable2_patches.h) once the SDK has
   // decrypted default.xex into the guest arena, before the module launches.
   // The patch table is data-driven: fable2_patches.toml next to the exe
   // (created with built-in defaults on first launch; a broken file falls
@@ -322,7 +322,7 @@ class Fable2App : public rex::ReXApp {
 
   // Startup integrity check: this build was recompiled against a specific
   // default.xex, so verify its SHA-256 before the runtime loads it (see
-  // src/xex_verify.h). A previously verified file is skipped via the
+  // src/core/xex_verify.h). A previously verified file is skipped via the
   // cache/default.xex.sha256 marker; a mismatch aborts with a dialog that
   // shows how to check the hash yourself.
   void OnLoadXexImage(std::string& xex_image) override {

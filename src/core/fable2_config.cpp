@@ -35,7 +35,7 @@ R"TOML_EOF(# ===================================================================
 #
 # Loaded by fable_2.exe on every launch, from the directory the exe lives in.
 # If the file is missing, the game recreates it at startup with these
-# defaults (the embedded template in src/fable2_config.cpp must stay in sync
+# defaults (the embedded template in src/core/fable2_config.cpp must stay in sync
 # with this file).
 #
 # - Human-readable TOML: # starts a comment, sections are [bracketed].
@@ -80,7 +80,7 @@ mouse_look_scale = 256
 
 [patches]
 # Toggles for the recomp-level (mid-asm hook) patches, consulted at runtime
-# by the hook bodies (src/fable2_hooks.cpp) - no rebuild needed. Guest-image
+# by the hook bodies (src/core/fable2_hooks.cpp) - no rebuild needed. Guest-image
 # DATA patches are a different file: fable2_patches.toml next to the exe.
 # 60 FPS (mid-asm hook fable2_hook_60fps; Xenia "60 FPS" by Margen67):
 # lifts the guest main loop from 30/s to ~60/s. false = 30/s (original).
@@ -105,7 +105,7 @@ unlock_ce = true
 # Remote control server (AI/automation input channel): a localhost TCP
 # server that accepts JSON-lines commands to drive the guest gamepad -
 # press/release/stick, timed scripts, cvar get/set. See
-# src/remote_control_server.h and plans/ai-remote-input-control.md.
+# src/input/remote_control_server.h and plans/ai-remote-input-control.md.
 # Default: true
 enabled = true
 # Interface to bind. "127.0.0.1" = this machine only (default). "0.0.0.0" =

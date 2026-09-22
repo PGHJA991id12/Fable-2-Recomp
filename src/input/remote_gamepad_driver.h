@@ -1,12 +1,12 @@
 // fable_2 - Remote (AI) gamepad driver
 //
 // Synthetic gamepad driven by the remote control server (see
-// src/remote_control_server.h and plans/ai-remote-input-control.md). It
+// src/input/remote_control_server.h and plans/ai-remote-input-control.md). It
 // presents the latest InputSnapshot published into the shared
 // InputStateStore as ordinary XInput state, so the guest sees a normal
 // gamepad: works in menus, cutscenes, and gameplay alike.
 //
-// Unlike the keyboard driver (src/keyboard_gamepad.h) this one is NOT gated
+// Unlike the keyboard driver (src/input/keyboard_gamepad.h) this one is NOT gated
 // on window focus: the AI harness must be able to drive the game even while
 // the window is not in the foreground. It still OR-merges with the
 // keyboard/physical pads (synthetic devices route to guest user 0 by the
@@ -124,7 +124,7 @@ class GamepadDriver final : public rex::input::InputDriver {
 
   // Synthetic device id. MUST NOT collide with the SDL driver's sequential
   // ids (they start at 1) or the keyboard driver's 1<<60 (see
-  // src/keyboard_gamepad.h): InputSystem::DriverForDevice() resolves an id by
+  // src/input/keyboard_gamepad.h): InputSystem::DriverForDevice() resolves an id by
   // first match.
   static constexpr DeviceId kDeviceId{1ull << 61};
 

@@ -41,7 +41,7 @@ setjmp_address = 0x83000200
 # Code-region Xenia patches are inert at runtime in this recomp (guest .text
 # is never executed), so they are applied to the RECOMPILED code instead: a
 # hook is injected at a specific guest instruction address and a C++ function
-# (defined in src/fable2_hooks.cpp) rewrites a register, mirroring the patch's
+# (defined in src/core/fable2_hooks.cpp) rewrites a register, mirroring the patch's
 # intent. Codegen emits each hook's extern prototype automatically. Hooks are
 # keyed by address in codegen (a duplicate address overrides the earlier one),
 # so each address appears exactly once below.
@@ -37757,9 +37757,9 @@ name = "ProcessAndProcessAndProcess232_82357490"
 [entrypoint.functions."0x823577C0"]
 name = "ProcessAndProcessAndProcess233_823577C0"
 
-# A processor that processes the data (two hundred and thirty-fourth form). It takes a value (a), a value (b), and a value (c). It processes the data (a, b, and c). This is the "process this data" routine (two hundred and thirty-fourth form), part of the 0x82358 process cluster. 106 lines. 1 callee (sub_8226D750). 5 callers (sub_823A5870, ProcessAndProcessAndProcess232, sub_825B26A8, sub_825B27D0, and sub_825B2E20).
+# Find a string in a linked list of string entries. Walks the list (each node: [0]=next, [8]=string pointer) from the start up to an end sentinel, comparing each node's string against a target string (pointer identity first, then content via CompareStringsSigned). On a match it writes the matched node to the output slot and stops; otherwise it advances to the next node. Returns whether a match was found. Used to look up a path in the VFS file index and in other string tables. 106 lines. 1 callee (CompareStringsSigned_8226D750). 5 callers (sub_823A5870, ProcessAndProcessAndProcess232, sub_825B26A8, sub_825B27D0, and sub_825B2E20).
 [entrypoint.functions."0x82358830"]
-name = "ProcessAndProcessAndProcess234_82358830"
+name = "FindStringInList_82358830"
 
 # A processor that processes the data (two hundred and thirty-fifth form). It takes a value (a), a value (b), and a value (c). It processes the data (a, b, and c). This is the "process this data" routine (two hundred and thirty-fifth form), part of the 0x82358 process cluster. 89 lines. 5 callees (ProcessAndAppendElement, ProcessAndCopyReferenceAndHash, ProcessAndDispatchAndResolve, ProcessAndHashString, and ProcessAndResolveTypedField). 9 callers (sub_82526808, sub_82908E20, sub_82683240, sub_823ADF80, sub_824DE170, sub_82425680, ProcessAndProcessAndProcess233, sub_825ACEA0, and sub_82879778).
 [entrypoint.functions."0x82358AB0"]
@@ -47123,6 +47123,498 @@ name = "ProcessAndProcessAndProcess2497_82260638"
 [entrypoint.functions."0x822606B0"]
 name = "ProcessAndProcessAndProcess2498_822606B0"
 
+# Process a structure by setting its vtable and driving sub-operations (two thousand four hundred and fiftieth form). It takes a structure (a) and a value (b); it sets the structure's vtable pointers, and drives sub-operations (ProcessAndProcessAndProcess2497, Free_Thunk, and more) based on the result. This is the "process this data" routine (two thousand four hundred and fiftieth form), part of the 0x82260 process cluster. 70 lines. 2 callees. 0 callers (vtable-dispatched).
+[entrypoint.functions."0x82260790"]
+name = "ProcessAndProcessAndProcess2499_82260790"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and fifty-first form). It takes a value (a), a structure (b: field at b->20), a value (c), and a value (d); it checks the value's state, and drives sub-operations (Buffer_CopyOrZero_Error, ProcessValue_FlagNonZero, and more) based on the result. This is the "process this data" routine (two thousand four hundred and fifty-first form), part of the 0x82374 process cluster. 152 lines. 4 callees. 2 callers (sub_82B3EB30 and ProcessAndProcessAndProcess124).
+[entrypoint.functions."0x82374F20"]
+name = "ProcessAndProcessAndProcess2500_82374F20"
+
+# Process a value by checking its state and driving many sub-operations (two thousand four hundred and fifty-second form). It takes a value (a), a value (b), a value (c), a value (d), and a value (e); it allocates a large local buffer, and drives many sub-operations (RangeUpdate, ProcessAndProcessAndProcess2500, StrLenUTF16, and more) based on the result. This is the "process this data" routine (two thousand four hundred and fifty-second form), part of the 0x82B3E process cluster. 379 lines. 13 callees. 1 caller (sub_82B3EDD0).
+[entrypoint.functions."0x82B3EB30"]
+name = "ProcessAndProcessAndProcess2501_82B3EB30"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and fifty-third form). It takes a value (a), a value (b), and a value (c); it compares the values' state, and drives sub-operations (sub_82B14958) based on the result. This is the "process this data" routine (two thousand four hundred and fifty-third form), part of the 0x82B14 process cluster. 118 lines. 1 callee. 1 caller (sub_82B14830).
+[entrypoint.functions."0x82B14B00"]
+name = "ProcessAndProcessAndProcess2502_82B14B00"
+
+# Process a structure by checking its state and driving sub-operations (two thousand four hundred and fifty-fourth form). It takes a structure (a: field at a->4); it resets the structure's pointers, drives sub-operations (Free_Thunk, and more) based on the result, and makes a virtual call. This is the "process this data" routine (two thousand four hundred and fifty-fourth form), part of the 0x82BFF process cluster. 76 lines. 1 callee. 0 callers (vtable-dispatched).
+[entrypoint.functions."0x82BFF690"]
+name = "ProcessAndProcessAndProcess2503_82BFF690"
+
+# Process a structure by checking its state and driving sub-operations (two thousand four hundred and fifty-fifth form). It takes a structure (a); if the structure is non-null, it checks the structure's state, and drives sub-operations (a virtual call, vtable[36], with argument 1) based on the result. This is the "process this data" routine (two thousand four hundred and fifty-fifth form), part of the 0x82C0B process cluster. 17 lines. 0 callees. 0 callers (vtable-dispatched).
+[entrypoint.functions."0x82C0B268"]
+name = "ProcessAndProcessAndProcess2504_82C0B268"
+
+# Process a structure by checking its state (two thousand four hundred and fifty-sixth form). It takes a value (a) and a structure (b: fields at b->104 and b->96); it compares the structure's state, and unlinks it from a linked list based on the result. This is the "process this data" routine (two thousand four hundred and fifty-sixth form), part of the 0x82C0B process cluster. 81 lines. 0 callees. 1 caller (ProcessAndProcessAndProcess1563).
+[entrypoint.functions."0x82C0B9C8"]
+name = "ProcessAndProcessAndProcess2505_82C0B9C8"
+
+# Process a structure by checking its state (two thousand four hundred and fifty-seventh form). It takes a value (a) and a structure (b: fields at b->92 and b->84); it compares the structure's state, and unlinks it from a linked list based on the result. This is the "process this data" routine (two thousand four hundred and fifty-seventh form), part of the 0x82C0B process cluster. 81 lines. 0 callees. 1 caller (sub_82C0E6E8).
+[entrypoint.functions."0x82C0BA60"]
+name = "ProcessAndProcessAndProcess2506_82C0BA60"
+
+# Process a structure by checking its state and driving sub-operations (two thousand four hundred and fifty-eighth form). It takes a structure (a: field at a->4) and a value (b); it checks the structure's state, and drives sub-operations (BinarySearch) based on the result, decrementing a counter. This is the "process this data" routine (two thousand four hundred and fifty-eighth form), part of the 0x82C0D process cluster. 69 lines. 1 callee. 1 caller (sub_82C0E6E8).
+[entrypoint.functions."0x82C0DF98"]
+name = "ProcessAndProcessAndProcess2507_82C0DF98"
+
+# Process a structure by checking its state and driving sub-operations (two thousand four hundred and fifty-ninth form). It takes a structure (a: fields at a->132, a->120, a->116, and more); it checks the structure's state, and drives sub-operations (ProcessAndProcessAndProcess2506, ProcessAndProcessAndProcess2507, and more) based on the result, resetting the structure's pointers. This is the "process this data" routine (two thousand four hundred and fifty-ninth form), part of the 0x82C0E process cluster. 153 lines. 3 callees. 1 caller (sub_82C0F648).
+[entrypoint.functions."0x82C0E6E8"]
+name = "ProcessAndProcessAndProcess2508_82C0E6E8"
+
+# Process a structure by checking its state and driving sub-operations (two thousand four hundred and sixtieth form). It takes a structure (a) and a value (b); it checks the structure's state, and drives sub-operations (ProcessAndProcessAndProcess2508, Free_Thunk, and more) based on the result, optionally freeing the structure. This is the "process this data" routine (two thousand four hundred and sixtieth form), part of the 0x82C0F process cluster. 50 lines. 2 callees. 0 callers (vtable-dispatched).
+[entrypoint.functions."0x82C0F648"]
+name = "ProcessAndProcessAndProcess2509_82C0F648"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and sixty-first form). It takes a value (a), a value (b), a value (c), and a value (d); it allocates a small structure, initializes it, and drives sub-operations (Allocate_OrDbgBreak, ProcessAndVcallAndProcess10, and more) based on the result. This is the "process this data" routine (two thousand four hundred and sixty-first form), part of the 0x82C21 process cluster. 153 lines. 3 callees. 1 caller (sub_82C217B8).
+[entrypoint.functions."0x82C216A8"]
+name = "ProcessAndProcessAndProcess2510_82C216A8"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and sixty-second form). It uses global state to check its state, and drives sub-operations (ProcessAndAllocateAndProcess2) based on the result. This is the "process this data" routine (two thousand four hundred and sixty-second form), part of the 0x82E78 process cluster. 69 lines. 1 callee. 3 callers (sub_82E78B38, sub_82E78DA8, and sub_82E78A70).
+[entrypoint.functions."0x82E788B8"]
+name = "ProcessAndProcessAndProcess2511_82E788B8"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and sixty-third form). It uses global state to check its state, and drives sub-operations (ProcessAndAllocateAndProcess2) based on the result. This is the "process this data" routine (two thousand four hundred and sixty-third form), part of the 0x82E7C process cluster. 69 lines. 1 callee. 4 callers (sub_82E7C5F8, sub_82E7C418, sub_82E7EED0, and sub_82E7ED40).
+[entrypoint.functions."0x82E7C3A0"]
+name = "ProcessAndProcessAndProcess2512_82E7C3A0"
+
+# Process a value by checking its state (two thousand four hundred and sixty-fourth form). It takes a structure (a: field at a->4) and a structure (b: field at b->0); it traverses a linked list, comparing each node's state, and returns the matching node based on the result. This is the "process this data" routine (two thousand four hundred and sixty-fourth form), part of the 0x82C10 process cluster. 87 lines. 0 callees. 5 callers (UIFont_LookupGlyph, sub_82C10868, sub_82C386C0, sub_82C10770, and sub_82C12750).
+[entrypoint.functions."0x82C10608"]
+name = "ProcessAndProcessAndProcess2513_82C10608"
+
+# Process a value by checking its state and driving many sub-operations (two thousand four hundred and sixty-fifth form). It takes a value (a), a structure (b: field at b->8), a value (c), a value (d), and a value (e); it checks the value's state, and drives many sub-operations (Allocate_OrDbgBreak, SetString, Free_Thunk, and more) based on the result. This is the "process this data" routine (two thousand four hundred and sixty-fifth form), part of the 0x82C11 process cluster. 467 lines. 8 callees. 2 callers (sub_82C11EB8 and sub_82C120D8).
+[entrypoint.functions."0x82C11868"]
+name = "ProcessAndProcessAndProcess2514_82C11868"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and sixty-sixth form). It takes a value (a), a structure (b: fields at b->8 and b->4), a value (c), and a value (d); it checks the value's state, and drives sub-operations (ProcessAndProcessAndProcess2514, and more) based on the result. This is the "process this data" routine (two thousand four hundred and sixty-sixth form), part of the 0x82C12 process cluster. 298 lines. 4 callees. 1 caller (sub_82C122E8).
+[entrypoint.functions."0x82C120D8"]
+name = "ProcessAndProcessAndProcess2515_82C120D8"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and sixty-seventh form). It takes a structure (a: field at a->4) and a structure (b: field at b->0); it traverses a linked list, and drives sub-operations (ProcessAndProcessAndProcess2515) based on the result. This is the "process this data" routine (two thousand four hundred and sixty-seventh form), part of the 0x82C12 process cluster. 148 lines. 1 callee. 1 caller (sub_82C12750).
+[entrypoint.functions."0x82C122E8"]
+name = "ProcessAndProcessAndProcess2516_82C122E8"
+
+# Process a value by checking its state and driving many sub-operations (two thousand four hundred and sixty-eighth form). It takes a value (a), a float (b), a float (c), and a float (d); it constructs a refcounted object, and drives many sub-operations (ConstructRefCounted, ProcessAndProcessAndProcess2513, ProcessAndProcessAndProcess2516, and more) based on the result. This is the "process this data" routine (two thousand four hundred and sixty-eighth form), part of the 0x82C12 process cluster. 160 lines. 5 callees. 1 caller (ProcessAndProcessAndProcess2429).
+[entrypoint.functions."0x82C12750"]
+name = "ProcessAndProcessAndProcess2517_82C12750"
+
+# Process a value by checking its state (two thousand four hundred and sixty-ninth form). It takes a value (a), a value (b), and a value (c); it checks the value's state, and sets two fields at the value's start based on the result. This is the "process this data" routine (two thousand four hundred and sixty-ninth form), part of the 0x82FFC process cluster. 23 lines. 0 callees. 12 callers.
+[entrypoint.functions."0x82FFCAE8"]
+name = "ProcessAndProcessAndProcess2518_82FFCAE8"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and seventieth form). It takes a structure (a: fields at a->20, a->12, and a->4), a value (b), a value (c), and a value (d); it checks the value's state, and drives sub-operations (ProcessAndCopyStructRegion) based on the result. This is the "process this data" routine (two thousand four hundred and seventieth form), part of the 0x82A1D process cluster. 216 lines. 1 callee. 1 caller (ProcessAndProcessAndProcess2449).
+[entrypoint.functions."0x82A1D440"]
+name = "ProcessAndProcessAndProcess2519_82A1D440"
+
+# Process a value by checking its state (two thousand four hundred and seventy-first form). It takes a value (a), a value (b), and a value (c); it checks the value's state, and packs the value's bits based on the result. This is the "process this data" routine (two thousand four hundred and seventy-first form), part of the 0x82B91 process cluster. 78 lines. 0 callees. 0 callers (vtable-dispatched).
+[entrypoint.functions."0x82B91440"]
+name = "ProcessAndProcessAndProcess2520_82B91440"
+
+# Process a value by checking its state (two thousand four hundred and seventy-second form). It takes a value (a), a value (b), and a value (c); it checks the value's state, and packs the value's bits based on the result. This is the "process this data" routine (two thousand four hundred and seventy-second form), part of the 0x82B91 process cluster. 74 lines. 0 callees. 0 callers (vtable-dispatched).
+[entrypoint.functions."0x82B91520"]
+name = "ProcessAndProcessAndProcess2521_82B91520"
+
+# Process a value by checking its state (two thousand four hundred and seventy-third form). It takes a value (a), a value (b), and a value (c); it checks the value's state, and packs the value's bits based on the result. This is the "process this data" routine (two thousand four hundred and seventy-third form), part of the 0x82B91 process cluster. 78 lines. 0 callees. 0 callers (vtable-dispatched).
+[entrypoint.functions."0x82B915D8"]
+name = "ProcessAndProcessAndProcess2522_82B915D8"
+
+# Process a value by checking its state (two thousand four hundred and seventy-fourth form). It takes a structure (a: field at a->24), a value (b), and a value (c); it checks the value's state, and packs the value's bits (scaling by a constant) based on the result. This is the "process this data" routine (two thousand four hundred and seventy-fourth form), part of the 0x82B91 process cluster. 50 lines. 0 callees. 0 callers (vtable-dispatched).
+[entrypoint.functions."0x82B91690"]
+name = "ProcessAndProcessAndProcess2523_82B91690"
+
+# Process a value by checking its state (two thousand four hundred and seventy-fifth form). It takes a value (a), a value (b), and a value (c); it checks the value's state, and packs the value's bits based on the result. This is the "process this data" routine (two thousand four hundred and seventy-fifth form), part of the 0x82B91 process cluster. 60 lines. 0 callees. 0 callers (vtable-dispatched).
+[entrypoint.functions."0x82B91778"]
+name = "ProcessAndProcessAndProcess2524_82B91778"
+
+# Process a value by checking its state (two thousand four hundred and seventy-sixth form). It takes a value (a), a value (b), and a value (c); it checks the value's state, and packs the value's bits based on the result. This is the "process this data" routine (two thousand four hundred and seventy-sixth form), part of the 0x82B91 process cluster. 60 lines. 0 callees. 0 callers (vtable-dispatched).
+[entrypoint.functions."0x82B917F8"]
+name = "ProcessAndProcessAndProcess2525_82B917F8"
+
+# Process a value by checking its state (two thousand four hundred and seventy-seventh form). It takes a value (a), a value (b), and a value (c); it checks the value's state, and packs the value's bits based on the result. This is the "process this data" routine (two thousand four hundred and seventy-seventh form), part of the 0x82B91 process cluster. 30 lines. 0 callees. 0 callers (vtable-dispatched).
+[entrypoint.functions."0x82B918F8"]
+name = "ProcessAndProcessAndProcess2526_82B918F8"
+
+# Process a value by checking its state (two thousand four hundred and seventy-eighth form). It takes a value (a), a value (b), and a value (c); it checks the value's state, and packs the value's bits based on the result. This is the "process this data" routine (two thousand four hundred and seventy-eighth form), part of the 0x82B91 process cluster. 30 lines. 0 callees. 0 callers (vtable-dispatched).
+[entrypoint.functions."0x82B91950"]
+name = "ProcessAndProcessAndProcess2527_82B91950"
+
+# Process a value by checking its state (two thousand four hundred and seventy-ninth form). It takes a value (a), a value (b), and a value (c); it checks the value's state, and packs the value's bits based on the result. This is the "process this data" routine (two thousand four hundred and seventy-ninth form), part of the 0x82B91 process cluster. 30 lines. 0 callees. 0 callers (vtable-dispatched).
+[entrypoint.functions."0x82B919A8"]
+name = "ProcessAndProcessAndProcess2528_82B919A8"
+
+# Process a value by checking its state (two thousand four hundred and eightieth form). It takes a value (a), a value (b), and a value (c); it checks the value's state, and packs the value's bits based on the result. This is the "process this data" routine (two thousand four hundred and eightieth form), part of the 0x82B91 process cluster. 30 lines. 0 callees. 0 callers (vtable-dispatched).
+[entrypoint.functions."0x82B91A00"]
+name = "ProcessAndProcessAndProcess2529_82B91A00"
+
+# Process a structure by checking its state (two thousand four hundred and eighty-first form). It takes a structure (a), a structure (b: fields at b->0, b->16, and b->8), and a structure (c: field at c->0); it checks the structure's state, and initializes the structure's fields based on the result. This is the "process this data" routine (two thousand four hundred and eighty-first form), part of the 0x82CD7 process cluster. 146 lines. 0 callees. 1 caller (sub_82CD8050).
+[entrypoint.functions."0x82CD7D98"]
+name = "ProcessAndProcessAndProcess2530_82CD7D98"
+
+# Process a value by checking its state (two thousand four hundred and eighty-second form). It takes a value (a) and a value (b); it checks the value's state, and stores a pointer (or zero) based on the result. This is the "process this data" routine (two thousand four hundred and eighty-second form), part of the 0x82CD7 process cluster. 15 lines. 0 callees. 0 callers (vtable-dispatched).
+[entrypoint.functions."0x82CD7EA0"]
+name = "ProcessAndProcessAndProcess2531_82CD7EA0"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and eighty-third form). It takes a value (a), a structure (b: field at b->0), and a value (c); it checks the value's state, and drives sub-operations (a virtual call, ProcessAndProcessAndProcess2530, and more) based on the result. This is the "process this data" routine (two thousand four hundred and eighty-third form), part of the 0x82CD8 process cluster. 78 lines. 1 callee. 2 callers (sub_82CDB5E0 and ProcessAndProcessAndProcess2089).
+[entrypoint.functions."0x82CD8050"]
+name = "ProcessAndProcessAndProcess2532_82CD8050"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and eighty-fourth form). It uses global state to check its state, and drives sub-operations (ProcessAndAllocateAndProcess2) based on the result. This is the "process this data" routine (two thousand four hundred and eighty-fourth form), part of the 0x82E80 process cluster. 69 lines. 1 callee. 4 callers (sub_82E824A0, sub_82E814F8, sub_82E81128, and sub_82E820D8).
+[entrypoint.functions."0x82E80FA8"]
+name = "ProcessAndProcessAndProcess2533_82E80FA8"
+
+# Process a value by checking its state (two thousand four hundred and eighty-fifth form). It takes a value (a); it checks the value's state, and returns a pointer to the value's field based on the result. This is the "process this data" routine (two thousand four hundred and eighty-fifth form), part of the 0x82EE1 process cluster. 10 lines. 0 callees. 12 callers.
+[entrypoint.functions."0x82EE1CF8"]
+name = "ProcessAndProcessAndProcess2534_82EE1CF8"
+
+# Process a value by checking its state (two thousand four hundred and eighty-sixth form). It takes a value (a); it checks the value's state, and returns a pointer to the value's field based on the result. This is the "process this data" routine (two thousand four hundred and eighty-sixth form), part of the 0x82FFE process cluster. 10 lines. 0 callees. 12 callers.
+[entrypoint.functions."0x82FFE3C8"]
+name = "ProcessAndProcessAndProcess2535_82FFE3C8"
+
+# Process a value by checking its state and driving many sub-operations (two thousand four hundred and eighty-seventh form). It takes a structure (a) and a structure (b: fields at b->4, b->0, and b->8); it checks the value's state, and drives many sub-operations (Allocate_OrDbgBreak, MemCpy_SdkRuntime, MemCpy_Vectorized, and more) based on the result. This is the "process this data" routine (two thousand four hundred and eighty-seventh form), part of the 0x82B84 process cluster. 149 lines. 4 callees. 2 callers (sub_82B8B330 and ProcessAndProcessAndProcess2450).
+[entrypoint.functions."0x82B84550"]
+name = "ProcessAndProcessAndProcess2536_82B84550"
+
+# Process a structure by checking its state (two thousand four hundred and eighty-eighth form). It takes a structure (a: field at a->24) and a value (b); it checks the structure's state, and sets or clears a bit based on the result. This is the "process this data" routine (two thousand four hundred and eighty-eighth form), part of the 0x82C5D process cluster. 30 lines. 0 callees. 2 callers (ProcessAndProcessAndProcess995 and sub_82C5B700).
+[entrypoint.functions."0x82C5D170"]
+name = "ProcessAndProcessAndProcess2537_82C5D170"
+
+# Process a structure by checking its state (two thousand four hundred and eighty-ninth form). It takes a structure (a: fields at a->0, a->8, and a->5) and a value (b); it checks the structure's state, and computes a size based on the result, storing it. This is the "process this data" routine (two thousand four hundred and eighty-ninth form), part of the 0x82CD7 process cluster. 50 lines. 0 callees. 2 callers (sub_82CDA758 and ProcessAndProcessAndProcess2087).
+[entrypoint.functions."0x82CD7FF8"]
+name = "ProcessAndProcessAndProcess2538_82CD7FF8"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and ninetieth form). It takes a value (a), a value (b), and a value (c); it checks the values' state, and drives sub-operations (two virtual calls, vtable[36] and vtable[32], ProcessAndProcessAndProcess1815, and more) based on the result. This is the "process this data" routine (two thousand four hundred and ninetieth form), part of the 0x823F9 process cluster. 91 lines. 1 callee. 12 callers.
+[entrypoint.functions."0x823F9040"]
+name = "ProcessAndProcessAndProcess2539_823F9040"
+
+# Process a structure by checking its state (two thousand four hundred and ninety-first form). It takes a structure (a: field at a->16); it checks the structure's state, and returns the structure's field based on the result. This is the "process this data" routine (two thousand four hundred and ninety-first form), part of the 0x826B4 process cluster. 5 lines. 0 callees. 12 callers.
+[entrypoint.functions."0x826B4B60"]
+name = "ProcessAndProcessAndProcess2540_826B4B60"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and ninety-second form). It takes a value (a), a value (b), and a value (c); it compares the values' state, and drives sub-operations (sub_82A80708) based on the result. This is the "process this data" routine (two thousand four hundred and ninety-second form), part of the 0x82A80 process cluster. 118 lines. 1 callee. 1 caller (sub_82A80798).
+[entrypoint.functions."0x82A808C0"]
+name = "ProcessAndProcessAndProcess2541_82A808C0"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and ninety-third form). It takes a structure (a: field at a->4), a structure (b: field at b->4), and a value (c); it compares the structures' state, and drives sub-operations (ProcessAndProcessAndProcess2250) based on the result. This is the "process this data" routine (two thousand four hundred and ninety-third form), part of the 0x82B3D process cluster. 308 lines. 1 callee. 1 caller (sub_82B3D988).
+[entrypoint.functions."0x82B3DC48"]
+name = "ProcessAndProcessAndProcess2542_82B3DC48"
+
+# Process a structure by checking its state (two thousand four hundred and ninety-fourth form). It takes a structure (a: field at a->24) and a value (b); it checks the structure's state, and sets or clears a bit based on the result. This is the "process this data" routine (two thousand four hundred and ninety-fourth form), part of the 0x82C5D process cluster. 30 lines. 0 callees. 1 caller (ProcessAndProcessAndProcess995).
+[entrypoint.functions."0x82C5D1A0"]
+name = "ProcessAndProcessAndProcess2543_82C5D1A0"
+
+# Process a structure by checking its state and driving sub-operations (two thousand four hundred and ninety-fifth form). It takes a structure (a: fields at a->24, a->4, a->0, and a->28); it checks the structure's state, and drives sub-operations (a virtual call) based on the result. This is the "process this data" routine (two thousand four hundred and ninety-fifth form), part of the 0x82C60 process cluster. 40 lines. 0 callees. 2 callers (sub_82C60AB0 and sub_82C60820).
+[entrypoint.functions."0x82C607E0"]
+name = "ProcessAndProcessAndProcess2544_82C607E0"
+
+# Process a value by checking its state (two thousand four hundred and ninety-sixth form). It takes a value (a), a value (b), and a value (c); it checks the value's state, and performs an atomic compare-and-swap under the global lock, returning whether the swap succeeded based on the result. This is the "process this data" routine (two thousand four hundred and ninety-sixth form), part of the 0x82C61 process cluster. 62 lines. 0 callees. 2 callers (ProcessAndProcessAndProcess622 and sub_82C5C768).
+[entrypoint.functions."0x82C61128"]
+name = "ProcessAndProcessAndProcess2545_82C61128"
+
+# Process a structure by checking its state (two thousand four hundred and ninety-seventh form). It takes a structure (a: field at a->36) and a structure (b); it checks the structure's state, and sets a vtable pointer and a field based on the result. This is the "process this data" routine (two thousand four hundred and ninety-seventh form), part of the 0x82CFC process cluster. 25 lines. 0 callees. 0 callers (vtable-dispatched).
+[entrypoint.functions."0x82CFC8A0"]
+name = "ProcessAndProcessAndProcess2546_82CFC8A0"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and ninety-eighth form). It takes a value (a) and a value (b); it allocates a small structure, and drives sub-operations (ProcessAndProcessAndProcess1657, a virtual call, and more) based on the result. This is the "process this data" routine (two thousand four hundred and ninety-eighth form), part of the 0x82CFE process cluster. 115 lines. 2 callees. 1 caller (sub_82CFE7F0).
+[entrypoint.functions."0x82CFEB00"]
+name = "ProcessAndProcessAndProcess2547_82CFEB00"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and ninety-ninth form). It takes a value (a), a value (b), a value (c), a value (d), and a value (e); it allocates a small structure, and drives sub-operations (ProcessAndProcessAndProcess1657, and more) based on the result. This is the "process this data" routine (two thousand four hundred and ninety-ninth form), part of the 0x82CFE process cluster. 135 lines. 2 callees. 4 callers (sub_82CFF878, sub_82CFDA90, sub_82D03DA8, and sub_82CFCDE8).
+[entrypoint.functions."0x82CFEBC0"]
+name = "ProcessAndProcessAndProcess2548_82CFEBC0"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundredth form). It uses global state to check its state, and drives sub-operations (ProcessAndAllocateAndProcess2) based on the result. This is the "process this data" routine (two thousand four hundred and one hundredth form), part of the 0x82E78 process cluster. 69 lines. 1 callee. 4 callers (sub_82E789A8, sub_82E7D388, sub_82E78CE0, and sub_82E7D0D8).
+[entrypoint.functions."0x82E78930"]
+name = "ProcessAndProcessAndProcess2549_82E78930"
+
+# Process a value by checking its state (two thousand four hundred and one hundred and first form). It takes a value (a); it checks the value's state, and returns a pointer to the value's field based on the result. This is the "process this data" routine (two thousand four hundred and one hundred and first form), part of the 0x82FFE process cluster. 10 lines. 0 callees. 9 callers.
+[entrypoint.functions."0x82FFE3B8"]
+name = "ProcessAndProcessAndProcess2550_82FFE3B8"
+
+# Process a structure by checking its state (two thousand four hundred and one hundred and second form). It takes a structure (a: fields at a->8 and a->4); it checks the structure's state, and manipulates the structure's linked-list pointers based on the result. This is the "process this data" routine (two thousand four hundred and one hundred and second form), part of the 0x827E0 process cluster. 71 lines. 0 callees. 2 callers (sub_827E03E0 and ProcessAndProcessAndProcess2283).
+[entrypoint.functions."0x827E0838"]
+name = "ProcessAndProcessAndProcess2551_827E0838"
+
+# Process a value by checking its state and driving many sub-operations (two thousand four hundred and one hundred and third form). It takes a value (a) and a value (b); it enters a critical section, and drives many sub-operations (CriticalSection_EnterOrTry, CopyAssign_RefCounted, DestructRefCounted, and more) based on the result, including an atomic increment. This is the "process this data" routine (two thousand four hundred and one hundred and third form), part of the 0x82AA3 process cluster. 167 lines. 6 callees. 1 caller (sub_82A9FBB8).
+[entrypoint.functions."0x82AA33E0"]
+name = "ProcessAndProcessAndProcess2552_82AA33E0"
+
+# Process a value by checking its state (two thousand four hundred and one hundred and fourth form). It takes no meaningful arguments; it checks the value's state, and returns a global pointer based on the result. This is the "process this data" routine (two thousand four hundred and one hundred and fourth form), part of the 0x82C20 process cluster. 8 lines. 0 callees. 0 callers (vtable-dispatched or referenced elsewhere).
+[entrypoint.functions."0x82C20C90"]
+name = "ProcessAndProcessAndProcess2553_82C20C90"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundred and fifth form). It takes a value (a) and a value (b); it checks the value's state, and drives sub-operations (RtlEnterCriticalSection, sub_82CDD4C8, RtlLeaveCriticalSection, and more) based on the result, all under a critical section. This is the "process this data" routine (two thousand four hundred and one hundred and fifth form), part of the 0x82CD3 process cluster. 59 lines. 3 callees. 5 callers.
+[entrypoint.functions."0x82CD3308"]
+name = "ProcessAndProcessAndProcess2554_82CD3308"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundred and sixth form). It takes no meaningful arguments; it checks the value's state, and drives sub-operations (ProcessAndProcessAndProcess2094) based on the result. This is the "process this data" routine (two thousand four hundred and one hundred and sixth form), part of the 0x82CDD process cluster. 5 lines. 1 callee. 0 callers (vtable-dispatched).
+[entrypoint.functions."0x82CDD318"]
+name = "ProcessAndProcessAndProcess2555_82CDD318"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundred and seventh form). It takes a structure (a: field at a->32) and a value (b); it checks the value's state, and drives sub-operations (ProcessAndProcessAndProcess2281, ProcessAndProcessAndProcess2093, and more) based on the result. This is the "process this data" routine (two thousand four hundred and one hundred and seventh form), part of the 0x82CDD process cluster. 63 lines. 3 callees. 1 caller (sub_82CDD4C8).
+[entrypoint.functions."0x82CDD320"]
+name = "ProcessAndProcessAndProcess2556_82CDD320"
+
+# Process a value by checking its state and driving many sub-operations (two thousand four hundred and one hundred and eighth form). It takes a structure (a), a structure (b: field at b->10), and a value (c); it checks the value's state, and drives many sub-operations (ProcessAndProcessAndProcess2091, KeRaiseIrqlToDpcLevel, KeAcquireSpinLockAtRaisedIrql, and more) based on the result, using spin locks and IRQL. This is the "process this data" routine (two thousand four hundred and one hundred and eighth form), part of the 0x82CDD process cluster. 153 lines. 5 callees. 1 caller (sub_82CDD4C8).
+[entrypoint.functions."0x82CDD388"]
+name = "ProcessAndProcessAndProcess2557_82CDD388"
+
+# Process a value by checking its state and driving many sub-operations (two thousand four hundred and one hundred and ninth form). It takes a value (a), a value (b), and a value (c); it checks the value's state, and drives many sub-operations (ProcessAndProcessAndProcess2281, ProcessAndProcessAndProcess2092, ProcessAndProcessAndProcess2556, and more) based on the result. This is the "process this data" routine (two thousand four hundred and one hundred and ninth form), part of the 0x82CDD process cluster. 157 lines. 5 callees. 1 caller (ProcessAndProcessAndProcess2554).
+[entrypoint.functions."0x82CDD4C8"]
+name = "ProcessAndProcessAndProcess2558_82CDD4C8"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundred and tenth form). It takes a value (a), a value (b), a value (c), and a structure (d); it checks the value's state, and drives sub-operations (MemSet_SdkRuntime, and more) based on the result, setting fields and checking bits. This is the "process this data" routine (two thousand four hundred and one hundred and tenth form), part of the 0x83005 process cluster. 78 lines. 1 callee. 2 callers (sub_82B1A348 and sub_82B8B960).
+[entrypoint.functions."0x830053D0"]
+name = "ProcessAndProcessAndProcess2559_830053D0"
+
+# Process a value by checking its state and driving many sub-operations (two thousand four hundred and one hundred and eleventh form). It takes a structure (a) and a float (b); it checks the value's state, and drives many sub-operations (ProcessAndProcessAndProcess1120, Free_SizeBucketed_Thunk, and more) based on the result, looping over a table. This is the "process this data" routine (two thousand four hundred and one hundred and eleventh form), part of the 0x8322B process cluster. 201 lines. 2 callees. 12 callers.
+[entrypoint.functions."0x8322BB68"]
+name = "ProcessAndProcessAndProcess2560_8322BB68"
+
+# Process a value by checking its state and driving many sub-operations (two thousand four hundred and one hundred and twelfth form). It takes a value (a), a structure (b: field at b->0), a mask (c), a value (d), a value (e), and a float (f); it checks the value's state, and drives many sub-operations (GetTimebase, MemCpy_SdkRuntime, ProcessAndProcessAndProcess1934, and more) based on the result. This is the "process this data" routine (two thousand four hundred and one hundred and twelfth form), part of the 0x82188 process cluster. 187 lines. 3 callees. 1 caller (ProcessAndProcessAndProcess1288).
+[entrypoint.functions."0x82188F20"]
+name = "ProcessAndProcessAndProcess2561_82188F20"
+
+# Process a structure by checking its state (two thousand four hundred and one hundred and thirteenth form). It takes a structure (a: field at a->12) and a flag (b); it checks the structure's state, and sets or clears a bit in the structure based on the flag. This is the "process this data" routine (two thousand four hundred and one hundred and thirteenth form), part of the 0x82C5C process cluster. 15 lines. 0 callees. 3 callers (sub_82C5A780, sub_82C5CC60, and sub_82C5A950).
+[entrypoint.functions."0x82C5C748"]
+name = "ProcessAndProcessAndProcess2562_82C5C748"
+
+# Process a structure by checking its state (two thousand four hundred and one hundred and fourteenth form). It takes a structure (a: fields at a->20, a->0, a->24, a->4, a->8, a->12, and a->16) and several values (b through g); it checks the structure's state, and stores the values into the structure's fields, defaulting some to a global pointer if zero, based on the result. This is the "process this data" routine (two thousand four hundred and one hundred and fourteenth form), part of the 0x82C5D process cluster. 30 lines. 0 callees. 1 caller (sub_82C5DAD8).
+[entrypoint.functions."0x82C5D820"]
+name = "ProcessAndProcessAndProcess2563_82C5D820"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundred and fifteenth form). It takes a value (a); it checks the value's state, and drives sub-operations (ProcessAndProcessAndProcess2563) based on the result. This is the "process this data" routine (two thousand four hundred and one hundred and fifteenth form), part of the 0x82C5D process cluster. 20 lines. 1 callee. 12 callers.
+[entrypoint.functions."0x82C5DAD8"]
+name = "ProcessAndProcessAndProcess2564_82C5DAD8"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundred and sixteenth form). It uses global state to check its state, and drives sub-operations (ProcessAndAllocateAndProcess2) based on the result. This is the "process this data" routine (two thousand four hundred and one hundred and sixteenth form), part of the 0x82E77 process cluster. 69 lines. 1 callee. 3 callers (sub_82E77390, sub_82E772C8, and sub_82E77508).
+[entrypoint.functions."0x82E77110"]
+name = "ProcessAndProcessAndProcess2565_82E77110"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundred and seventeenth form). It takes a value (a), a value (b), a value (c), and a value (d); it checks the value's state, and drives sub-operations (CopyAssign_RefCounted, and more) based on the result, looping over 16-byte elements with refcounting. This is the "process this data" routine (two thousand four hundred and one hundred and seventeenth form), part of the 0x82358 process cluster. 69 lines. 1 callee. 1 caller (sub_82358250).
+[entrypoint.functions."0x82358BE0"]
+name = "ProcessAndProcessAndProcess2566_82358BE0"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundred and eighteenth form). It takes a value (a), a value (b), a value (c), and a value (d); it checks the value's state, and drives sub-operations (CopyAssign_RefCounted, ProcessAndProcessAndProcess1875, and more) based on the result, looping over 20-byte elements. This is the "process this data" routine (two thousand four hundred and one hundred and eighteenth form), part of the 0x82358 process cluster. 60 lines. 2 callees. 1 caller (sub_82358590).
+[entrypoint.functions."0x82358C50"]
+name = "ProcessAndProcessAndProcess2567_82358C50"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundred and nineteenth form). It takes a value (a), a structure (b: fields at b->4 and b->8), and a value (c); it checks the value's state, and drives sub-operations (sub_82610990) based on the result, performing a bounds check. This is the "process this data" routine (two thousand four hundred and one hundred and nineteenth form), part of the 0x82610 process cluster. 132 lines. 1 callee. 3 callers (sub_82B18688, sub_827325C8, and sub_82192848).
+[entrypoint.functions."0x826107D8"]
+name = "ProcessAndProcessAndProcess2568_826107D8"
+
+# Process a value by checking its state and driving many sub-operations (two thousand four hundred and one hundred and twentieth form). It takes a structure (a: fields at a->4, a->8, and a->12), a value (b), and a value (c); it checks the value's state, and drives many sub-operations (AllocateChecked4, Free_SizeBucketed_Thunk, and more) based on the result. This is the "process this data" routine (two thousand four hundred and one hundred and twentieth form), part of the 0x82610 process cluster. 493 lines. 3 callees. 1 caller (ProcessAndProcessAndProcess2568).
+[entrypoint.functions."0x82610990"]
+name = "ProcessAndProcessAndProcess2569_82610990"
+
+# Process a structure by checking its state (two thousand four hundred and one hundred and twenty-first form). It takes a structure (a: fields at a->0 and a->4); it checks the structure's state, and manipulates the structure's linked-list pointers based on the result. This is the "process this data" routine (two thousand four hundred and one hundred and twenty-first form), part of the 0x828A5 process cluster. 112 lines. 0 callees. 6 callers.
+[entrypoint.functions."0x828A52A0"]
+name = "ProcessAndProcessAndProcess2570_828A52A0"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundred and twenty-second form). It takes a structure (a: field at a->0) and a structure (b: field at b->0); it checks the value's state, and drives sub-operations (ProcessAndProcessAndProcess1869, Release_RefCounted, and more) based on the result, including an atomic increment. This is the "process this data" routine (two thousand four hundred and one hundred and twenty-second form), part of the 0x82B39 process cluster. 125 lines. 2 callees. 8 callers.
+[entrypoint.functions."0x82B39768"]
+name = "ProcessAndProcessAndProcess2571_82B39768"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundred and twenty-third form). It takes a value (a) and a value (b); it checks the value's state, and drives sub-operations (VcallTriple_AllSuccess, VcallChain_AllSuccess, and more) based on the result. This is the "process this data" routine (two thousand four hundred and one hundred and twenty-third form), part of the 0x82C49 process cluster. 92 lines. 2 callees. 1 caller (sub_82C4B160).
+[entrypoint.functions."0x82C49720"]
+name = "ProcessAndProcessAndProcess2572_82C49720"
+
+# Process a structure by checking its state (two thousand four hundred and one hundred and twenty-fourth form). It takes a structure (a: fields at a->8 and a->24) and a value (b, a float pointer); it checks the structure's state, and stores the float pointer and its value into the structure's fields, defaulting the value to a constant if the pointer is null, based on the result. This is the "process this data" routine (two thousand four hundred and one hundred and twenty-fourth form), part of the 0x82C5C process cluster. 30 lines. 0 callees. 1 caller (sub_82C5C8D8).
+[entrypoint.functions."0x82C5C820"]
+name = "ProcessAndProcessAndProcess2573_82C5C820"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundred and twenty-fifth form). It takes a structure (a: fields at a->28, a->0, a->4, a->12, a->32, and a->20) and several values (b through g); it checks the value's state, and drives sub-operations (ProcessAndProcessAndProcess2573, and more) based on the result, storing values into the structure's fields. This is the "process this data" routine (two thousand four hundred and one hundred and twenty-fifth form), part of the 0x82C5C process cluster. 65 lines. 1 callee. 2 callers (sub_82C5CE58 and sub_82C5C940).
+[entrypoint.functions."0x82C5C8D8"]
+name = "ProcessAndProcessAndProcess2574_82C5C8D8"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundred and twenty-sixth form). It takes a structure (a: fields at a->4, a->12, a->8, a->16, a->24, a->20, a->28, and a->0), a value (b), a value (c), a value (d), a value (e), and several floats; it checks the value's state, and drives sub-operations (ProcessAndProcessAndProcess2544, sub_82C608E0, and more) based on the result, storing values and floats into the structure's fields. This is the "process this data" routine (two thousand four hundred and one hundred and twenty-sixth form), part of the 0x82C60 process cluster. 82 lines. 2 callees. 2 callers (sub_82C60BA0 and sub_82C5B700).
+[entrypoint.functions."0x82C60AB0"]
+name = "ProcessAndProcessAndProcess2575_82C60AB0"
+
+# Process a value by checking its state and driving many sub-operations (two thousand four hundred and one hundred and twenty-seventh form). It takes a structure (a: field at a->0) and a structure (b); it checks the value's state, and drives many sub-operations (Tree_GetOrCreate, ResetTreeObj, Allocate_OrDbgBreak, and more) based on the result. This is the "process this data" routine (two thousand four hundred and one hundred and twenty-seventh form), part of the 0x82C1D process cluster. 120 lines. 3 callees. 2 callers (sub_82C1E230 and sub_82C1E2E0).
+[entrypoint.functions."0x82C1DD30"]
+name = "ProcessAndProcessAndProcess2576_82C1DD30"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundred and twenty-eighth form). It takes a structure (a: fields at a->0, a->4, and a->36); it checks the value's state, and drives sub-operations (Construct20ByteNode, ResetTreeObj, and more) based on the result, storing global pointers into the structure's fields. This is the "process this data" routine (two thousand four hundred and one hundred and twenty-eighth form), part of the 0x82C1E process cluster. 69 lines. 2 callees. 2 callers (sub_82C1E2E0 and sub_82C1E230).
+[entrypoint.functions."0x82C1E130"]
+name = "ProcessAndProcessAndProcess2577_82C1E130"
+
+# Process a value by checking its state and driving many sub-operations (two thousand four hundred and one hundred and twenty-ninth form). It takes a value (a), a value (b), and a structure (c: fields at c->8, c->4, and c->0); it checks the value's state, and drives many sub-operations (MemCpy_SdkRuntime, and more) based on the result, looping over elements. This is the "process this data" routine (two thousand four hundred and one hundred and twenty-ninth form), part of the 0x82CB9 process cluster. 360 lines. 1 callee. 2 callers (ProcessAndProcessAndProcess2495 and sub_83003A40).
+[entrypoint.functions."0x82CB9E88"]
+name = "ProcessAndProcessAndProcess2578_82CB9E88"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundred and thirtieth form). It takes several values (a through g); it checks the value's state, and drives sub-operations (ExCreateThread, StoreLastErrorCode, and more) based on the result, creating a thread. This is the "process this data" routine (two thousand four hundred and one hundred and thirtieth form), part of the 0x82CC8 process cluster. 68 lines. 2 callees. 2 callers (sub_82CBD280 and sub_82D014A8).
+[entrypoint.functions."0x82CC8758"]
+name = "ProcessAndProcessAndProcess2579_82CC8758"
+
+# Process a structure by checking its state (two thousand four hundred and one hundred and thirty-first form). It takes a structure (a: fields at a->4, a->8, and a->12); it checks the structure's state, and drives sub-operations (Free_SizeBucketed_Thunk) based on the result, freeing a field and nulling out the structure's fields. This is the "process this data" routine (two thousand four hundred and one hundred and thirty-first form), part of the 0x823D2 process cluster. 35 lines. 1 callee. 12 callers.
+[entrypoint.functions."0x823D2D28"]
+name = "ProcessAndProcessAndProcess2580_823D2D28"
+
+# Process a value by checking its state and driving many sub-operations (two thousand four hundred and one hundred and thirty-second form). It takes a value (a), a value (b), a value (c), and a value (d); it checks the value's state, and drives many sub-operations (sub_82A802E0, ProcessAndProcessAndProcess1248, and more) based on the result, looping over elements. This is the "process this data" routine (two thousand four hundred and one hundred and thirty-second form), part of the 0x82A7F process cluster. 257 lines. 6 callees. 1 caller (sub_82A7F580).
+[entrypoint.functions."0x82A7FEE8"]
+name = "ProcessAndProcessAndProcess2581_82A7FEE8"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundred and thirty-third form). It takes a value (a) and a value (b); it checks the value's state, and drives sub-operations (sub_82A80CF8) based on the result, performing a binary search over a range. This is the "process this data" routine (two thousand four hundred and one hundred and thirty-third form), part of the 0x82A80 process cluster. 157 lines. 1 callee. 1 caller (ProcessAndProcessAndProcess2581).
+[entrypoint.functions."0x82A805F0"]
+name = "ProcessAndProcessAndProcess2582_82A805F0"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundred and thirty-fourth form). It takes a value (a), a value (b), a value (c), and a value (d); it checks the value's state, and drives sub-operations (CopyAssign_RefCounted, and more) based on the result, looping over 8-byte elements. This is the "process this data" routine (two thousand four hundred and one hundred and thirty-fourth form), part of the 0x82AA3 process cluster. 57 lines. 1 callee. 1 caller (sub_82AA3760).
+[entrypoint.functions."0x82AA3C50"]
+name = "ProcessAndProcessAndProcess2583_82AA3C50"
+
+# Process a value by checking its state and driving many sub-operations (two thousand four hundred and one hundred and thirty-fifth form). It takes a value (a) and a structure (b: field at b->3); it checks the value's state, and drives many sub-operations (ProcessAndProcessAndProcess1343, ProcessAndProcessAndProcess1251, and more) based on the result, processing an array of 112-byte elements. This is the "process this data" routine (two thousand four hundred and one hundred and thirty-fifth form), part of the 0x82B7B process cluster. 327 lines. 3 callees. 3 callers (sub_82A6E200, sub_82A6E310, and sub_82B608B8).
+[entrypoint.functions."0x82B7B9B8"]
+name = "ProcessAndProcessAndProcess2584_82B7B9B8"
+
+# Process a structure by checking its state and driving sub-operations (two thousand four hundred and one hundred and thirty-sixth form). It takes a structure (a: fields at a->16 and a->4); it checks the structure's state, and drives sub-operations (sub_82B8A510, Free_SizeBucketed_Thunk, DestructRefCounted, and more) based on the result, freeing fields and destructing the structure. This is the "process this data" routine (two thousand four hundred and one hundred and thirty-sixth form), part of the 0x82B8A process cluster. 67 lines. 3 callees. 2 callers (sub_82B7EC80 and sub_82B7E658).
+[entrypoint.functions."0x82B8A4A8"]
+name = "ProcessAndProcessAndProcess2585_82B8A4A8"
+
+# Process a value by checking its state and driving many sub-operations (two thousand four hundred and one hundred and thirty-seventh form). It takes several values (a through g); it checks the value's state, and drives many sub-operations (ProcessAndProcessAndProcess652, ProcessAndProcessAndProcess606, and more) based on the result, allocating a small structure. This is the "process this data" routine (two thousand four hundred and one hundred and thirty-seventh form), part of the 0x82B92 process cluster. 168 lines. 3 callees. 11 callers.
+[entrypoint.functions."0x82B923B8"]
+name = "ProcessAndProcessAndProcess2586_82B923B8"
+
+# Process a value by checking its state (two thousand four hundred and one hundred and thirty-eighth form). It takes a value (a) and a value (b); it checks the value's state, and drives sub-operations (a virtual call) based on the result, storing values into the result structure's fields. This is the "process this data" routine (two thousand four hundred and one hundred and thirty-eighth form), part of the 0x82BAF process cluster. 40 lines. 0 callees. 0 callers (vtable-dispatched).
+[entrypoint.functions."0x82BAF940"]
+name = "ProcessAndProcessAndProcess2587_82BAF940"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundred and thirty-ninth form). It takes a structure (a: fields at a->12 and a->44) and several floats (b, c); it checks the value's state, and drives sub-operations (ProcessAndProcessAndProcess818, and more) based on the result, performing float operations. This is the "process this data" routine (two thousand four hundred and one hundred and thirty-ninth form), part of the 0x82C58 process cluster. 79 lines. 1 callee. 2 callers (ProcessAndProcessAndProcess1851 and sub_82C59050).
+[entrypoint.functions."0x82C58318"]
+name = "ProcessAndProcessAndProcess2588_82C58318"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundred and fortieth form). It takes a structure (a: fields at a->16 and a->48) and several floats (b, c); it checks the value's state, and drives sub-operations (ProcessAndProcessAndProcess818, and more) based on the result, performing float operations. This is the "process this data" routine (two thousand four hundred and one hundred and fortieth form), part of the 0x82C58 process cluster. 79 lines. 1 callee. 2 callers (sub_82C59050 and ProcessAndProcessAndProcess1851).
+[entrypoint.functions."0x82C58398"]
+name = "ProcessAndProcessAndProcess2589_82C58398"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundred and forty-first form). It takes a structure (a: field at a->4) and a float (b); it checks the value's state, and drives sub-operations (ProcessAndProcessAndProcess818, and more) based on the result, clamping the float to a range. This is the "process this data" routine (two thousand four hundred and one hundred and forty-first form), part of the 0x82C58 process cluster. 89 lines. 1 callee. 2 callers (sub_82C59050 and ProcessAndProcessAndProcess1851).
+[entrypoint.functions."0x82C58680"]
+name = "ProcessAndProcessAndProcess2590_82C58680"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundred and forty-second form). It takes a structure (a: fields at a->16 and a->12); it checks the value's state, and drives sub-operations (ProcessAndProcessAndProcess2338) based on the result. This is the "process this data" routine (two thousand four hundred and one hundred and forty-second form), part of the 0x82C61 process cluster. 10 lines. 1 callee. 2 callers (ProcessAndProcessAndProcess513 and sub_82C5F768).
+[entrypoint.functions."0x82C61888"]
+name = "ProcessAndProcessAndProcess2591_82C61888"
+
+# Process a structure by checking its state (two thousand four hundred and one hundred and forty-third form). It takes a structure (a: fields at a->36, a->12, and a->40); it checks the structure's state, and stores a constant float into the elements at a->12 (a table) based on the result, storing 0 to a->40. This is the "process this data" routine (two thousand four hundred and one hundred and forty-third form), part of the 0x82C62 process cluster. 40 lines. 0 callees. 2 callers (sub_82C62510 and sub_82C5FE88).
+[entrypoint.functions."0x82C62470"]
+name = "ProcessAndProcessAndProcess2592_82C62470"
+
+# Process a value by checking its state (two thousand four hundred and one hundred and forty-fourth form). It takes a value (a) and a structure (b: fields at b->24 and b->32); it checks the value's state, and drives sub-operations (a virtual call) based on the result. This is the "process this data" routine (two thousand four hundred and one hundred and forty-fourth form), part of the 0x82C6C process cluster. 35 lines. 0 callees. 0 callers (vtable-dispatched).
+[entrypoint.functions."0x82C6C680"]
+name = "ProcessAndProcessAndProcess2593_82C6C680"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundred and forty-fifth form). It takes a value (a); it checks the value's state, and drives sub-operations (ProcessAndProcessAndProcess2579) based on the result. This is the "process this data" routine (two thousand four hundred and one hundred and forty-fifth form), part of the 0x82CBD process cluster. 8 lines. 1 callee. 9 callers.
+[entrypoint.functions."0x82CBD280"]
+name = "ProcessAndProcessAndProcess2594_82CBD280"
+
+# Process a value by checking its state and driving many sub-operations (two thousand four hundred and one hundred and forty-sixth form). It takes a value (a) and a value (b); it checks the value's state, and drives many sub-operations (sub_82BE36E0, MemCpy_SdkRuntime, ProcessAndLookupWithDefaultInit, and more) based on the result, performing a bounds check. This is the "process this data" routine (two thousand four hundred and one hundred and forty-sixth form), part of the 0x832B9 process cluster. ~100 lines. 3 callees. 1 caller (sub_832B3EB8).
+[entrypoint.functions."0x832B93F8"]
+name = "ProcessAndProcessAndProcess2595_832B93F8"
+
+# Process a structure by checking its state and driving sub-operations (two thousand four hundred and one hundred and forty-seventh form). It takes a structure (a: fields at a->20, a->24, and a->4); it checks the structure's state, and drives sub-operations (ClampAndUpdate) based on the result, setting the structure's fields. This is the "process this data" routine (two thousand four hundred and one hundred and forty-seventh form), part of the 0x822F5 process cluster. 40 lines. 1 callee. 2 callers (ProcessAndProcessAndProcess1727 and sub_82C7A220).
+[entrypoint.functions."0x822F51B8"]
+name = "ProcessAndProcessAndProcess2596_822F51B8"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundred and forty-eighth form). It takes a structure (a: fields at a->0 and a->4) and a structure (b: fields at b->16 and b->4); it checks the value's state, and drives sub-operations (sub_82370340) based on the result, unlinking from a list. This is the "process this data" routine (two thousand four hundred and one hundred and forty-eighth form), part of the 0x8236E process cluster. 64 lines. 1 callee. 1 caller (sub_8236E830).
+[entrypoint.functions."0x8236E7C0"]
+name = "ProcessAndProcessAndProcess2597_8236E7C0"
+
+# Process a value by checking its state and driving many sub-operations (two thousand four hundred and one hundred and forty-ninth form). It takes a structure (a: field at a->28), a value (b), and a value (c); it checks the value's state, and drives many sub-operations (ProcessAndProcessAndProcess1719, sub_8236E9F0, sub_8236F800, and more) based on the result. This is the "process this data" routine (two thousand four hundred and one hundred and forty-ninth form), part of the 0x8236E process cluster. 145 lines. 5 callees. 1 caller (ProcessAndProcessAndProcess1727).
+[entrypoint.functions."0x8236E830"]
+name = "ProcessAndProcessAndProcess2598_8236E830"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundred and fiftieth form). It takes a structure (a: field at a->12), a value (b), and a value (c); it checks the value's state, and drives sub-operations (ProcessAndProcessAndProcess1128, sub_8236F9E0, and more) based on the result, incrementing a counter. This is the "process this data" routine (two thousand four hundred and one hundred and fiftieth form), part of the 0x8236E process cluster. 107 lines. 2 callees. 1 caller (ProcessAndProcessAndProcess2598).
+[entrypoint.functions."0x8236E928"]
+name = "ProcessAndProcessAndProcess2599_8236E928"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundred and fifty-first form). It takes a structure (a: fields at a->20, a->24, and a->4) and a structure (b: fields at b->0 and b->4); it checks the value's state, and drives sub-operations (ProcessAndProcessAndProcess1275, sub_82370978, and more) based on the result, performing bounds checks. This is the "process this data" routine (two thousand four hundred and one hundred and fifty-first form), part of the 0x8236E process cluster. 77 lines. 2 callees. 1 caller (ProcessAndProcessAndProcess1727).
+[entrypoint.functions."0x8236EF80"]
+name = "ProcessAndProcessAndProcess2600_8236EF80"
+
+# Process a value by checking its state and driving many sub-operations (two thousand four hundred and one hundred and fifty-second form). It takes a value (a), a structure (b: field at b->4), and a structure (c: field at c->0); it checks the value's state, and drives many sub-operations (FindChainRoot4, sub_82370430, and more) based on the result, traversing a linked list. This is the "process this data" routine (two thousand four hundred and one hundred and fifty-second form), part of the 0x8236F process cluster. 183 lines. 2 callees. 1 caller (ProcessAndProcessAndProcess2599).
+[entrypoint.functions."0x8236F9E0"]
+name = "ProcessAndProcessAndProcess2601_8236F9E0"
+
+# Process a value by checking its state and driving many sub-operations (two thousand four hundred and one hundred and fifty-third form). It takes a value (a), a value (b), and a value (c); it checks the value's state, and drives many sub-operations (Allocate_OrDbgBreak, SetString, ClampAndUpdate, and more) based on the result, allocating a small structure. This is the "process this data" routine (two thousand four hundred and one hundred and fifty-third form), part of the 0x82370 process cluster. 142 lines. 7 callees. 1 caller (ProcessAndProcessAndProcess2597).
+[entrypoint.functions."0x82370340"]
+name = "ProcessAndProcessAndProcess2602_82370340"
+
+# Process a value by checking its state and driving many sub-operations (two thousand four hundred and one hundred and fifty-fourth form). It takes a value (a), a structure (b: field at b->8), a value (c), a value (d), and a value (e); it checks the value's state, and drives many sub-operations (SetString, List_SpliceNode2, sub_826C3EF0, and more) based on the result. This is the "process this data" routine (two thousand four hundred and one hundred and fifty-fourth form), part of the 0x82370 process cluster. 329 lines. 8 callees. 1 caller (ProcessAndProcessAndProcess2601).
+[entrypoint.functions."0x82370430"]
+name = "ProcessAndProcessAndProcess2603_82370430"
+
+# Process a value by checking its state and driving many sub-operations (two thousand four hundred and one hundred and fifty-fifth form). It takes a structure (a: field at a->4), a value (b), and a value (c); it checks the value's state, and drives many sub-operations (RtlEnterCriticalSection, Allocate_OrDbgBreak, Free_SizeBucketed_Thunk, and more) based on the result, all under a critical section. This is the "process this data" routine (two thousand four hundred and one hundred and fifty-fifth form), part of the 0x82370 process cluster. 124 lines. 6 callees. 1 caller (ProcessAndProcessAndProcess2600).
+[entrypoint.functions."0x82370978"]
+name = "ProcessAndProcessAndProcess2604_82370978"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundred and fifty-sixth form). It takes a value (a), a value (b), a value (c), a value (d), and a value (e); it checks the value's state, and drives sub-operations (Allocate_OrDbgBreak, and more) based on the result, allocating a small structure and copying elements. This is the "process this data" routine (two thousand four hundred and one hundred and fifty-sixth form), part of the 0x82370 process cluster. 69 lines. 1 callee. 1 caller (ProcessAndProcessAndProcess2603).
+[entrypoint.functions."0x82370F68"]
+name = "ProcessAndProcessAndProcess2605_82370F68"
+
+# Process a value by checking its state and driving many sub-operations (two thousand four hundred and one hundred and fifty-seventh form). It takes a value (a), a value (b), a value (c), and a value (d); it checks the value's state, and drives many sub-operations (a virtual call, ConstructLinkedNode, FindAndRemoveFromList, and more) based on the result. This is the "process this data" routine (two thousand four hundred and one hundred and fifty-seventh form), part of the 0x82371 process cluster. 99 lines. 3 callees. 1 caller (ProcessAndProcessAndProcess2604).
+[entrypoint.functions."0x823710A0"]
+name = "ProcessAndProcessAndProcess2606_823710A0"
+
+# Process a value by checking its state and driving many sub-operations (two thousand four hundred and one hundred and fifty-eighth form). It takes a value (a) and a value (b); it checks the value's state, and drives many sub-operations (Allocate_OrDbgBreak, ConstructRefCounted, CopyAssign_RefCounted, DestructRefCounted, and more) based on the result, allocating a small structure. This is the "process this data" routine (two thousand four hundred and one hundred and fifty-eighth form), part of the 0x82A6C process cluster. 153 lines. 5 callees. 5 callers.
+[entrypoint.functions."0x82A6C8E8"]
+name = "ProcessAndProcessAndProcess2607_82A6C8E8"
+
+# Process a value by checking its state and driving many sub-operations (two thousand four hundred and one hundred and fifty-ninth form). It takes a value (a); it checks the value's state, and drives many sub-operations (ProcessAndProcessAndProcess1794, ProcessAndProcessAndProcess2131, and more) based on the result, including an atomic decrement. This is the "process this data" routine (two thousand four hundred and one hundred and fifty-ninth form), part of the 0x82B38 process cluster. 152 lines. 3 callees. 10 callers.
+[entrypoint.functions."0x82B38478"]
+name = "ProcessAndProcessAndProcess2608_82B38478"
+
+# Process a value by checking its state and driving many sub-operations (two thousand four hundred and one hundred and sixtieth form). It takes a structure (a: fields at a->0 and a->4) and a structure (b: fields at b->4, b->0, and b->8); it checks the value's state, and drives many sub-operations (Allocate_OrDbgBreak, MemCpy_SdkRuntime, MemSet_SdkRuntime, and more) based on the result. This is the "process this data" routine (two thousand four hundred and one hundred and sixtieth form), part of the 0x82B84 process cluster. 127 lines. 6 callees. 2 callers (sub_82B8B330 and ProcessAndProcessAndProcess2450).
+[entrypoint.functions."0x82B843F8"]
+name = "ProcessAndProcessAndProcess2609_82B843F8"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundred and sixty-first form). It takes a structure (a: fields at a->32, a->0, a->4, a->20, and a->872) and a value (b); it checks the value's state, and drives sub-operations (MemSet_SdkRuntime, MemCpy_SdkRuntime, and more) based on the result, initializing a large structure. This is the "process this data" routine (two thousand four hundred and one hundred and sixty-first form), part of the 0x82B92 process cluster. 146 lines. 2 callees. 2 callers (ProcessAndProcessAndProcess2609 and sub_82B92D48).
+[entrypoint.functions."0x82B92C50"]
+name = "ProcessAndProcessAndProcess2610_82B92C50"
+
+# Process a value by checking its state and driving many sub-operations (two thousand four hundred and one hundred and sixty-second form). It takes a value (a), a value (b), a value (c), and a value (d); it checks the value's state, and drives many sub-operations (Allocate_OrDbgBreak, ResetTreeObj, AtomicIncrement3, and more) based on the result, allocating a small structure. This is the "process this data" routine (two thousand four hundred and one hundred and sixty-second form), part of the 0x82C0C process cluster. 78 lines. 5 callees. 1 caller (sub_82C0E1C0).
+[entrypoint.functions."0x82C0CD48"]
+name = "ProcessAndProcessAndProcess2611_82C0CD48"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundred and sixty-third form). It takes a structure (a: fields at a->0 and a->68), a value (b), a value (c), a value (d), and a value (e); it checks the value's state, and drives sub-operations (a virtual call and ProcessAndProcessAndProcess2611) based on the result. This is the "process this data" routine (two thousand four hundred and one hundred and sixty-third form), part of the 0x82C0E process cluster. 40 lines. 1 callee. 0 callers (vtable-dispatched).
+[entrypoint.functions."0x82C0E1C0"]
+name = "ProcessAndProcessAndProcess2612_82C0E1C0"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundred and sixty-fourth form). It takes a value (a, a critical section); it checks the value's state, and drives sub-operations (RtlInitializeCriticalSection) based on the result, returning a success indicator. This is the "process this data" routine (two thousand four hundred and one hundred and sixty-fourth form), part of the 0x82CB5 process cluster. 20 lines. 1 callee. 0 callers (vtable-dispatched).
+[entrypoint.functions."0x82CB5B48"]
+name = "ProcessAndProcessAndProcess2613_82CB5B48"
+
+# Process a value by checking its state (two thousand four hundred and one hundred and sixty-fifth form). It uses global state to check its state, and drives sub-operations (a virtual call) based on the result. This is the "process this data" routine (two thousand four hundred and one hundred and sixty-fifth form), part of the 0x82CB5 process cluster. 63 lines. 0 callees. 10 callers.
+[entrypoint.functions."0x82CB5B78"]
+name = "ProcessAndProcessAndProcess2614_82CB5B78"
+
+# Process a value by checking its state (two thousand four hundred and one hundred and sixty-sixth form). It takes a value (a), a structure (b: fields at b->0 and b->36), and a float (c); it checks the value's state, and drives sub-operations (a virtual call) based on the result, performing float operations. This is the "process this data" routine (two thousand four hundred and one hundred and sixty-sixth form), part of the 0x823F9 process cluster. 73 lines. 0 callees. 7 callers.
+[entrypoint.functions."0x823F92B8"]
+name = "ProcessAndProcessAndProcess2615_823F92B8"
+
+# Process a value by checking its state (two thousand four hundred and one hundred and sixty-seventh form). It takes a structure (a: fields at a->4 and a->0) and a value (b); it checks the value's state, and stores values and floats into the structure's fields based on the result, using vector operations. This is the "process this data" routine (two thousand four hundred and one hundred and sixty-seventh form), part of the 0x82A3A process cluster. 154 lines. 0 callees. 10 callers.
+[entrypoint.functions."0x82A3AD50"]
+name = "ProcessAndProcessAndProcess2616_82A3AD50"
+
+# Process a value by checking its state and driving many sub-operations (two thousand four hundred and one hundred and sixty-eighth form). It takes a value (a); it checks the value's state, and drives many sub-operations (ConstructRefCounted, ProcessAndProcessAndProcess1804, DestructRefCounted, and more) based on the result. This is the "process this data" routine (two thousand four hundred and one hundred and sixty-eighth form), part of the 0x82ABB process cluster. 262 lines. 3 callees. 1 caller (sub_82ABBBD0).
+[entrypoint.functions."0x82ABBA00"]
+name = "ProcessAndProcessAndProcess2617_82ABBA00"
+
+# Process a value by checking its state and driving many sub-operations (two thousand four hundred and one hundred and sixty-ninth form). It takes a value (a); it checks the value's state, and drives many sub-operations (ProcessAndProcessAndProcess2617, Free_SizeBucketed, and more) based on the result, looping over elements. This is the "process this data" routine (two thousand four hundred and one hundred and sixty-ninth form), part of the 0x82ABB process cluster. 350 lines. 8 callees. 1 caller (sub_82A53168).
+[entrypoint.functions."0x82ABBBD0"]
+name = "ProcessAndProcessAndProcess2618_82ABBBD0"
+
+# Process a value by checking its state and driving many sub-operations (two thousand four hundred and one hundred and seventieth form). It takes a structure (a: fields at a->4 and a->8), a value (b), a value (c), and a value (d); it checks the value's state, and drives many sub-operations based on the result, looping over elements. This is the "process this data" routine (two thousand four hundred and one hundred and seventieth form), part of the 0x82C4A process cluster. 165 lines. 3 callees. 1 caller (sub_82C4B160).
+[entrypoint.functions."0x82C4AFC8"]
+name = "ProcessAndProcessAndProcess2619_82C4AFC8"
+
+# Process a value by checking its state and driving sub-operations (two thousand four hundred and one hundred and seventy-first form). It takes a value (a); it checks the value's state, and drives sub-operations (ProcessAndAllocateAndProcess2) based on the result. This is the "process this data" routine (two thousand four hundred and one hundred and seventy-first form), part of the 0x82E7F process cluster. 69 lines. 1 callee. 5 callers.
+[entrypoint.functions."0x82E7F208"]
+name = "ProcessAndProcessAndProcess2620_82E7F208"
+
+# Process a value by checking its state and driving many sub-operations (two thousand four hundred and one hundred and seventy-second form). It takes a value (a), a value (b), a value (c), and a value (d); it checks the value's state, and drives many sub-operations based on the result, looping over elements and calling itself recursively. This is the "process this data" routine (two thousand four hundred and one hundred and seventy-second form), part of the 0x82B13 process cluster. 230 lines. 6 callees. 1 caller (sub_82B13160).
+[entrypoint.functions."0x82B13830"]
+name = "ProcessAndProcessAndProcess2621_82B13830"
+
 # Existing Functions
 
 # The main per-frame render/present loop (one call per frame: ~30/s at the
@@ -48175,3 +48667,75 @@ name = "UIFont_RenderGlyph"
 # strings (0x82008098 / 0x820080A8) and the per-slot font values.
 [entrypoint.functions."0x82BF7DF0"]
 name = "UIFont_Initialize"
+
+# ===========================================================================
+# Lua script system (found 2026-07 via the player-coordinate utility hunt)
+#
+# The in-game Lua 5.1 (LuaPlus) script API is built at load time by
+# ScriptApi_RegisterGlobalTable: for each entry it materializes a native
+# code address (r4 at the ProcessAndResolveTypedField call), a name string
+# (r5 at the ProcessAndCopyReferenceAndHash call), hashes it, then appends
+# the pair. `python tools/dump_lua_api.py` replays this to extract the
+# full name -> native-function table.
+# ===========================================================================
+
+# Builds the global script-function table: 19 (name, native fn) pairs.
+# Pattern per entry: addi r4,<fn> ; bl ProcessAndResolveTypedField(0x8219ab28)
+# ; addi r29,<name str> ; mr r5,r29 ; bl ProcessAndCopyReferenceAndHash
+# (0x824ef160) ; bl ProcessAndHashString(0x82A1EC08) ; bl
+# ProcessAndAppendElement(0x82229208). Subtables (Debug., Player., ...) are
+# attached via ScriptApi_AddTableEntry_825B7858. Extracted table
+# (see tools/dump_lua_api.py; guest = file offset + 0x82000000):
+#   0x821C21F8 GetRandomNumber           0x821F6CE0 GetTickRate
+#   0x82447918 GetSquaredDistanceBetweenEntityAndLODCentre
+#   0x8249BA10 GetRandomFloat            0x825B9018 CreateEntityAtEntitysPosition
+#   0x825B90D8 GetPlayerEntityWithIndex  0x825B9210 GetNearestPlayerTo
+#   0x825B9308 FNVHash                   0x825B9388 StartPubGame
+#   0x825B9580 GetSquaredDistanceBetweenPositionAndLODCentre
+#   0x825B9608 GetCurrentCamera          0x825B96B8 LogAIBehaviourEvent
+#   0x825B9750 LogEvent                  0x825B97D8 CreateEntityFromLimbo
+#   0x826064D0 IsEntityToCallFunction    0x8266F570 PutEntityInLimbo
+#   0x8279DCD8 IsEntityWithinDistanceOfLODCentre
+#   0x82806168 RunScript  <- injection point for external Lua scripts
+#   0x828BE3F0 GetCurrentWorldFrame
+[entrypoint.functions."0x825AF6D0"]
+name = "ScriptApi_RegisterGlobalTable_825AF6D0"
+
+# Native binding of the Lua global RunScript(path). r3 = the script
+# environment table (refcounted; ->0 = self, ->4 = vtable); it vtable-
+# dispatches the actual load-and-execute (file read, compile, pcall) on
+# that table, then releases it and returns 0. Lua-side semantics: load
+# and run another (possibly external, outside the .bnk archives) script.
+# This is the hook/call target for running custom in-game Lua utilities.
+[entrypoint.functions."0x82806168"]
+name = "LuaBind_RunScript_82806168"
+
+# Appends one (name, descriptor) entry to a script-API table. Args:
+# r3 = table container (->0 = element list), r4 = ?, r5 = name (int or
+# string), r6 = descriptor pointer. Allocates an 8-byte node [r5, r6]
+# (ProcessAndDispatchAndResolve with size 8) and pushes it onto the list
+# (ProcessAndAppendElement). Called from ScriptApi_RegisterGlobalTable
+# for subtables (the 0x821Cxxxx descriptors are per-table metadata).
+[entrypoint.functions."0x825B7858"]
+name = "ScriptApi_AddTableEntry_825B7858"
+
+# Formats the script-load error message: "Lua <type> script \"<name>\" has
+# an error in it". References the format fragments "Lua serialise script "
+# (0x820C2388), "Lua save load system script " (0x820C23A0), "Lua general
+# script " (0x820C23C0), "Lua AI script " (0x820C23D8), "Lua quest script "
+# (0x820C23F8), "Lua Camera script " (0x820C2414), "Lua script " (0x820C2448).
+# r3 = string object (CopyAssign'd), r4 = context. Part of the C++ script
+# loader core's error path (the loader itself is the caller).
+[entrypoint.functions."0x825ADB40"]
+name = "LuaScriptError_FormatMessage_825ADB40"
+
+# Registers the string-name table for combat/action effect types.
+# Interns the type names (ACTION, STRIKE_START, STRIKE_END, STRIKE,
+# HIT_DIRECTION, STANCE, PARTICLE, SOUND, SPEECH, CAMERA_SHAKE,
+# CONTROL_RUMBLE, EARTHQUAKE, SHOOT, THROW, POUND, CREATE_ENTITY,
+# DESTROY_ENTITY, COMBAT, UNSHEATHE, INSTANT_KILL, InterruptKORecoverAttack,
+# TROLL_FOOTSTEP, ...) via LookupString2_8246C010 from the 0x820B/0x820C
+# data pages. Backs the ScriptEnum-style action-type constants used by
+# script code (e.g. EScriptableAction tables).
+[entrypoint.functions."0x82514818"]
+name = "RegisterActionEffectTypeStrings_82514818"

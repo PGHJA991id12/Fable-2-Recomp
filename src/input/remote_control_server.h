@@ -406,7 +406,7 @@ struct SlotRef {
 };
 
 // Case-insensitive input name -> slot. Names match the keyboard_gamepad_map
-// vocabulary (see src/keyboard_gamepad.h), plus stick axis names StkLx/
+// vocabulary (see src/input/keyboard_gamepad.h), plus stick axis names StkLx/
 // StkLy/StkRx/StkRy. StkLy positive = forward/up (Fable 2 convention, same
 // as the keyboard driver's StickUp).
 inline bool SlotFromName(std::string_view name, SlotRef& out) {

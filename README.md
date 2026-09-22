@@ -60,9 +60,19 @@ Fable 2 Rexglue/
 ├── fable2_switch_tables.toml     <- 846 [[switch_tables]] entries, pulled in via [entrypoint] includes
 ├── FUNCTION_NAMES.md             <- what each manifest function is + how to trigger it
 ├── src/                          <- host application code
-│   ├── main.cpp
-│   ├── fable_2_app.h             <- OnConfigurePaths() content-root search; OnPreSetup wires input
-│   └── keyboard_gamepad.h        <- synthetic keyboard->gamepad input driver + mapping cvar
+│   ├── main.cpp                  <- entry point (app + probes + keyboard gamepad wiring)
+│   ├── vulkan_smoke.cpp          <- standalone Vulkan pipeline smoke test (fable_2_vulkan_smoke)
+│   ├── core/                     <- app body + config + patches + tracing
+│   │   ├── fable_2_app.h         <- OnConfigurePaths() content-root search; OnPreSetup wires input
+│   │   ├── fable2_config.{h,cpp} <- fable2_config.toml loader (config cvars)
+│   │   ├── fable2_patches.{h,cpp}<- guest-image patch table (fable2_patches.toml)
+│   │   ├── fable2_hooks.cpp      <- mid-asm hook bodies referenced by the manifest
+│   │   ├── fable2_f5_lua.h       <- F5 external-Lua runner (src/lua/F5.lua)
+│   │   ├── fable2_func_trace.h   <- guest function-call tracing (PCH force-include)
+│   │   └── xex_verify.h          <- default.xex integrity verification
+│   ├── diagnostics/              <- probe/diagnostic headers (FPS, text, heap, deadbeef, ...)
+│   ├── input/                    <- keyboard_gamepad.h + remote-control pad server/driver
+│   └── lua/                      <- external game scripts (staged to data/scripts/recomp/)
 ├── docs/                         <- investigation notes + RE artifacts
 │   ├── main_menu_crash_fix.md
 │   ├── FPS_CAP_INVESTIGATION.md
@@ -137,14 +147,14 @@ The recomp has its own human-readable user config, `fable2_config.toml`, next
 to the exe — separate from `fable_2.toml`, which is the ReXGlue SDK's cvar
 config. It is staged by the build (once; user edits survive rebuilds) and the
 game recreates it with defaults on launch if it is ever missing. Loaded in
-`Fable2App::OnPostInitLogging()`; code in `src/fable2_config.{h,cpp}`.
+`Fable2App::OnPostInitLogging()`; code in `src/core/fable2_config.{h,cpp}`.
 
 - Missing keys -> built-in defaults; wrong types / unknown sections -> logged
   warnings, defaults used; a syntax error -> dialog + defaults (never blocks
   launch).
 - To add a setting: add a member to `fable2::config::Values` (with default),
   read it in `Load()`, and document the key in `config/fable2_config.toml`
-  **and** the embedded template in `src/fable2_config.cpp` (keep both in
+  **and** the embedded template in `src/core/fable2_config.cpp` (keep both in
   sync).
 - Settings that back an SDK cvar (currently the `[input]` section:
   `keyboard_gamepad_map`, `mouse_look`, `mouse_look_scale`) are seeded into
@@ -154,7 +164,7 @@ game recreates it with defaults on launch if it is ever missing. Loaded in
   can still change the value live.
 - The `[patches]` section holds runtime toggles for the recomp-level
   (mid-asm hook) patches, consulted by the hook bodies on every call
-  (`src/fable2_hooks.cpp`) — flip one and relaunch to A/B a patch with no
+  (`src/core/fable2_hooks.cpp`) — flip one and relaunch to A/B a patch with no
   rebuild. Currently: `fps_60` (60 FPS hook; `true` = main loop ~60/s,
   `false` = original 30/s). Guest-image data patches are a different file:
   `fable2_patches.toml` (see above).
@@ -163,7 +173,7 @@ game recreates it with defaults on launch if it is ever missing. Loaded in
 
 Data patches for the loaded `default.xex` guest image (Xenia game-patches
 format), applied before the guest module launches: `Fable2App::OnPostLoadXexImage()`
-→ `fable2::patches::Load()` + `ApplyAll()` (code in `src/fable2_patches.{h,cpp}`).
+→ `fable2::patches::Load()` + `ApplyAll()` (code in `src/core/fable2_patches.{h,cpp}`).
 Same lifecycle as the user config: staged by the build, recreated with the
 built-in defaults if missing, and a broken file falls back to the built-ins
 (dialog + log) so it never blocks launch. Each `[[patch]]` has an `enabled`
@@ -206,7 +216,7 @@ experiments): `docs/FPS_CAP_INVESTIGATION.md`.
 To figure out what each recompiled function does, every guest function entry
 can be logged by name. Codegen emits `REX_FUNC_PROLOGUE()` at the top of
 every function in `generated/default/fable_2_recomp.*.cpp`; the build hooks
-that one macro (via `src/fable2_func_trace.h`, appended to the recompiled
+that one macro (via `src/core/fable2_func_trace.h`, appended to the recompiled
 PCH after the generated pch — no generated files are modified) so each entry
 logs its name to `fable2_func_trace.log` next to the exe. Consecutive calls
 of the same function are run-length encoded (per thread) to keep the file
@@ -249,13 +259,13 @@ Either output can be turned off independently (default: both on):
 `FABLE2_FUNC_TRACE_LOG=0` skips `fable2_func_trace.log` (summary only),
 `FABLE2_FUNC_TRACE_SUMMARY=0` skips `fable2_func_summary.log` (trace only).
 
-or at runtime from a named-function override (see `src/fps_probe.h` for the
+or at runtime from a named-function override (see `src/diagnostics/fps_probe.h` for the
 override pattern): `Fable2FuncTraceSetEnabled(true)` /
 `Fable2FuncTraceSetFilter("LoadingScreen")` /
 `Fable2FuncTraceSetSubsOnly(true)` /
 `Fable2FuncTraceSetLogEnabled(false)` /
 `Fable2FuncTraceSetSummaryEnabled(false)` / `Fable2FuncTraceFlush()`
-(declared `extern "C"` in `src/fable2_func_trace.h`).
+(declared `extern "C"` in `src/core/fable2_func_trace.h`).
 
 **Naming mode** (`FABLE2_FUNC_TRACE_SUBS_ONLY=1`): log only the unnamed
 guest functions - names matching `sub_` + hex digits - dropping named
@@ -290,12 +300,12 @@ sequential log while still accumulating the call counts.
 It writes its own lightweight log (same pattern as `fps_probe.log`) rather
 than the SDK spdlog logger, which would be far too slow at Fable 2's call
 rate. To remove the feature: delete the `target_precompile_headers` block in
-CMakeLists.txt + `src/fable2_func_trace.h` and rebuild.
+CMakeLists.txt + `src/core/fable2_func_trace.h` and rebuild.
 
 ## Keyboard controls
 
 The game normally reads a gamepad via the Xbox 360 `XamInputGetState` API. A
-synthetic "keyboard gamepad" input driver (`src/keyboard_gamepad.h`) is added
+synthetic "keyboard gamepad" input driver (`src/input/keyboard_gamepad.h`) is added
 on top of the default SDL driver, so host keyboard keys can drive the guest on
 top of (OR-merged with) whatever a real gamepad reports. The physical pad
 keeps working; the keyboard just adds buttons. It is wired up in
@@ -346,6 +356,33 @@ console, so you can dial in the sensitivity live. Example: `fable_2.exe
 
 All cvars above are hot-reloadable, so they can also be changed from the in-game console.
 
+## F5 — run an external Lua script
+
+Pressing **F5** (host keyboard) runs an external Lua file in the in-game Lua
+state, exactly the way the game's own `RunScript(path)` global does — but
+triggered from the host. This lets you drop a plain `.lua` file on disk and run
+it against the live game (no recompile of the scripts needed).
+
+- **Default file:** `data/scripts/recomp/F5.lua` (the build stages
+  `src/lua/*.lua` into `data/scripts/recomp/` next to the exe). The shipped
+  `F5.lua` snapshots the hero's position (`QuestManager.HeroEntity:GetPosition()`)
+  and shows `X / Y / Z` in a message box.
+- **Path:** set by the `f5_lua_path` cvar (default `scripts/recomp/F5.lua`,
+  resolved relative to the VFS root `data/`). Override per-launch with
+  `fable_2.exe --f5_lua_path "scripts/other/MyScript.lua"`.
+- **How it works:** `src/core/fable2_f5_lua.h` captures the
+  `CScriptManager::RunScript` callable the first time the game loads a `.lua`
+  script (via a probe on the LuaPlus bound-method dispatcher), then replays that
+  call with your path when F5 is pressed. The file is loaded fresh on each press,
+  so you can edit it live (the VFS re-reads it).
+- **The script runs in the game's global Lua environment**, so it has the full
+  game API (`QuestManager`, `Debug`, `GUI`, `Creature`, `Player`, ...). Plain
+  text is fine — `RunScript`/`loadfile` compile it for you.
+
+Implementation: F5 edge-detection in `src/input/keyboard_gamepad.h`, a per-frame
+replay from the `MainRenderLoop` hook in `src/diagnostics/fps_meter.h`, and the
+string-build + `RunScript` call in `src/core/fable2_f5_lua.h`.
+
 ## Remote control (AI input channel)
 
 `fable_2.exe` runs a localhost TCP **remote control server** so an external
@@ -362,8 +399,8 @@ entirely (no port is opened and `fable2_control.py` is not staged).
   object per line; every request gets exactly one response line; keep-alive
   connections are supported.
 - **How:** a second synthetic pad driver
-  (`src/remote_gamepad_driver.h`) is registered next to the keyboard driver,
-  fed by the server (`src/remote_control_server.h`). It OR-merges with the
+  (`src/input/remote_gamepad_driver.h`) is registered next to the keyboard driver,
+  fed by the server (`src/input/remote_control_server.h`). It OR-merges with the
   human pads and is **not** gated on window focus, so the AI can drive the
   game while it's in the background.
 

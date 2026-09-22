@@ -16,9 +16,9 @@ include(generated/rexglue.cmake)
 # Sources
 set(FABLE2_SOURCES
     src/main.cpp
-    src/fable2_config.cpp
-    src/fable2_patches.cpp
-    src/fable2_hooks.cpp
+    src/core/fable2_config.cpp
+    src/core/fable2_patches.cpp
+    src/core/fable2_hooks.cpp
 )
 
 if(WIN32)
@@ -27,12 +27,24 @@ else()
     add_executable(fable_2 ${FABLE2_SOURCES})
 endif()
 
+# The app's headers live in subfolders (src/core, src/diagnostics, src/input)
+# and are included by bare filename ("fable2_config.h"), so the subfolders
+# must be on the include path of both the app and the recompiled code.
+set(FABLE2_HEADER_DIRS
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/diagnostics
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/input)
+target_include_directories(fable_2 PRIVATE ${FABLE2_HEADER_DIRS})
+if(TARGET fable_2_recomp)
+    target_include_directories(fable_2_recomp PRIVATE ${FABLE2_HEADER_DIRS})
+endif()
+
 # Stage the Xenos GPU emulation plugin next to the exe (rexglue picks the
 # per-configuration variant: rexgpu-xenosd.dll for Debug, rexgpu-xenos.dll
 # for Release). Without it the game runs with no GPU emulation.
 rexglue_setup_target(fable_2 GPU_PLUGINS xenos)
 
-# The app's probe/diagnostic headers (src/fable2_*.h) use the standard CRT
+# The app's probe/diagnostic headers (src/diagnostics/*.h) use the standard CRT
 # functions (fopen, getenv, strcat, strncat, ...), which the MSVC/UCRT headers
 # mark deprecated when compiled with clang (-Wdeprecated-declarations noise).
 # These are safe in this codebase; silence the deprecation on Windows.
@@ -77,7 +89,7 @@ endif()
 
 # --- Guest function-call tracing (fable2_func_trace.log) -------------------
 # Rexglue codegen emits REX_FUNC_PROLOGUE() at the top of every recompiled
-# guest function. Force-include src/fable2_func_trace.h into fable_2_recomp:
+# guest function. Force-include src/core/fable2_func_trace.h into fable_2_recomp:
 # CMake orders a target's -include after its PCH include, so the header sees
 # the generated pch already loaded and redefines REX_FUNC_PROLOGUE() to also
 # call Fable2FuncTraceCall(__func__) - every guest function entry then logs
@@ -91,7 +103,7 @@ endif()
 # PCH used by every recompiled TU.
 if(TARGET fable_2_recomp)
     target_precompile_headers(fable_2_recomp PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/fable2_func_trace.h)
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/core/fable2_func_trace.h)
 endif()
 
 # NOTE: the build does NOT copy the game content (default.xex, data/, ...) into
@@ -112,6 +124,25 @@ add_custom_command(TARGET fable_2 POST_BUILD
           ${CMAKE_CURRENT_SOURCE_DIR}/tools/fable2-functrace.cmd
           $<TARGET_FILE_DIR:fable_2>/fable2-functrace.cmd
   COMMENT "Staging README.md + fable2-functrace.cmd next to fable_2.exe"
+)
+
+# --- F5 external-Lua runner (src/lua/) -----------------------------------
+# src/core/fable2_f5_lua.h runs an external script (cvar `f5_lua_path`, default
+# "recomp/F5.lua") via CScriptManager::RunScript when F5 is pressed. The game
+# indexes /data/ and /data/scripts/ at startup, so the file must already exist
+# there before the game starts. The source lives in src/lua/ (git-tracked); on
+# every build copy it into BOTH the content root (so stage_content.cmd / a
+# --game_data_root=<root> run finds it) and next to the exe (the default game
+# data root). Runs in the scripts/recomp/ subfolder so RunScript("recomp/...")
+# resolves it.
+add_custom_command(TARGET fable_2 POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_directory
+          ${CMAKE_CURRENT_SOURCE_DIR}/src/lua
+          ${CMAKE_CURRENT_SOURCE_DIR}/data/scripts/recomp
+  COMMAND ${CMAKE_COMMAND} -E copy_directory
+          ${CMAKE_CURRENT_SOURCE_DIR}/src/lua
+          $<TARGET_FILE_DIR:fable_2>/data/scripts/recomp
+  COMMENT "Staging src/lua/* -> data/scripts/recomp/ (content root + exe dir)"
 )
 
 # The remote-control CLI client is a debug-only feature (see the
@@ -135,16 +166,16 @@ target_include_directories(fable_2 SYSTEM PRIVATE
 # Stage the human-readable template next to the exe ONCE (configure time,
 # copy-if-not-exists): it is user data, so user edits must survive rebuilds.
 # The code also recreates it if it is ever deleted (keep that embedded copy
-# in sync - see src/fable2_config.cpp).
+# in sync - see src/core/fable2_config.cpp).
 if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/fable2_config.toml")
     file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/config/fable2_config.toml
          DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 endif()
 
 # Same treatment for the guest-image patch table (fable2_patches.toml, parsed
-# by src/fable2_patches.cpp): user data, copy-if-not-exists so edits survive
+# by src/core/fable2_patches.cpp): user data, copy-if-not-exists so edits survive
 # rebuilds; the code also recreates it if it is ever deleted (keep that
-# embedded copy in sync - see src/fable2_patches.cpp).
+# embedded copy in sync - see src/core/fable2_patches.cpp).
 if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/fable2_patches.toml")
     file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/config/fable2_patches.toml
          DESTINATION ${CMAKE_CURRENT_BINARY_DIR})

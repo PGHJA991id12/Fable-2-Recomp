@@ -5,7 +5,7 @@ game-patches (`patch.toml`) format.
 
 ## How it works
 
-- `src/fable2_patches.h` / `src/fable2_patches.cpp` — the patch table +
+- `src/core/fable2_patches.h` / `src/core/fable2_patches.cpp` — the patch table +
   applier. Each op is `{be8|be16|be32|be64, address, value}`, exactly the
   `[[patch.be32]] address/value` shape from Xenia's patch files.
 - The table is **data-driven**: `fable2_patches.toml` next to the exe (Xenia
@@ -14,7 +14,7 @@ game-patches (`patch.toml`) format.
   built-in template; parse failure → error logged + dialog + built-in
   defaults; either way the game runs. Each `[[patch]]` has an `enabled`
   toggle (default true); disabled patches are logged and skipped.
-- `Fable2App::OnPostLoadXexImage()` (src/fable_2_app.h) calls
+- `Fable2App::OnPostLoadXexImage()` (src/core/fable_2_app.h) calls
   `fable2::patches::ApplyAll(runtime()->memory(), PPCImageConfig)` — the SDK
   hook that runs after `default.xex` is decrypted/expanded into the guest
   arena and before the guest module launches (the SDK documents this hook as
@@ -47,7 +47,7 @@ ops = [
 ```
 
 Behavior: missing file → recreated with the built-in defaults (the embedded
-template in `src/fable2_patches.cpp` — keep it in sync with
+template in `src/core/fable2_patches.cpp` — keep it in sync with
 `config/fable2_patches.toml`); parse/structure error → logged + dialog +
 built-in defaults (the game always runs); an explicitly empty patch list is
 valid (all patches off). Log: `[patches] loaded N patch(es) from ...`.
@@ -97,7 +97,7 @@ Wiring (all three pieces):
 1. `fable_2_manifest.toml` → `[[entrypoint.midasm_hook]]` with `address`,
    `name`, `registers`, and `after_instruction = true` so the call lands
    right after the patched instruction executes.
-2. `src/fable2_hooks.cpp` → the hook function, plain C++ linkage matching
+2. `src/core/fable2_hooks.cpp` → the hook function, plain C++ linkage matching
    the prototype codegen auto-emits into the generated code
    (`extern void fable2_hook_60fps(PPCRegister& r11);`).
 3. Nothing else — codegen handles the rest, and it survives codegen re-runs
@@ -145,7 +145,7 @@ guest image faithful + documents intent) **and** a
 
 ### FPS meter
 
-`src/fps_meter.h` (included from main.cpp): strong override of the weak
+`src/diagnostics/fps_meter.h` (included from main.cpp): strong override of the weak
 recompiled `MainRenderLoop_82B9CD68` (0x82B9CD68, main loop, one call per frame; renamed from `sub_82B9CD68`) that counts
 invocations in 5 s windows and appends `mainloop rate=NN.N/s` to
 `fps_meter.log` next to the exe. Forward-only (counts, then calls the

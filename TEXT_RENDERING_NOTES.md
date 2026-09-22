@@ -544,12 +544,12 @@ UIText_FrameRender (0x82C03FA8)          [per-frame entry; caller passes game
   Decisive test: timed ablation with a visual check (see §10.7).
 
 ### 10.5 New tooling (this session)
-- `src/fable2_ui_render_probe.h` (`fable2::uir`): per-hook timeline + timed
+- `src/diagnostics/fable2_ui_render_probe.h` (`fable2::uir`): per-hook timeline + timed
   ablation. `FABLE2_UIR=1`, `_DELAY`, `_DUR`, `_SKIP`,
   `_SUPPRESS=Name@t0-t1,Name2@…` (suppress = skip the original call — pure
   ablation), `_FUNC_TRACE=1` (auto-enables the RLE func trace inside the
   window). Every probe's hook funnels through `uir::hook(name, ctx, base)`.
-- `src/fable2_ui_input_probe.h` (`fable2::uip`): input capture.
+- `src/diagnostics/fable2_ui_input_probe.h` (`fable2::uip`): input capture.
   `FABLE2_UIR_IN=1`; window via `_DELAY`/`_DUR` with `_ANCHOR=proc` (anchor to
   PROCESS START — the first-hook-call anchor drifts with load time); full
   input dump via `_DUMP=fn1,fn2` (all GPRs r3–r31, FPRs f1–f14, lr, plus

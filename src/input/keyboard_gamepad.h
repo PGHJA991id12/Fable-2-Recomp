@@ -18,7 +18,7 @@
 // and Button is a guest gamepad button name (A/B/X/Y/LB/RB/LT/RT/Up/Down/
 // Left/Right/Start/Back/L3/R3/StickUp/StickDown/StickLeft/StickRight).
 // The cvar's default is seeded from fable2_config.toml [input] at startup
-// (src/fable2_config.{h,cpp} + Fable2App::OnPostInitLogging), so remapping
+// (src/core/fable2_config.{h,cpp} + Fable2App::OnPostInitLogging), so remapping
 // can be done in the config file without a rebuild or CLI arg.
 //
 // The mouse is mapped to the right stick (camera look) via the `mouse_look`
@@ -226,6 +226,12 @@ class KeyboardGamepadDriver final : public rex::input::InputDriver {
     // host input so nothing fires while alt-tabbed away.
     bool focused = hwnd != nullptr &&
                    (GetForegroundWindow() == GetAncestor(hwnd, GA_ROOT));
+
+    // F5 (host) -> run the external Lua file (fable2_f5_lua.h). Poll per frame;
+    // the actual run happens on the guest main thread via the RunScript binding
+    // probe, so this just latches a flag. Runs even while the console (F4) is
+    // open (F5 is a host-level developer command, not gamepad input).
+    fable2::f5lua::poll_f5();
 
     // Debug-console toggle key (default F4). Pressing it opens/closes the menu;
     // while the menu is open we release the mouse lock (free cursor for the

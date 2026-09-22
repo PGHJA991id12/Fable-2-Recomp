@@ -9,7 +9,7 @@
 // so guest .text bytes are never executed - a code-region op here only
 // rewrites dead bytes (ApplyAll flags these in the log). Code-region Xenia
 // patches must be implemented as mid-asm hooks instead: see
-// src/fable2_hooks.cpp + [[entrypoint.midasm_hook]] in fable_2_manifest.toml
+// src/core/fable2_hooks.cpp + [[entrypoint.midasm_hook]] in fable_2_manifest.toml
 // (e.g. the 60 FPS patch, formerly a (inert) entry in this table).
 // Data ops (BSS/.data/.rodata, i.e. addresses outside the code region)
 // DO take effect, because the recompiled code reads/writes guest memory.

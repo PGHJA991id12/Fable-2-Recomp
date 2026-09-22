@@ -2,7 +2,7 @@
 //
 // SCOPE: this table is for GUEST-IMAGE (data) patches only. Code-region
 // Xenia patches must be implemented as mid-asm hooks instead
-// ([[entrypoint.midasm_hook]] in fable_2_manifest.toml + src/fable2_hooks.cpp)
+// ([[entrypoint.midasm_hook]] in fable_2_manifest.toml + src/core/fable2_hooks.cpp)
 // - the 60 FPS patch used to live here (its guest-byte write was inert) and
 // is now fable2_hook_60fps.
 //
@@ -54,7 +54,7 @@ const std::vector<Patch>& DefaultPatches() {
       },
       // 60 FPS (Margen67) used to be listed here as be8 0x82B9C8EB = 0x01,
       // but that guest-byte write is inert in a recomp. It is now the
-      // fable2_hook_60fps mid-asm hook (src/fable2_hooks.cpp +
+      // fable2_hook_60fps mid-asm hook (src/core/fable2_hooks.cpp +
       // [[entrypoint.midasm_hook]] in fable_2_manifest.toml).
   };
   return kPatches;
@@ -72,7 +72,7 @@ R"TOML_EOF(# ===================================================================
 # the Xenia game-patches files (https://github.com/xenia-canary/game-patches).
 #
 # - If the file is missing, the game recreates it at startup with the built-in
-#   defaults (the embedded template in src/fable2_patches.cpp must stay in
+#   defaults (the embedded template in src/core/fable2_patches.cpp must stay in
 #   sync with this file).
 # - If the file fails to parse, the error is logged to logs/, a dialog is
 #   shown, and the built-in defaults are used instead - the game still runs.
@@ -90,7 +90,7 @@ R"TOML_EOF(# ===================================================================
 # guest .text bytes are never executed: an op inside the code region only
 # rewrites dead bytes (the log flags these as "no runtime effect"). Code
 # patches must be implemented as mid-asm hooks instead:
-#   [[entrypoint.midasm_hook]] in fable_2_manifest.toml + src/fable2_hooks.cpp
+#   [[entrypoint.midasm_hook]] in fable_2_manifest.toml + src/core/fable2_hooks.cpp
 # Data ops (BSS/.data/.rodata) DO take effect,
 # because the recompiled code reads/writes guest memory.
 #

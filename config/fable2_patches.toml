@@ -7,7 +7,7 @@
 # the Xenia game-patches files (https://github.com/xenia-canary/game-patches).
 #
 # - If the file is missing, the game recreates it at startup with the built-in
-#   defaults (the embedded template in src/fable2_patches.cpp must stay in
+#   defaults (the embedded template in src/core/fable2_patches.cpp must stay in
 #   sync with this file).
 # - If the file fails to parse, the error is logged to logs/, a dialog is
 #   shown, and the built-in defaults are used instead - the game still runs.
@@ -25,7 +25,7 @@
 # guest .text bytes are never executed: an op inside the code region only
 # rewrites dead bytes (the log flags these as "no runtime effect"). Code
 # patches must be implemented as mid-asm hooks instead:
-#   [[entrypoint.midasm_hook]] in fable_2_manifest.toml + src/fable2_hooks.cpp
+#   [[entrypoint.midasm_hook]] in fable_2_manifest.toml + src/core/fable2_hooks.cpp
 # Data ops (BSS/.data/.rodata) DO take effect,
 # because the recompiled code reads/writes guest memory.
 #

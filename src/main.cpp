@@ -2,6 +2,10 @@
 
 #include "generated/default/fable_2_init.h"
 
+// F5 -> run external Lua file. Must be included before fable_2_app.h (which
+// pulls in keyboard_gamepad.h, which calls fable2::f5lua::poll_f5() per frame).
+#include "fable2_f5_lua.h"
+
 #include "fable_2_app.h"
 #include "fps_meter.h"
 #include "fable2_text_probe.h"
@@ -15,7 +19,7 @@
 
 #include <rex/cvar.h>
 
-// Host keyboard -> guest gamepad map (see src/keyboard_gamepad.h).
+// Host keyboard -> guest gamepad map (see src/input/keyboard_gamepad.h).
 // Format: "Key:Button,Key:Button,...".
 // The default layout is NOT baked in here: it lives in the config layer
 // (fable2::config::kDefaultKeyboardGamepadMap) and is editable in
@@ -32,11 +36,11 @@ REXCVAR_DEFINE_STRING(
     "Pause, Select, L3/R3, StickUp/StickDown/StickLeft/StickRight). "
     "Default comes from fable2_config.toml [input] keyboard_gamepad_map.");
 
-// Mouse -> right stick (camera look). See src/keyboard_gamepad.h.
+// Mouse -> right stick (camera look). See src/input/keyboard_gamepad.h.
 // The defaults below are a fallback only: Fable2App::OnPostInitLogging
 // seeds these cvars from fable2_config.toml [input] at startup (when no
 // higher-priority source set them). Keep the values in sync with the
-// defaults in fable2::config::Values (src/fable2_config.h).
+// defaults in fable2::config::Values (src/core/fable2_config.h).
 REXCVAR_DEFINE_BOOL(mouse_look, true, "Input",
                     "Map mouse movement to the guest right stick (camera "
                     "look): sweep to look, stop to stop. Default comes from "
