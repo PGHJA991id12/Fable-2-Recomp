@@ -31,11 +31,23 @@ benign rather than novel/unknown.
 
 What's in place now (see `tools/repro/README.md`):
 
-- **Stable hash** — `tools/repro/normalize_pe.py` pins the PE timestamp, CodeView
-  entry timestamp, RSDS PDB GUID, and RSDS PDB path to constants. Wired in as a
-  `POST_BUILD` step on `fable_2` that runs over the staged
-  `fable_2.exe` + all `rex*.dll` / `rexgpu-xenos*.dll`. A rebuild of the same
-  source now yields the same file hash.
+- **Normal export table** — `tools/repro/clean_pe.py` (the `POST_BUILD` step)
+  trims `rexruntime.dll` from ~10,140 exports (the full set
+  `WINDOWS_EXPORT_ALL_SYMBOLS` leaks) to ~3,919: every symbol a consumer
+  actually imports + the whole `rex::` API. The `.def` is regenerated from the
+  *current* consumers each build, and the exported code is untouched (only the
+  export directory is rewritten), so nothing breaks. This removes the
+  "10k-export DLL" profile signal that AV generic heuristics latch onto.
+- **Version resource on the DLLs** — the same step adds a `VS_VERSION_INFO`
+  (company / product / version) to `rexruntime.dll` + `rexgpu-xenos.dll` via
+  `tools/repro/add_version_resource.py`, grafted into their existing `.rsrc`
+  (manifest preserved) *post-hoc* — no SDK rebuild needed. The prebuilt DLLs
+  shipped with only a manifest, which read as "not a real product" on a large
+  unsigned binary.
+- **Stable hash** — the same `POST_BUILD` step pins the PE timestamp, CodeView
+  entry timestamp, RSDS PDB GUID, and RSDS PDB path to constants on every staged
+  `fable_2.exe` + `rex*.dll` / `rexgpu-xenos*.dll`. A rebuild of the same source
+  now yields the same file hash.
 - **Machine-independent `__FILE__`** — `fable_2` / `fable_2_recomp` compile with
   `-ffile-prefix-map` / `-fdebug-prefix-map` so panic/assert paths are relative
   to the repo root (no `D:/projects/...` leakage).
@@ -43,18 +55,40 @@ What's in place now (see `tools/repro/README.md`):
   (`tools/repro/fable2_version.rc`; CMake sets `CMAKE_RC_COMPILER=llvm-rc` in the
   Windows preset, and the `.rc` is only added when an RC compiler is present).
 - **Cleaner imports already** — the current release `rexruntime.dll` no longer
-  statically imports `HID.DLL`/extra SetupAPI (that was on the old build),
-  which was the main "device enumeration" heuristic signal.
+  statically imports `HID.DLL`/extra SetupAPI (that was on the old build).
 
-Still open / optional:
-- **Export-table curation** — *lower priority than originally planned.* The
-  ~10k exports are a real ABI (2,866 `__imp_` Xbox-kernel shims + 2,461 `rex::`
-  API + VMA), not just bloat, so shrinking it risks the recompile. Do it only if
-  it's worth the risk: export the exact consumer union as a `.def`.
-- **Version resource on the DLLs** — rebuild the SDK from
-  `thirdparty/rexglue-sdk-src` with a `VS_VERSION_INFO` on `rexruntime` /
-  `rexgpu-xenos` (prebuilt SDK DLLs lack one).
-- **Population** — ship the stable builds + pro-upload the hash to VirusTotal.
+**Result on VirusTotal:** the host `fable_2.exe` + `rexruntime.dll` went from
+**23/69 to 9/71** flags. The 9 remaining are effectively **one root cause**: a
+BitDefender generic ML heuristic, **`Gen:Variant.Ulise.<hash>`** ("suspicious
+novel PE") + its reskins (Aegis/ALYac/Emsisoft/eScan/GData/VIPRE all run
+BitDefender; Arcabit/CTX use a derived "Ulise" engine), plus one unrelated
+Antiy-AVL hit. None is a real signature — Ulise also fires on benign unsigned
+builds (FreeCAD, llama.cpp, Positron, rust-sdl2, FanControl, ...). It is a
+**novelty + profile** score on an unsigned, never-seen PE, not a behavior
+verdict.
+
+**Key learning:** trimming 6,200 abnormal exports (a real profile change) moved
+the count **zero** — still 9/71 on the new hash. That is proof the score is
+**novelty/unsigned-dominated**, not driven by the profile features we can tweak.
+The profile is now fully normalized (version resource + trimmed exports +
+manifest + no path leakage + standard sections/entropy); nothing further moves a
+*fresh* scan. The count only trends down via population (see below). Current
+stable hashes: `fable_2.exe` `a3799816…`, `rexruntime.dll` `85a5ff8f…`,
+`rexgpu-xenos.dll` `b65d663a…`.
+
+Still open (in priority order):
+1. **Population — the actual fix for the 9.** Ulise is a "seen-it-enough" score;
+   the only way to clear it without a cert is for the stable hash to accumulate
+   benign sightings. Ship the stable builds to real users and/or pro-upload the
+   hash to VirusTotal + a few AV sandboxes. The stable hash makes this work
+   (a shifting hash never accumulates).
+2. **Submit false-positive reports** to BitDefender for the specific stable
+   hash (form: bitdefender.com → "Report an incorrect detection"; attach the
+   VirusTotal link + hash). Because 7 of the 9 share the BitDefender engine, a
+   BD whitelist/fix should take most of them at once; only Antiy-AVL (and
+   possibly Arcabit) would remain.
+3. **Code-sign later** — if a hard trust signal is ever wanted, it layers on top
+   of everything above and would drop the count toward 0–2 on its own.
 
 ## Goals
 

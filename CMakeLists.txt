@@ -309,30 +309,27 @@ if(WIN32)
 endif()
 
 # --- Reproducible / stable-hash post-processing (cert-free AV-clean builds) -
-# Pin the volatile PE bytes (linker timestamp, PDB GUID, PDB path) on the
-# staged binaries so identical source -> identical file hash. A stable hash is
-# what lets an unsigned build accumulate a benign reputation on VirusTotal /
-# AV cloud services instead of looking like a novel unknown file on every
-# rebuild. Idempotent and size-preserving; missing files are skipped. See
-# tools/repro/normalize_pe.py and plans/av-clean-builds.md.
+# Post-build AV-clean hardening (see plans/av-clean-builds.md +
+# tools/repro/clean_pe.py): for the staged release dir it (1) trims the
+# rexruntime export table to the curated set -- the union of every symbol a
+# consumer actually imports plus the whole rex:: public API -- dropping the
+# ~6k std/RTTI/operator/unused-__imp_ symbols WINDOWS_EXPORT_ALL_SYMBOLS leaks
+# (an abnormal profile that feeds AV generic heuristics), and (2) pins the
+# volatile PE bytes (timestamp, PDB GUID, PDB path). Together they make an
+# identical source build to an identical, profile-normal hash that can
+# accumulate a benign AV reputation instead of looking like a novel unknown
+# file on every rebuild. Idempotent; missing files skipped.
 if(WIN32)
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_FOUND)
-        set(_repro_files
-            "$<TARGET_FILE:fable_2>"
-            "$<TARGET_FILE_DIR:fable_2>/rexruntime.dll"
-            "$<TARGET_FILE_DIR:fable_2>/rexgpu-xenos.dll"
-            "$<TARGET_FILE_DIR:fable_2>/rexruntime-vulkan.dll"
-            "$<TARGET_FILE_DIR:fable_2>/rexruntime-d3d12.dll"
-            "$<TARGET_FILE_DIR:fable_2>/rexgpu-xenos-vulkan.dll"
-            "$<TARGET_FILE_DIR:fable_2>/rexgpu-xenos-prebuilt.dll")
         add_custom_command(TARGET fable_2 POST_BUILD
             COMMAND ${Python3_EXECUTABLE}
-                    ${CMAKE_CURRENT_SOURCE_DIR}/tools/repro/normalize_pe.py
-                    ${_repro_files}
-            COMMENT "Normalizing PE metadata (stable-hash build)"
+                    ${CMAKE_CURRENT_SOURCE_DIR}/tools/repro/clean_pe.py
+                    $<TARGET_FILE_DIR:fable_2>
+                    --quiet
+            COMMENT "Trimming exports + normalizing PE (stable, AV-clean build)"
             VERBATIM)
     else()
-        message(STATUS "Python3 not found; skipping stable-hash PE normalization")
+        message(STATUS "Python3 not found; skipping stable-hash PE cleaning")
     endif()
 endif()

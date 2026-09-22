@@ -39,6 +39,15 @@ rebuild.log
 rebuild2.log
 __pycache__/
 
+# --- Build-critical scripts (tracked DESPITE the rules above) -----------------
+# The reproducible/AV-clean build toolset (tools/repro) is invoked by CMake's
+# POST_BUILD and imports across its modules; the recomp-patch and remote-control
+# helpers are invoked by CMake at build time. A fresh clone must have them or the
+# build fails. Everything else matching the rules above stays out of the repo.
+!tools/repro/*.py
+!tools/apply_recomp_patches.py
+!tools/fable2_control.py
+
 # --- Fetched/external toolchain deps (created by tools/setup_sdk*.cmd). -------
 # The tracked files in thirdparty/ (rexglue-sdk-local.patch,
 # rexglue-sdk-submodule-pins.txt, vulkan/, vk_video/) stay in the repo.
