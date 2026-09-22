@@ -194,6 +194,30 @@ if(WIN32 AND CMAKE_BUILD_TYPE STREQUAL "Release")
     endif()
 endif()
 
+# --- Stable-hash hardening: strip the absolute checkout path from __FILE__ --
+# Panic/assert messages embed __FILE__. Map the source tree out so the path is
+# relative to the repo root, making the binary hash independent of where the
+# tree is checked out (part of the cert-free reproducible-build strategy).
+if(WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(fable_2 PRIVATE
+        -ffile-prefix-map=${CMAKE_CURRENT_SOURCE_DIR}=
+        -fdebug-prefix-map=${CMAKE_CURRENT_SOURCE_DIR}=
+        -fdebug-prefix-map=${CMAKE_CURRENT_BINARY_DIR}=.)
+    if(TARGET fable_2_recomp)
+        target_compile_options(fable_2_recomp PRIVATE
+            -ffile-prefix-map=${CMAKE_CURRENT_SOURCE_DIR}=
+            -fdebug-prefix-map=${CMAKE_CURRENT_SOURCE_DIR}=
+            -fdebug-prefix-map=${CMAKE_CURRENT_BINARY_DIR}=.)
+    endif()
+endif()
+
+# --- VS_VERSION_INFO (professional identity, stable across builds) --------
+# Add a well-formed version resource to the host exe. Skipped (not fatal) when
+# no resource compiler is configured (e.g. a bare MSVC-only preset).
+if(WIN32 AND CMAKE_RC_COMPILER AND TARGET fable_2)
+    target_sources(fable_2 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tools/repro/fable2_version.rc)
+endif()
+
 # --- Vulkan renderer: Stage 2 (source-built plugin, swappable at launch) --
 # The prebuilt plugin above (GPU_PLUGINS xenos) is D3D12-only. The Vulkan
 # backend is built from the (unmodified) SDK source via
@@ -282,4 +306,33 @@ if(WIN32)
               ${FABLE2_SDK_ROOT}/bin/rexruntime.dll
               $<TARGET_FILE_DIR:fable_2_vulkan_smoke>
     )
+endif()
+
+# --- Reproducible / stable-hash post-processing (cert-free AV-clean builds) -
+# Pin the volatile PE bytes (linker timestamp, PDB GUID, PDB path) on the
+# staged binaries so identical source -> identical file hash. A stable hash is
+# what lets an unsigned build accumulate a benign reputation on VirusTotal /
+# AV cloud services instead of looking like a novel unknown file on every
+# rebuild. Idempotent and size-preserving; missing files are skipped. See
+# tools/repro/normalize_pe.py and plans/av-clean-builds.md.
+if(WIN32)
+    find_package(Python3 COMPONENTS Interpreter QUIET)
+    if(Python3_FOUND)
+        set(_repro_files
+            "$<TARGET_FILE:fable_2>"
+            "$<TARGET_FILE_DIR:fable_2>/rexruntime.dll"
+            "$<TARGET_FILE_DIR:fable_2>/rexgpu-xenos.dll"
+            "$<TARGET_FILE_DIR:fable_2>/rexruntime-vulkan.dll"
+            "$<TARGET_FILE_DIR:fable_2>/rexruntime-d3d12.dll"
+            "$<TARGET_FILE_DIR:fable_2>/rexgpu-xenos-vulkan.dll"
+            "$<TARGET_FILE_DIR:fable_2>/rexgpu-xenos-prebuilt.dll")
+        add_custom_command(TARGET fable_2 POST_BUILD
+            COMMAND ${Python3_EXECUTABLE}
+                    ${CMAKE_CURRENT_SOURCE_DIR}/tools/repro/normalize_pe.py
+                    ${_repro_files}
+            COMMENT "Normalizing PE metadata (stable-hash build)"
+            VERBATIM)
+    else()
+        message(STATUS "Python3 not found; skipping stable-hash PE normalization")
+    endif()
 endif()
